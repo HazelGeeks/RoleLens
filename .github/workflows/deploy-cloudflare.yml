@@ -1,4 +1,4 @@
-name: Deploy Cloudflare Pages
+name: Deploy Cloudflare Workers
 
 on:
   push:
@@ -16,8 +16,6 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,13 +32,9 @@ jobs:
       - name: Prisma generate
         run: npm run db:generate
 
-      - name: Build for Cloudflare
-        run: npm run cf:build
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-      - name: Deploy to Cloudflare Pages
+      - name: Build and deploy to Cloudflare Workers
         run: npm run cf:deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

@@ -74,10 +74,11 @@ Open `http://localhost:3000`.
 - `npm run db:generate` - generate Prisma client
 - `npm run db:push` - sync Prisma schema to DB
 - `npm run db:seed` - seed sample data
-- `npm run cf:build` - build Cloudflare Pages output
-- `npm run cf:deploy` - deploy static output to Cloudflare Pages
+- `npm run cf:build` - build OpenNext output for Cloudflare Workers
+- `npm run cf:preview` - local preview in Cloudflare runtime
+- `npm run cf:deploy` - deploy to Cloudflare Workers
 
-## Cloudflare Deployment + GitHub Actions
+## Cloudflare Workers Deployment + GitHub Actions
 
 This repo includes two workflows:
 
@@ -86,7 +87,7 @@ This repo includes two workflows:
   - Executes `db:generate`, `lint`, `build`
 - `.github/workflows/deploy-cloudflare.yml`
   - Runs on push to `main` (and manual trigger)
-  - Builds Cloudflare output and deploys to Pages
+  - Builds OpenNext output and deploys to Cloudflare Workers
 
 ### Required GitHub Secrets
 
@@ -94,15 +95,14 @@ Set the following in your repository secrets:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_PROJECT_NAME`
 - `DATABASE_URL`
 
 ### Recommended Cloudflare Setup
 
-1. Create a Cloudflare Pages project first (same name as `CLOUDFLARE_PROJECT_NAME`).
-2. Use `main` as production branch.
-3. Let GitHub Actions perform actual deploys via Wrangler.
-4. Manage runtime secrets (`DATABASE_URL`) in both GitHub and Cloudflare project settings.
+1. Create a Cloudflare Workers service with the same name as `wrangler.jsonc` (`rolelens`).
+2. Use `main` as production branch and let GitHub Actions run deployment.
+3. Store `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `DATABASE_URL` in GitHub Secrets.
+4. Keep runtime secrets synchronized in Cloudflare dashboard as needed.
 
 ## Project Structure
 
@@ -165,3 +165,4 @@ This is intentionally simple and transparent for MVP.
 
 - MVP intentionally avoids fragile LinkedIn/Indeed scraping.
 - Focus is reliable capture + analysis + tracking you can use daily.
+- OpenNext on Cloudflare Workers is used instead of `next-on-pages`, so Edge-only constraints are avoided.
