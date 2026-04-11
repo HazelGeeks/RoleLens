@@ -97,14 +97,14 @@ const columns: ColumnDef<JobRow>[] = [
   {
     accessorKey: "id",
     header: "",
-    cell: ({ row }) => (
-      <Link
-        href={`/jobs/${row.original.id}`}
-        className={cn(buttonVariants({ size: "sm", variant: "secondary" }), "inline-flex")}
-      >
-        Detail
-      </Link>
-    ),
+    cell: ({ row }) => {
+      const encoded = encodeURIComponent(row.original.id);
+      return (
+        <Link href={`/jobs?id=${encoded}`} className={cn(buttonVariants({ size: "sm", variant: "secondary" }), "inline-flex")}>
+          Detail
+        </Link>
+      );
+    },
   },
 ];
 

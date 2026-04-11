@@ -1,24 +1,40 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getJobById } from "@/lib/jobs";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
-import { AddNoteForm } from "@/components/jobs/add-note-form";
-import { StatusUpdateForm } from "@/components/jobs/status-update-form";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { statusLabels, statusOptions, sourceLabels } from "@/lib/constants";
 import { formatCurrency, prettifyEnum, statusBadgeClass } from "@/lib/presentation";
-import { sourceLabels, statusLabels } from "@/lib/constants";
+import { addNote, getJobById, updateStatus } from "@/lib/local-jobs";
 
-export const dynamic = "force-dynamic";
+export function JobDetailClient() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") || "";
+  const [newNote, setNewNote] = useState("");
+  const [status, setStatus] = useState<(typeof statusOptions)[number] | "">("");
 
-export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const job = await getJobById(id);
+  const job = useMemo(() => getJobById(id), [id]);
 
   if (!job) {
-    notFound();
+    return (
+      <div className="space-y-3">
+        <h2 className="text-2xl font-semibold">Job not found</h2>
+        <p className="text-sm text-slate-500">This item may not exist in local storage.</p>
+        <Link href="/" className="text-blue-600 hover:underline">
+          Back to list
+        </Link>
+      </div>
+    );
   }
 
-  const breakdown = (job.fitBreakdown as Record<string, number> | null) ?? null;
+  const breakdown = job.fitBreakdown ?? null;
 
   return (
     <div className="space-y-4">
@@ -45,9 +61,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           <div>
             <p className="text-slate-500">Salary Range</p>
             <p>
-              {formatCurrency(job.salaryMin, job.salaryCurrency || "CAD")} -
-              {" "}
-              {formatCurrency(job.salaryMax, job.salaryCurrency || "CAD")}
+              {formatCurrency(job.salaryMin, job.salaryCurrency || "CAD")} - {formatCurrency(job.salaryMax, job.salaryCurrency || "CAD")}
             </p>
           </div>
           <div>
@@ -65,7 +79,28 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             )}
           </div>
         </div>
-        <StatusUpdateForm jobId={job.id} currentStatus={job.status} />
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="w-full sm:max-w-[220px]">
+            <label className="mb-1 block text-sm font-medium">Update Status</label>
+            <Select value={status || job.status} onChange={(e) => setStatus(e.target.value as (typeof statusOptions)[number])}>
+              {statusOptions.map((item) => (
+                <option key={item} value={item}>
+                  {statusLabels[item]}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              updateStatus(job.id, (status || job.status) as (typeof statusOptions)[number]);
+              router.refresh();
+            }}
+          >
+            Save
+          </Button>
+        </div>
       </Card>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -96,7 +131,21 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       <Card className="space-y-3">
         <CardTitle>Notes</CardTitle>
         <CardDescription>Track application strategy, blockers, and interview prep notes.</CardDescription>
-        <AddNoteForm jobId={job.id} />
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">Add Note</label>
+          <Textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} className="min-h-[100px]" />
+          <Button
+            variant="secondary"
+            onClick={() => {
+              if (!newNote.trim()) return;
+              addNote(job.id, newNote.trim());
+              setNewNote("");
+              router.refresh();
+            }}
+          >
+            Add Note
+          </Button>
+        </div>
         <div className="space-y-2">
           {job.notes.length === 0 ? (
             <p className="text-sm text-slate-500">No notes yet.</p>

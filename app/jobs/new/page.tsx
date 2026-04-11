@@ -1,6 +1,8 @@
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { NewJobClient } from "@/components/jobs/new-job-client";
 
+export const runtime = "edge";
+
 export default function NewJobPage() {
   return (
     <div className="space-y-4">

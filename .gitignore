@@ -45,6 +45,7 @@ yarn-error.log*
 .wrangler/
 .dev.vars
 .open-next/
+.vercel/
 
 # turbopack
 .turbo

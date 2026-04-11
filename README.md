@@ -1,26 +1,27 @@
-# RoleLens MVP
+# RoleLens MVP (Pages Mode)
 
-RoleLens is a personal web app for frontend job hunting in Canada.
-It prioritizes practical MVP workflows: save job postings, structure data, analyze demand signals, and track application status.
+RoleLens is a personal frontend-job tracking app focused on manual capture, structured storage, analysis, and status tracking.
 
-## Tech Stack
+This branch is configured for **Cloudflare Pages deployment** (`rolelens.pages.dev`).
 
-- Next.js 15 (App Router)
-- TypeScript
-- Tailwind CSS
-- Supabase Postgres (or any PostgreSQL)
-- Prisma
-- Zod + React Hook Form
-- TanStack Table
-- Recharts
+## Current Architecture (Pages-compatible)
 
-## MVP Features
+- Next.js 15 + App Router
+- TypeScript + Tailwind CSS
+- Client-side local persistence (`localStorage`)
+- TanStack Table + Recharts
 
-1. Save job posting (manual input + URL + raw text)
-2. List page with search/filter/sort and status view
-3. Job detail page with notes, extracted skills, fit score, status updates
-4. Dashboard analytics (skills, source, remote type, seniority)
-5. Application status tracker:
+Why this mode exists:
+- Cloudflare Pages + `next-on-pages` is Edge-runtime oriented.
+- To ensure stable Pages deployment, this mode avoids Node-only server runtime patterns.
+
+## Features
+
+1. Save job posting (manual input + URL + text)
+2. List page with search/filter/sort
+3. Detail page with notes and status updates
+4. Dashboard analytics (skills/source/remote/seniority)
+5. Status tracking pipeline:
    - `SAVED`
    - `REVIEWING`
    - `READY_TO_APPLY`
@@ -29,140 +30,64 @@ It prioritizes practical MVP workflows: save job postings, structure data, analy
    - `REJECTED`
    - `CLOSED`
 
-## Local Setup
+## Important Tradeoff
 
-1) Install dependencies
+- Data is stored in browser localStorage in this mode.
+- Data is device/browser specific.
+- Clearing browser storage removes saved postings.
+
+## Local Development
 
 ```bash
 npm install
-```
-
-2) Configure environment
-
-```bash
-cp .env.example .env
-```
-
-Set `DATABASE_URL` to your PostgreSQL/Supabase connection string.
-
-3) Generate Prisma client and sync schema
-
-```bash
-npm run db:generate
-npm run db:push
-```
-
-4) Seed sample data
-
-```bash
-npm run db:seed
-```
-
-5) Run app
-
-```bash
 npm run dev
 ```
 
 Open `http://localhost:3000`.
 
-## Available Commands
+## Scripts
 
-- `npm run dev` - start dev server
+- `npm run dev` - local dev
 - `npm run build` - production build
 - `npm run lint` - lint
-- `npm run db:generate` - generate Prisma client
-- `npm run db:push` - sync Prisma schema to DB
-- `npm run db:seed` - seed sample data
-- `npm run cf:build` - build OpenNext output for Cloudflare Workers
-- `npm run cf:preview` - local preview in Cloudflare runtime
-- `npm run cf:deploy` - deploy to Cloudflare Workers
+- `npm run cf:build` - Cloudflare Pages output build
+- `npm run cf:deploy` - deploy to Cloudflare Pages
 
-## Cloudflare Workers Deployment + GitHub Actions
+## Cloudflare Pages Deployment
 
-This repo includes two workflows:
+Workflow: `.github/workflows/deploy-cloudflare.yml`
 
-- `.github/workflows/ci.yml`
-  - Runs on PR and push to `main`
-  - Executes `db:generate`, `lint`, `build`
-- `.github/workflows/deploy-cloudflare.yml`
-  - Runs on push to `main` (and manual trigger)
-  - Builds OpenNext output and deploys to Cloudflare Workers
-
-### Required GitHub Secrets
-
-Set the following in your repository secrets:
-
+Required GitHub Secrets:
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
-- `DATABASE_URL`
+- `CLOUDFLARE_PROJECT_NAME`
 
-### Recommended Cloudflare Setup
+Deploy target should be your Pages project, e.g. `rolelens`.
 
-1. Create a Cloudflare Workers service with the same name as `wrangler.jsonc` (`rolelens`).
-2. Use `main` as production branch and let GitHub Actions run deployment.
-3. Store `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `DATABASE_URL` in GitHub Secrets.
-4. Keep runtime secrets synchronized in Cloudflare dashboard as needed.
+Important:
+- `CLOUDFLARE_PROJECT_NAME` must match the Cloudflare Pages project name.
+- If your project URL is `https://rolelens.pages.dev`, project name should be `rolelens`.
 
 ## Project Structure
 
 ```text
 app/
-  dashboard/page.tsx        # analytics dashboard
-  jobs/new/page.tsx         # save posting form
-  jobs/[id]/page.tsx        # job detail + notes + status update
-  api/jobs/route.ts         # POST create job
-  page.tsx                  # listing/search/filter
-
-actions/
-  jobs.ts                   # server actions for status/note/create
+  page.tsx                # list page (client-driven)
+  jobs/new/page.tsx       # save form
+  jobs/page.tsx           # detail page via ?id=
+  dashboard/page.tsx      # analytics dashboard
 
 components/
-  dashboard/charts.tsx      # recharts wrappers
-  jobs/*                    # table/forms/status/note components
-  ui/*                      # lightweight UI primitives
+  jobs/*                  # form/table/detail clients
+  dashboard/*             # chart clients
+  ui/*                    # UI primitives
 
 lib/
-  fit-score.ts              # fit score and skill extraction logic
-  jobs.ts                   # query/aggregation functions
-  prisma.ts                 # Prisma singleton client
-  validators.ts             # zod schemas
-
-prisma/
-  schema.prisma
-  seed.ts
+  local-jobs.ts           # localStorage data layer
+  fit-score.ts            # score + skill extraction
+  validators.ts           # zod forms
 ```
 
-## Fit Score Logic (MVP)
+## Next Step (if you want DB-backed production)
 
-RoleLens computes a rule-based fit score from job title/description:
-
-- React fit
-- TypeScript fit
-- Next.js fit
-- Frontend fit
-- Experience fit (inferred by seniority)
-- Work authorization risk fit
-- Weighted overall fit
-
-This is intentionally simple and transparent for MVP.
-
-## Expansion Points
-
-1. Parser adapters per source:
-   - Greenhouse
-   - Lever
-   - Ashby
-2. Better extraction:
-   - tokenizer/NER
-   - LLM-assisted structured extraction
-3. Authentication and multi-user workspace
-4. Browser extension for one-click save
-5. Reminder system for stale applications
-6. More analytics (conversion by status, interview ratio, timeline trend)
-
-## Notes
-
-- MVP intentionally avoids fragile LinkedIn/Indeed scraping.
-- Focus is reliable capture + analysis + tracking you can use daily.
-- OpenNext on Cloudflare Workers is used instead of `next-on-pages`, so Edge-only constraints are avoided.
+If you want persistent cloud DB + multi-device sync, switch to Workers/OpenNext mode again (or migrate to an Edge-compatible DB/data access strategy).
