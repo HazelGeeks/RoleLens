@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobSource {
+  LINKEDIN
+  INDEED
+  COMPANY_SITE
+  MANUAL
+}
+
+enum RemoteType {
+  REMOTE
+  HYBRID
+  ONSITE
+  UNKNOWN
+}
+
+enum JobStatus {
+  SAVED
+  REVIEWING
+  READY_TO_APPLY
+  APPLIED
+  INTERVIEW
+  REJECTED
+  CLOSED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+  INTERNSHIP
+  FREELANCE
+  OTHER
+}
+
+model JobPosting {
+  id                    String         @id @default(cuid())
+  source                JobSource
+  sourceUrl             String?
+  company               String
+  title                 String
+  location              String?
+  remoteType            RemoteType     @default(UNKNOWN)
+  employmentType        EmploymentType?
+  salaryMin             Int?
+  salaryMax             Int?
+  salaryCurrency        String?        @default("CAD")
+  seniority             String?
+  workAuthorizationNote String?
+  descriptionRaw        String
+  extractedSkills       String[]       @default([])
+  fitScore              Int?
+  fitBreakdown          Json?
+  status                JobStatus      @default(SAVED)
+  parserName            String?
+  parserVersion         String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  notes JobNote[]
+  tags  JobPostingTag[]
+
+  @@index([status])
+  @@index([source])
+  @@index([company])
+  @@index([createdAt])
+}
+
+model JobNote {
+  id           String     @id @default(cuid())
+  jobPostingId String
+  content      String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  posting      JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+
+  @@index([jobPostingId])
+}
+
+model JobTag {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  postings  JobPostingTag[]
+}
+
+model JobPostingTag {
+  id           String     @id @default(cuid())
+  jobPostingId String
+  jobTagId     String
+  posting      JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  tag          JobTag     @relation(fields: [jobTagId], references: [id], onDelete: Cascade)
+
+  @@unique([jobPostingId, jobTagId])
+  @@index([jobTagId])
+  @@index([jobPostingId])
+}
