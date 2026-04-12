@@ -95,6 +95,32 @@ Set these for higher-precision targeting:
 - Data is device/browser specific.
 - Clearing browser storage removes saved postings.
 
+## Persistence PoC (Issue #2)
+
+To prepare multi-device sync migration, this repository now includes a persistence PoC API.
+
+PoC endpoints:
+
+- `GET /api/persistence/jobs`
+- `POST /api/persistence/jobs`
+- `GET /api/persistence/jobs/:id`
+- `PATCH /api/persistence/jobs/:id`
+
+Required request headers:
+
+- `x-rolelens-user` (required user scope)
+- `x-rolelens-device` (recommended device id)
+
+Optional hardening:
+
+- `PERSISTENCE_POC_TOKEN` (if set, requires `Authorization: Bearer <token>`)
+
+Design and planning docs:
+
+- `docs/product/rolelens-persistence-requirements.md`
+- `docs/decisions/persistent-storage-architecture.md`
+- `docs/product/rolelens-multidevice-journey.md`
+
 ## Local Development
 
 ```bash
