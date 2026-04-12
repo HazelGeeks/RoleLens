@@ -9,67 +9,19 @@ import {
   upsertJob,
   type LocalJobsUpdatedDetail,
 } from "@/lib/local-jobs";
+import {
+  installMockWindow,
+  uninstallMockWindow,
+  type MemoryStorageSeed,
+} from "@/lib/test-utils/mock-window-storage";
 
-type MemoryStorageSeed = Record<string, string>;
-
-function createMemoryStorage(seed: MemoryStorageSeed = {}): Storage {
-  const map = new Map(Object.entries(seed));
-
-  return {
-    get length() {
-      return map.size;
-    },
-    clear() {
-      map.clear();
-    },
-    getItem(key: string) {
-      return map.has(key) ? map.get(key)! : null;
-    },
-    key(index: number) {
-      return Array.from(map.keys())[index] ?? null;
-    },
-    removeItem(key: string) {
-      map.delete(key);
-    },
-    setItem(key: string, value: string) {
-      map.set(key, value);
-    },
-  };
-}
-
-function installWindow(seed: MemoryStorageSeed = {}) {
-  const localStorage = createMemoryStorage(seed);
+function setupWindow(seed: MemoryStorageSeed = {}) {
   const dispatchEvent = vi.fn(() => true);
-
-  const fakeWindow = {
-    localStorage,
+  const { localStorage } = installMockWindow(seed, {
     dispatchEvent,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
-  } as unknown as Window & typeof globalThis;
-
-  Object.defineProperty(globalThis, "window", {
-    value: fakeWindow,
-    writable: true,
-    configurable: true,
   });
-
-  if (typeof globalThis.CustomEvent === "undefined") {
-    class CustomEventPolyfill<T = unknown> extends Event {
-      detail: T;
-
-      constructor(type: string, params?: CustomEventInit<T>) {
-        super(type, params);
-        this.detail = params?.detail as T;
-      }
-    }
-
-    Object.defineProperty(globalThis, "CustomEvent", {
-      value: CustomEventPolyfill,
-      writable: true,
-      configurable: true,
-    });
-  }
 
   return {
     localStorage,
@@ -79,12 +31,12 @@ function installWindow(seed: MemoryStorageSeed = {}) {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  delete (globalThis as { window?: unknown }).window;
+  uninstallMockWindow();
 });
 
 describe("local jobs reliability", () => {
   it("initializes with an empty array instead of sample data", () => {
-    const { localStorage } = installWindow();
+    const { localStorage } = setupWindow();
 
     const jobs = getJobsFromStorage();
 
@@ -93,7 +45,7 @@ describe("local jobs reliability", () => {
   });
 
   it("repairs malformed storage payloads", () => {
-    const { localStorage } = installWindow({
+    const { localStorage } = setupWindow({
       [LOCAL_JOBS_STORAGE_KEY]: "{not-json",
     });
 
@@ -104,7 +56,7 @@ describe("local jobs reliability", () => {
   });
 
   it("repairs non-array storage payloads", () => {
-    const { localStorage } = installWindow({
+    const { localStorage } = setupWindow({
       [LOCAL_JOBS_STORAGE_KEY]: JSON.stringify({ invalid: true }),
     });
 
@@ -115,7 +67,7 @@ describe("local jobs reliability", () => {
   });
 
   it("dispatches update events for save/status/note/follow-up mutations", () => {
-    const { dispatchEvent } = installWindow();
+    const { dispatchEvent } = setupWindow();
 
     const now = new Date().toISOString();
     upsertJob({

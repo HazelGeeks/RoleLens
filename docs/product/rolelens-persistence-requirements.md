@@ -8,12 +8,12 @@
 
 ## 2. Storage Option Comparison
 
-| Option | Estimated Cost | Latency (Korea/Canada users) | Operational Complexity | Vendor Lock-in | Notes |
-| --- | --- | --- | --- | --- | --- |
-| Cloudflare D1 | Low to medium | Low for edge-adjacent reads, medium for writes | Medium | Medium | SQL query flexibility, transactional updates, good for canonical records |
-| Cloudflare KV | Low | Very low reads, eventual consistency writes | Low | Medium | Best for cache/materialized view, not ideal as single source of truth |
-| Supabase Postgres | Medium | Medium (region dependent) | Medium | Medium | Strong relational model and auth integrations, but additional regional tuning required |
-| Firebase Firestore | Medium to high | Low to medium | Low to medium | High | Fast start, but query/cost model and lock-in concerns for long-term portability |
+| Option             | Estimated Cost | Latency (Korea/Canada users)                   | Operational Complexity | Vendor Lock-in | Notes                                                                                  |
+| ------------------ | -------------- | ---------------------------------------------- | ---------------------- | -------------- | -------------------------------------------------------------------------------------- |
+| Cloudflare D1      | Low to medium  | Low for edge-adjacent reads, medium for writes | Medium                 | Medium         | SQL query flexibility, transactional updates, good for canonical records               |
+| Cloudflare KV      | Low            | Very low reads, eventual consistency writes    | Low                    | Medium         | Best for cache/materialized view, not ideal as single source of truth                  |
+| Supabase Postgres  | Medium         | Medium (region dependent)                      | Medium                 | Medium         | Strong relational model and auth integrations, but additional regional tuning required |
+| Firebase Firestore | Medium to high | Low to medium                                  | Low to medium          | High           | Fast start, but query/cost model and lock-in concerns for long-term portability        |
 
 Decision for PoC and execution plan:
 
@@ -25,23 +25,23 @@ Decision for PoC and execution plan:
 
 Entity: PersistentJob
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| id | string(uuid) | yes | Server-issued job id |
-| userId | string | yes | Personal user scope key |
-| company | string | yes | Company name |
-| title | string | yes | Role title |
-| location | string | no | Human-readable location |
-| sourceUrl | string(url) | no | External posting url |
-| status | enum(JobStatus) | yes | Saved to closed lifecycle status |
-| nextAction | string | no | Next explicit action item |
-| followUpDate | YYYY-MM-DD | no | Follow-up target date |
-| tags | string[] | yes | Search/filter metadata |
-| notes | array(note) | yes | Time-ordered notes |
-| version | number | yes | Incrementing record version for conflict control |
-| createdAt | ISO timestamp | yes | Creation time |
-| updatedAt | ISO timestamp | yes | Last updated time |
-| updatedByDevice | string | yes | Device id that produced latest mutation |
+| Field           | Type            | Required | Description                                      |
+| --------------- | --------------- | -------- | ------------------------------------------------ |
+| id              | string(uuid)    | yes      | Server-issued job id                             |
+| userId          | string          | yes      | Personal user scope key                          |
+| company         | string          | yes      | Company name                                     |
+| title           | string          | yes      | Role title                                       |
+| location        | string          | no       | Human-readable location                          |
+| sourceUrl       | string(url)     | no       | External posting url                             |
+| status          | enum(JobStatus) | yes      | Saved to closed lifecycle status                 |
+| nextAction      | string          | no       | Next explicit action item                        |
+| followUpDate    | YYYY-MM-DD      | no       | Follow-up target date                            |
+| tags            | string[]        | yes      | Search/filter metadata                           |
+| notes           | array(note)     | yes      | Time-ordered notes                               |
+| version         | number          | yes      | Incrementing record version for conflict control |
+| createdAt       | ISO timestamp   | yes      | Creation time                                    |
+| updatedAt       | ISO timestamp   | yes      | Last updated time                                |
+| updatedByDevice | string          | yes      | Device id that produced latest mutation          |
 
 Entity: PersistentJobNote
 

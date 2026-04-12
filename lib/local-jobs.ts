@@ -122,7 +122,10 @@ function sanitizeDateOnly(value: string | undefined) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
 }
 
-function dispatchJobsUpdated(reason: LocalJobsUpdatedReason, totalJobs: number) {
+function dispatchJobsUpdated(
+  reason: LocalJobsUpdatedReason,
+  totalJobs: number,
+) {
   if (typeof window === "undefined") return;
 
   window.dispatchEvent(

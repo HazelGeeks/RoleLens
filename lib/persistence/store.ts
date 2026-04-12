@@ -76,7 +76,9 @@ function hasOwn<T extends object>(value: T, key: string) {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
 
-export async function listPersistentJobs(userId: string): Promise<PersistentJob[]> {
+export async function listPersistentJobs(
+  userId: string,
+): Promise<PersistentJob[]> {
   const bucket = getUserBucket(userId);
   return Array.from(bucket.values())
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -164,10 +166,16 @@ export async function patchPersistentJob(
   let next = clone(current);
 
   if (args.operation.op === "update") {
-    if (hasOwn(args.operation.changes, "company") && args.operation.changes.company) {
+    if (
+      hasOwn(args.operation.changes, "company") &&
+      args.operation.changes.company
+    ) {
       next.company = args.operation.changes.company;
     }
-    if (hasOwn(args.operation.changes, "title") && args.operation.changes.title) {
+    if (
+      hasOwn(args.operation.changes, "title") &&
+      args.operation.changes.title
+    ) {
       next.title = args.operation.changes.title;
     }
     if (hasOwn(args.operation.changes, "location")) {

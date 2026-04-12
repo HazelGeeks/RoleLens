@@ -3,42 +3,27 @@ import { statusOptions } from "@/lib/constants";
 
 const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
 
-const optionalTrimmedText = z.preprocess(
-  (value) => {
-    if (value == null) return undefined;
-    if (typeof value !== "string") return value;
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  },
-  z.string().min(1).optional(),
-);
+const optionalTrimmedText = z.preprocess((value) => {
+  if (value == null) return undefined;
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}, z.string().min(1).optional());
 
-const optionalUrl = z.preprocess(
-  (value) => {
-    if (value == null) return undefined;
-    if (typeof value !== "string") return value;
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  },
-  z.string().url().optional(),
-);
+const optionalUrl = z.preprocess((value) => {
+  if (value == null) return undefined;
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}, z.string().url().optional());
 
-const optionalDate = z.preprocess(
-  (value) => {
-    if (value == null || value === "") return undefined;
-    if (typeof value !== "string") return value;
-    return value.trim();
-  },
-  z
-    .string()
-    .regex(dateOnlyRegex, "Date format must be YYYY-MM-DD")
-    .optional(),
-);
+const optionalDate = z.preprocess((value) => {
+  if (value == null || value === "") return undefined;
+  if (typeof value !== "string") return value;
+  return value.trim();
+}, z.string().regex(dateOnlyRegex, "Date format must be YYYY-MM-DD").optional());
 
-const tagsSchema = z
-  .array(z.string().trim().min(1).max(32))
-  .max(20)
-  .optional();
+const tagsSchema = z.array(z.string().trim().min(1).max(32)).max(20).optional();
 
 export const createPersistentJobSchema = z.object({
   company: z.string().trim().min(2, "Company is required"),
@@ -95,5 +80,9 @@ export const patchPersistentJobSchema = z.discriminatedUnion("op", [
   }),
 ]);
 
-export type CreatePersistentJobPayload = z.infer<typeof createPersistentJobSchema>;
-export type PatchPersistentJobPayload = z.infer<typeof patchPersistentJobSchema>;
+export type CreatePersistentJobPayload = z.infer<
+  typeof createPersistentJobSchema
+>;
+export type PatchPersistentJobPayload = z.infer<
+  typeof patchPersistentJobSchema
+>;

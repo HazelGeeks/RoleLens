@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import {
@@ -9,13 +9,9 @@ import {
   SkillBarChart,
   SourcePieChart,
 } from "@/components/dashboard/charts";
-import {
-  getJobsFromStorage,
-  LOCAL_JOBS_STORAGE_KEY,
-  LOCAL_JOBS_UPDATED_EVENT,
-} from "@/lib/local-jobs";
 import { prettifyEnum } from "@/lib/presentation";
 import { statusLabels } from "@/lib/constants";
+import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
 
 function countMapToArray(input: Record<string, number>) {
   return Object.entries(input).map(([name, value]) => ({
@@ -25,33 +21,7 @@ function countMapToArray(input: Record<string, number>) {
 }
 
 export function DashboardClient() {
-  const [jobs, setJobs] = useState(() => getJobsFromStorage());
-
-  useEffect(() => {
-    const handleJobsUpdated = () => {
-      setJobs(getJobsFromStorage());
-    };
-
-    const handleStorageEvent = (event: StorageEvent) => {
-      if (event.key === LOCAL_JOBS_STORAGE_KEY) {
-        handleJobsUpdated();
-      }
-    };
-
-    window.addEventListener(
-      LOCAL_JOBS_UPDATED_EVENT,
-      handleJobsUpdated as EventListener,
-    );
-    window.addEventListener("storage", handleStorageEvent);
-
-    return () => {
-      window.removeEventListener(
-        LOCAL_JOBS_UPDATED_EVENT,
-        handleJobsUpdated as EventListener,
-      );
-      window.removeEventListener("storage", handleStorageEvent);
-    };
-  }, []);
+  const { jobs } = useLiveLocalJobs();
 
   const stats = useMemo(() => {
     const statusCounts: Record<string, number> = {};

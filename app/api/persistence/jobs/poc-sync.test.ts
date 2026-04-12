@@ -36,15 +36,18 @@ describe("/api/persistence/jobs PoC sync", () => {
 
   it("supports create and read across two devices for the same user", async () => {
     const deviceAHeaders = buildHeaders("user-alpha", "device-a");
-    const createRequest = new Request("https://rolelens.pages.dev/api/persistence/jobs", {
-      method: "POST",
-      headers: deviceAHeaders,
-      body: JSON.stringify({
-        company: "Figma",
-        title: "Frontend Engineer",
-        status: "SAVED",
-      }),
-    });
+    const createRequest = new Request(
+      "https://rolelens.pages.dev/api/persistence/jobs",
+      {
+        method: "POST",
+        headers: deviceAHeaders,
+        body: JSON.stringify({
+          company: "Figma",
+          title: "Frontend Engineer",
+          status: "SAVED",
+        }),
+      },
+    );
 
     const createdResponse = await POST(createRequest);
     const createdPayload = (await createdResponse.json()) as {

@@ -126,17 +126,24 @@ Design and planning docs:
 RoleLens now prioritizes trustworthy local data behavior:
 
 1. Empty-first initialization:
-  - no automatic sample posting injection
-  - first run initializes storage with []
+
+- no automatic sample posting injection
+- first run initializes storage with []
+
 2. Corruption recovery:
-  - malformed/non-array localStorage payloads are repaired to []
+
+- malformed/non-array localStorage payloads are repaired to []
+
 3. Freshness updates:
-  - save/status/note/follow-up/sync mutations emit update events
-  - Jobs/Dashboard views refresh from latest local data without browser reload
+
+- save/status/note/follow-up/sync mutations emit update events
+- Jobs/Dashboard views refresh from latest local data without browser reload
+
 4. Sync observability:
-  - last sync timestamp
-  - source-level success/failure counts
-  - source-level error text and recovery guidance
+
+- last sync timestamp
+- source-level success/failure counts
+- source-level error text and recovery guidance
 
 Issue #3 docs:
 

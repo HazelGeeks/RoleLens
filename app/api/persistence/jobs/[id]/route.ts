@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { authorizePersistenceRequest } from "@/lib/persistence/auth";
-import {
-  getPersistentJob,
-  patchPersistentJob,
-} from "@/lib/persistence/store";
+import { getPersistentJob, patchPersistentJob } from "@/lib/persistence/store";
 import { patchPersistentJobSchema } from "@/lib/persistence/validators";
 
 export const runtime = "edge";
