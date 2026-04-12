@@ -34,11 +34,29 @@ export function NewJobClient() {
       seniority: values.seniority || undefined,
       workAuthorizationNote: values.workAuthorizationNote || undefined,
       descriptionRaw: values.descriptionRaw,
-      extractedSkills: Array.from(new Set(extractSkills(values.descriptionRaw))),
+      extractedSkills: Array.from(
+        new Set(extractSkills(values.descriptionRaw)),
+      ),
       fitScore: fitBreakdown.overall,
       fitBreakdown,
       status: values.status,
-      tags: values.tags ? values.tags.split(",").map((tag) => tag.trim()).filter(Boolean) : [],
+      nextAction: values.nextAction || undefined,
+      followUpDate: values.followUpDate || undefined,
+      lastStatusChangedAt: now,
+      statusHistory: [
+        {
+          id: crypto.randomUUID(),
+          status: values.status,
+          changedAt: now,
+          note: "Initial status",
+        },
+      ],
+      tags: values.tags
+        ? values.tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+        : [],
       notes: values.notes
         ? [
             {

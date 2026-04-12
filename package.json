@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "cf:build": "next build && npx @cloudflare/next-on-pages@1",
     "cf:deploy": "wrangler pages deploy .vercel/output/static --project-name=$CLOUDFLARE_PROJECT_NAME"
   },
@@ -37,6 +39,7 @@
     "eslint-config-next": "15.5.2",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vitest": "^3.2.4",
     "wrangler": "^4.81.1"
   }
 }

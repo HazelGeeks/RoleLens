@@ -1,0 +1,33 @@
+name: Daily Feed Sync
+
+on:
+  schedule:
+    - cron: "5 0 * * *"
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  contents: read
+
+jobs:
+  refresh-feed-snapshot:
+    runs-on: ubuntu-latest
+    env:
+      ROLELENS_SYNC_URL: ${{ secrets.ROLELENS_SYNC_URL || 'https://rolelens.pages.dev' }}
+    steps:
+      - name: Validate required secret
+        run: |
+          test -n "$ROLELENS_CRON_SECRET" || (echo "Missing ROLELENS_CRON_SECRET" && exit 1)
+        env:
+          ROLELENS_CRON_SECRET: ${{ secrets.ROLELENS_CRON_SECRET }}
+
+      - name: Trigger daily feed snapshot refresh
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "x-cron-secret: $ROLELENS_CRON_SECRET" \
+            "$ROLELENS_SYNC_URL/api/jobs/cron"
+        env:
+          ROLELENS_CRON_SECRET: ${{ secrets.ROLELENS_CRON_SECRET }}

@@ -19,6 +19,10 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "RoleLens",
   description: "Track, analyze, and manage frontend job postings",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -28,20 +32,27 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${manrope.variable} ${jetbrainsMono.variable} min-h-screen antialiased`}>
+      <body
+        className={`${manrope.variable} ${jetbrainsMono.variable} min-h-screen antialiased`}
+      >
         <ThemeProvider>
           <div className="relative min-h-screen bg-[radial-gradient(circle_at_top,_#dbeafe_0,_#f8fafc_45%,_#eef2ff_100%)] text-slate-900 dark:bg-[radial-gradient(circle_at_top,_#0f172a_0,_#020617_45%,_#020617_100%)] dark:text-slate-100">
             <div className="mx-auto grid min-h-screen max-w-[1400px] grid-cols-1 gap-4 p-4 lg:grid-cols-[240px_1fr] lg:p-6">
               <aside className="rounded-2xl border border-slate-200/70 bg-white/80 p-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
                 <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Career Ops</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                      Career Ops
+                    </p>
                     <h1 className="text-xl font-semibold">RoleLens</h1>
                   </div>
                   <ThemeToggle />
                 </div>
                 <nav className="space-y-2">
-                  <Link href="/" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800">
+                  <Link
+                    href="/"
+                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
                     <ClipboardList className="h-4 w-4" />
                     Jobs
                   </Link>
