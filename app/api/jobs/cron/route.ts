@@ -51,6 +51,7 @@ async function runCronImport(request: Request) {
     sourceCount: snapshot.sourceCount,
     importedJobs: snapshot.jobs.length,
     errors: snapshot.errors,
+    sourceResults: snapshot.sourceResults,
   });
 }
 

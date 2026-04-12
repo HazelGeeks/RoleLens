@@ -22,6 +22,7 @@ describe("/api/jobs/cron route", () => {
       sourceCount: 2,
       jobs: [],
       errors: [],
+      sourceResults: [],
     });
     mockedWriteFeedSnapshotToCache.mockResolvedValue(undefined);
   });

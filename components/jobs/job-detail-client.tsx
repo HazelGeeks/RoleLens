@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,20 +18,50 @@ import {
 import {
   addNote,
   getJobById,
+  LOCAL_JOBS_STORAGE_KEY,
+  LOCAL_JOBS_UPDATED_EVENT,
   updateFollowUp,
   updateStatus,
 } from "@/lib/local-jobs";
 
 export function JobDetailClient() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get("id") || "";
+  const [job, setJob] = useState(() => getJobById(id));
   const [newNote, setNewNote] = useState("");
   const [status, setStatus] = useState<(typeof statusOptions)[number] | "">("");
   const [nextActionInput, setNextActionInput] = useState("");
   const [followUpDateInput, setFollowUpDateInput] = useState("");
 
-  const job = useMemo(() => getJobById(id), [id]);
+  useEffect(() => {
+    setJob(getJobById(id));
+  }, [id]);
+
+  useEffect(() => {
+    const handleJobsUpdated = () => {
+      setJob(getJobById(id));
+    };
+
+    const handleStorageEvent = (event: StorageEvent) => {
+      if (event.key === LOCAL_JOBS_STORAGE_KEY) {
+        handleJobsUpdated();
+      }
+    };
+
+    window.addEventListener(
+      LOCAL_JOBS_UPDATED_EVENT,
+      handleJobsUpdated as EventListener,
+    );
+    window.addEventListener("storage", handleStorageEvent);
+
+    return () => {
+      window.removeEventListener(
+        LOCAL_JOBS_UPDATED_EVENT,
+        handleJobsUpdated as EventListener,
+      );
+      window.removeEventListener("storage", handleStorageEvent);
+    };
+  }, [id]);
 
   useEffect(() => {
     if (!job) return;
@@ -155,7 +184,7 @@ export function JobDetailClient() {
                 (status || job.status) as (typeof statusOptions)[number],
               );
               setStatus("");
-              router.refresh();
+              setJob(getJobById(id));
             }}
           >
             Save
@@ -207,7 +236,7 @@ export function JobDetailClient() {
                     nextAction: nextActionInput,
                     followUpDate: followUpDateInput,
                   });
-                  router.refresh();
+                  setJob(getJobById(id));
                 }}
               >
                 Save Follow-up
@@ -298,7 +327,7 @@ export function JobDetailClient() {
               if (!newNote.trim()) return;
               addNote(job.id, newNote.trim());
               setNewNote("");
-              router.refresh();
+              setJob(getJobById(id));
             }}
           >
             Add Note

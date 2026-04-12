@@ -59,62 +59,21 @@ export type LocalJobPosting = {
   updatedAt: string;
 };
 
-const STORAGE_KEY = "rolelens.jobs.v1";
+export const LOCAL_JOBS_STORAGE_KEY = "rolelens.jobs.v1";
+export const LOCAL_JOBS_UPDATED_EVENT = "rolelens:jobs-updated";
 
-const sampleData: LocalJobPosting[] = [
-  {
-    id: "sample-1",
-    source: "LINKEDIN",
-    sourceUrl: "https://linkedin.com/jobs/view/123",
-    company: "MapleStack",
-    title: "Frontend Engineer",
-    location: "Toronto, ON",
-    remoteType: "HYBRID",
-    employmentType: "FULL_TIME",
-    salaryMin: 100000,
-    salaryMax: 130000,
-    salaryCurrency: "CAD",
-    seniority: "Mid",
-    workAuthorizationNote: "Open to candidates authorized in Canada",
-    descriptionRaw:
-      "Build and ship React + TypeScript product features in a modern frontend platform.",
-    extractedSkills: ["React", "TypeScript", "Next.js"],
-    fitScore: 84,
-    fitBreakdown: {
-      react: 90,
-      typescript: 88,
-      nextjs: 80,
-      frontend: 85,
-      experience: 78,
-      workAuthorizationRisk: 75,
-      overall: 84,
-    },
-    status: "READY_TO_APPLY",
-    nextAction: "Draft tailored resume and submit before Friday",
-    followUpDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10),
-    lastStatusChangedAt: new Date().toISOString(),
-    statusHistory: [
-      {
-        id: "h1",
-        status: "READY_TO_APPLY",
-        changedAt: new Date().toISOString(),
-        note: "Imported sample status",
-      },
-    ],
-    tags: ["frontend", "canada"],
-    notes: [
-      {
-        id: "n1",
-        content: "Strong fit with current stack.",
-        createdAt: new Date().toISOString(),
-      },
-    ],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+export type LocalJobsUpdatedReason =
+  | "sync"
+  | "upsert"
+  | "note"
+  | "status"
+  | "follow-up";
+
+export type LocalJobsUpdatedDetail = {
+  reason: LocalJobsUpdatedReason;
+  totalJobs: number;
+  updatedAt: string;
+};
 
 const sourceValues = ["LINKEDIN", "INDEED", "COMPANY_SITE", "MANUAL"] as const;
 const remoteValues = ["REMOTE", "HYBRID", "ONSITE", "UNKNOWN"] as const;
@@ -161,6 +120,20 @@ function isJobStatus(value: unknown): value is JobStatus {
 function sanitizeDateOnly(value: string | undefined) {
   if (!value) return undefined;
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+}
+
+function dispatchJobsUpdated(reason: LocalJobsUpdatedReason, totalJobs: number) {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(
+    new CustomEvent<LocalJobsUpdatedDetail>(LOCAL_JOBS_UPDATED_EVENT, {
+      detail: {
+        reason,
+        totalJobs,
+        updatedAt: new Date().toISOString(),
+      },
+    }),
+  );
 }
 
 function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
@@ -262,28 +235,41 @@ function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
 
 export function getJobsFromStorage(): LocalJobPosting[] {
   if (typeof window === "undefined") return [];
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+
+  const raw = window.localStorage.getItem(LOCAL_JOBS_STORAGE_KEY);
   if (!raw) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleData));
-    return sampleData;
+    window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify([]));
+    return [];
   }
 
   try {
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) {
+      window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify([]));
+      return [];
+    }
+
     const normalized = parsed.map((item) =>
       normalizeJob((item ?? {}) as Partial<LocalJobPosting>),
     );
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    window.localStorage.setItem(
+      LOCAL_JOBS_STORAGE_KEY,
+      JSON.stringify(normalized),
+    );
     return normalized;
   } catch {
+    window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify([]));
     return [];
   }
 }
 
-export function saveJobsToStorage(jobs: LocalJobPosting[]) {
+export function saveJobsToStorage(
+  jobs: LocalJobPosting[],
+  reason: LocalJobsUpdatedReason = "sync",
+) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+  window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify(jobs));
+  dispatchJobsUpdated(reason, jobs.length);
 }
 
 export function upsertJob(job: LocalJobPosting) {
@@ -297,7 +283,7 @@ export function upsertJob(job: LocalJobPosting) {
       ...nextJob,
       updatedAt: new Date().toISOString(),
     });
-  saveJobsToStorage(jobs);
+  saveJobsToStorage(jobs, "upsert");
 }
 
 export function addNote(jobId: string, content: string) {
@@ -311,7 +297,7 @@ export function addNote(jobId: string, content: string) {
     createdAt: new Date().toISOString(),
   });
   target.updatedAt = new Date().toISOString();
-  saveJobsToStorage(jobs);
+  saveJobsToStorage(jobs, "note");
 }
 
 export function updateStatus(jobId: string, status: JobStatus) {
@@ -333,7 +319,7 @@ export function updateStatus(jobId: string, status: JobStatus) {
     });
   }
 
-  saveJobsToStorage(jobs);
+  saveJobsToStorage(jobs, "status");
 }
 
 export function updateFollowUp(
@@ -347,7 +333,7 @@ export function updateFollowUp(
   target.nextAction = payload.nextAction?.trim() || undefined;
   target.followUpDate = sanitizeDateOnly(payload.followUpDate?.trim());
   target.updatedAt = new Date().toISOString();
-  saveJobsToStorage(jobs);
+  saveJobsToStorage(jobs, "follow-up");
 }
 
 export function getDueFollowUps(referenceDate = new Date()) {

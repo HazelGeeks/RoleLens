@@ -26,9 +26,17 @@ export type FeedImportError = {
   message: string;
 };
 
+export type FeedSourceResult = {
+  source: string;
+  ok: boolean;
+  importedJobs: number;
+  message?: string;
+};
+
 export type FeedImportSnapshot = {
   generatedAt: string;
   sourceCount: number;
   jobs: ImportedFeedJob[];
   errors: FeedImportError[];
+  sourceResults: FeedSourceResult[];
 };

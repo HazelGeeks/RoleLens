@@ -1,5 +1,9 @@
 import { calculateFitScore, extractSkills } from "@/lib/fit-score";
-import type { FeedImportSnapshot, ImportedFeedJob } from "@/lib/feed-types";
+import type {
+  FeedImportSnapshot,
+  FeedSourceResult,
+  ImportedFeedJob,
+} from "@/lib/feed-types";
 import {
   getJobsFromStorage,
   saveJobsToStorage,
@@ -8,6 +12,7 @@ import {
 
 const LAST_SYNC_KEY = "rolelens.feed.lastSyncAt";
 const LAST_SYNC_DATE_KEY = "rolelens.feed.lastSyncDate";
+const LAST_SYNC_RESULT_KEY = "rolelens.feed.lastSyncResult";
 
 function normalizeKey(value: string) {
   return value.trim().toLowerCase();
@@ -124,7 +129,18 @@ export type SyncJobsFromFeedsResult = {
   sourceCount: number;
   cached: boolean;
   errors: FeedImportSnapshot["errors"];
+  sourceResults: FeedSourceResult[];
   syncedAt: string;
+};
+
+export type FeedSyncSummary = {
+  syncedAt: string;
+  sourceCount: number;
+  totalImported: number;
+  added: number;
+  updated: number;
+  errors: FeedImportSnapshot["errors"];
+  sourceResults: FeedSourceResult[];
 };
 
 export async function syncJobsFromFeeds(options?: {
@@ -146,6 +162,9 @@ export async function syncJobsFromFeeds(options?: {
   const payload = (await response.json()) as FeedImportSnapshot & {
     cached?: boolean;
   };
+  const sourceResults = Array.isArray(payload.sourceResults)
+    ? payload.sourceResults
+    : [];
   const existingJobs = getJobsFromStorage();
   const nextMap = new Map(existingJobs.map((job) => [job.id, job]));
 
@@ -169,8 +188,20 @@ export async function syncJobsFromFeeds(options?: {
 
   const today = new Date().toISOString().slice(0, 10);
   const syncedAt = new Date().toISOString();
+
+  const summary: FeedSyncSummary = {
+    syncedAt,
+    sourceCount: payload.sourceCount,
+    totalImported: payload.jobs.length,
+    added,
+    updated,
+    errors: payload.errors,
+    sourceResults,
+  };
+
   window.localStorage.setItem(LAST_SYNC_KEY, syncedAt);
   window.localStorage.setItem(LAST_SYNC_DATE_KEY, today);
+  window.localStorage.setItem(LAST_SYNC_RESULT_KEY, JSON.stringify(summary));
 
   return {
     added,
@@ -179,6 +210,7 @@ export async function syncJobsFromFeeds(options?: {
     sourceCount: payload.sourceCount,
     cached: payload.cached === true,
     errors: payload.errors,
+    sourceResults,
     syncedAt,
   };
 }
@@ -186,6 +218,39 @@ export async function syncJobsFromFeeds(options?: {
 export function getLastFeedSyncAt() {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(LAST_SYNC_KEY);
+}
+
+export function getLastFeedSyncSummary(): FeedSyncSummary | null {
+  if (typeof window === "undefined") return null;
+
+  const raw = window.localStorage.getItem(LAST_SYNC_RESULT_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<FeedSyncSummary>;
+    if (
+      !parsed ||
+      typeof parsed.syncedAt !== "string" ||
+      typeof parsed.sourceCount !== "number" ||
+      typeof parsed.totalImported !== "number" ||
+      !Array.isArray(parsed.errors) ||
+      !Array.isArray(parsed.sourceResults)
+    ) {
+      return null;
+    }
+
+    return {
+      syncedAt: parsed.syncedAt,
+      sourceCount: parsed.sourceCount,
+      totalImported: parsed.totalImported,
+      added: typeof parsed.added === "number" ? parsed.added : 0,
+      updated: typeof parsed.updated === "number" ? parsed.updated : 0,
+      errors: parsed.errors,
+      sourceResults: parsed.sourceResults,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function shouldAutoSyncToday() {

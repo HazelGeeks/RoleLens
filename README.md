@@ -121,6 +121,29 @@ Design and planning docs:
 - `docs/decisions/persistent-storage-architecture.md`
 - `docs/product/rolelens-multidevice-journey.md`
 
+## Data Reliability Improvements (Issue #3)
+
+RoleLens now prioritizes trustworthy local data behavior:
+
+1. Empty-first initialization:
+  - no automatic sample posting injection
+  - first run initializes storage with []
+2. Corruption recovery:
+  - malformed/non-array localStorage payloads are repaired to []
+3. Freshness updates:
+  - save/status/note/follow-up/sync mutations emit update events
+  - Jobs/Dashboard views refresh from latest local data without browser reload
+4. Sync observability:
+  - last sync timestamp
+  - source-level success/failure counts
+  - source-level error text and recovery guidance
+
+Issue #3 docs:
+
+- `docs/product/rolelens-data-reliability-requirements.md`
+- `docs/decisions/local-storage-initialization-policy.md`
+- `docs/product/rolelens-data-reliability-journey.md`
+
 ## Local Development
 
 ```bash
@@ -135,7 +158,7 @@ Open `http://localhost:3000`.
 - `npm run dev` - local dev
 - `npm run build` - production build
 - `npm run lint` - lint
-- `npm run test` - unit tests (cron security + method handling)
+- `npm run test` - unit tests (cron security, persistence PoC, local data reliability)
 - `npm run cf:build` - Cloudflare Pages output build
 - `npm run cf:deploy` - deploy to Cloudflare Pages
 

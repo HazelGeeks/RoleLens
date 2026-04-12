@@ -1,13 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import {
   FocusSkillChart,
   SkillBarChart,
   SourcePieChart,
 } from "@/components/dashboard/charts";
-import { getJobsFromStorage } from "@/lib/local-jobs";
+import {
+  getJobsFromStorage,
+  LOCAL_JOBS_STORAGE_KEY,
+  LOCAL_JOBS_UPDATED_EVENT,
+} from "@/lib/local-jobs";
 import { prettifyEnum } from "@/lib/presentation";
 import { statusLabels } from "@/lib/constants";
 
@@ -19,37 +25,73 @@ function countMapToArray(input: Record<string, number>) {
 }
 
 export function DashboardClient() {
+  const [jobs, setJobs] = useState(() => getJobsFromStorage());
+
+  useEffect(() => {
+    const handleJobsUpdated = () => {
+      setJobs(getJobsFromStorage());
+    };
+
+    const handleStorageEvent = (event: StorageEvent) => {
+      if (event.key === LOCAL_JOBS_STORAGE_KEY) {
+        handleJobsUpdated();
+      }
+    };
+
+    window.addEventListener(
+      LOCAL_JOBS_UPDATED_EVENT,
+      handleJobsUpdated as EventListener,
+    );
+    window.addEventListener("storage", handleStorageEvent);
+
+    return () => {
+      window.removeEventListener(
+        LOCAL_JOBS_UPDATED_EVENT,
+        handleJobsUpdated as EventListener,
+      );
+      window.removeEventListener("storage", handleStorageEvent);
+    };
+  }, []);
+
   const stats = useMemo(() => {
-    const jobs = getJobsFromStorage();
+    const statusCounts: Record<string, number> = {};
+    const sourceCounts: Record<string, number> = {};
+    const remoteCounts: Record<string, number> = {};
+    const seniorityCounts: Record<string, number> = {};
+    const skillCounts: Record<string, number> = {};
 
-    const statusCounts = jobs.reduce<Record<string, number>>((acc, job) => {
-      acc[job.status] = (acc[job.status] ?? 0) + 1;
-      return acc;
-    }, {});
+    let fitScoreTotal = 0;
+    let fitScoreCount = 0;
+    let dueFollowUps = 0;
+    const today = new Date().toISOString().slice(0, 10);
 
-    const sourceCounts = jobs.reduce<Record<string, number>>((acc, job) => {
-      acc[job.source] = (acc[job.source] ?? 0) + 1;
-      return acc;
-    }, {});
+    for (const job of jobs) {
+      statusCounts[job.status] = (statusCounts[job.status] ?? 0) + 1;
+      sourceCounts[job.source] = (sourceCounts[job.source] ?? 0) + 1;
+      remoteCounts[job.remoteType] = (remoteCounts[job.remoteType] ?? 0) + 1;
 
-    const remoteCounts = jobs.reduce<Record<string, number>>((acc, job) => {
-      acc[job.remoteType] = (acc[job.remoteType] ?? 0) + 1;
-      return acc;
-    }, {});
+      const seniorityKey = job.seniority || "Unknown";
+      seniorityCounts[seniorityKey] = (seniorityCounts[seniorityKey] ?? 0) + 1;
 
-    const seniorityCounts = jobs.reduce<Record<string, number>>((acc, job) => {
-      const key = job.seniority || "Unknown";
-      acc[key] = (acc[key] ?? 0) + 1;
-      return acc;
-    }, {});
-
-    const skillCounts = jobs.reduce<Record<string, number>>((acc, job) => {
       for (const skill of job.extractedSkills) {
         const key = skill.toLowerCase();
-        acc[key] = (acc[key] ?? 0) + 1;
+        skillCounts[key] = (skillCounts[key] ?? 0) + 1;
       }
-      return acc;
-    }, {});
+
+      if (typeof job.fitScore === "number") {
+        fitScoreTotal += job.fitScore;
+        fitScoreCount += 1;
+      }
+
+      if (
+        job.followUpDate &&
+        job.followUpDate <= today &&
+        job.status !== "REJECTED" &&
+        job.status !== "CLOSED"
+      ) {
+        dueFollowUps += 1;
+      }
+    }
 
     const topSkills = Object.entries(skillCounts)
       .sort((a, b) => b[1] - a[1])
@@ -60,20 +102,7 @@ export function DashboardClient() {
       name: skill,
       count: skillCounts[skill] ?? 0,
     }));
-    const avgFitScore =
-      jobs
-        .filter((job) => typeof job.fitScore === "number")
-        .reduce((sum, job) => sum + (job.fitScore ?? 0), 0) /
-      (jobs.filter((job) => typeof job.fitScore === "number").length || 1);
-
-    const today = new Date().toISOString().slice(0, 10);
-    const dueFollowUps = jobs.filter(
-      (job) =>
-        !!job.followUpDate &&
-        job.followUpDate <= today &&
-        job.status !== "REJECTED" &&
-        job.status !== "CLOSED",
-    ).length;
+    const avgFitScore = fitScoreCount > 0 ? fitScoreTotal / fitScoreCount : 0;
 
     const readyToApply = statusCounts.READY_TO_APPLY ?? 0;
     const activePipeline =
@@ -92,7 +121,37 @@ export function DashboardClient() {
       topSkills,
       focusSkills,
     };
-  }, []);
+  }, [jobs]);
+
+  if (jobs.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-semibold">Analytics Dashboard</h2>
+          <p className="text-sm text-slate-500">
+            Monitor application momentum and demand signals from your saved
+            postings.
+          </p>
+        </div>
+
+        <Card className="space-y-3" role="status" aria-live="polite">
+          <CardTitle>No data to analyze yet</CardTitle>
+          <CardDescription>
+            Save your first posting or run source sync. Dashboard metrics update
+            automatically after data changes.
+          </CardDescription>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/jobs/new">
+              <Button>Save New Posting</Button>
+            </Link>
+            <Link href="/">
+              <Button variant="secondary">Open Jobs List</Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

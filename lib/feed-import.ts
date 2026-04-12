@@ -592,6 +592,7 @@ export async function collectFeedJobs(
   const feedSources = toFeedSourceConfig(env);
   const atsSources = toAtsSourceConfig(env);
   const errors: FeedImportSnapshot["errors"] = [];
+  const sourceResults: FeedImportSnapshot["sourceResults"] = [];
   const roleKeywords = parseKeywordList(
     env.TARGET_ROLE_KEYWORDS,
     DEFAULT_ROLE_KEYWORDS,
@@ -625,27 +626,55 @@ export async function collectFeedJobs(
             "No sources configured. Set GREENHOUSE_BOARD_TOKENS / LEVER_COMPANIES or LINKEDIN_ALERT_FEED_URL / INDEED_ALERT_FEED_URL / THIRD_ALERT_FEED_URL.",
         },
       ],
+      sourceResults: [],
     };
   }
 
-  const jobs = (
-    await Promise.all(
-      tasks.map(async (task) => {
-        try {
-          return await task.run();
-        } catch (error) {
-          errors.push({
-            source: task.label,
-            message:
-              error instanceof Error
-                ? error.message
-                : "Unknown feed import error",
-          });
-          return [];
-        }
-      }),
-    )
-  ).flat();
+  const taskResults = await Promise.all(
+    tasks.map(async (task) => {
+      try {
+        const imported = await task.run();
+        return {
+          source: task.label,
+          imported,
+          error: null as string | null,
+        };
+      } catch (error) {
+        return {
+          source: task.label,
+          imported: [] as ImportedFeedJob[],
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unknown feed import error",
+        };
+      }
+    }),
+  );
+
+  for (const result of taskResults) {
+    if (result.error) {
+      errors.push({
+        source: result.source,
+        message: result.error,
+      });
+      sourceResults.push({
+        source: result.source,
+        ok: false,
+        importedJobs: 0,
+        message: result.error,
+      });
+      continue;
+    }
+
+    sourceResults.push({
+      source: result.source,
+      ok: true,
+      importedJobs: result.imported.length,
+    });
+  }
+
+  const jobs = taskResults.flatMap((result) => result.imported);
 
   const filteredJobs = jobs.filter((job) =>
     isRelevantImportedJob(job, roleKeywords, locationKeywords),
@@ -656,6 +685,7 @@ export async function collectFeedJobs(
     sourceCount: tasks.length,
     jobs: dedupeImportedJobs(filteredJobs),
     errors,
+    sourceResults,
   };
 }
 
