@@ -1,5 +1,6 @@
 import { calculateFitScore, extractSkills } from "@/lib/fit-score";
 import type {
+  FeedImportDiagnostics,
   FeedImportSnapshot,
   FeedSourceResult,
   ImportedFeedJob,
@@ -13,6 +14,28 @@ import {
 const LAST_SYNC_KEY = "rolelens.feed.lastSyncAt";
 const LAST_SYNC_DATE_KEY = "rolelens.feed.lastSyncDate";
 const LAST_SYNC_RESULT_KEY = "rolelens.feed.lastSyncResult";
+
+const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
+  ats: {
+    greenhouseBoardCount: 0,
+    leverCompanyCount: 0,
+    configuredSourceCount: 0,
+  },
+  rss: {
+    linkedinConfigured: false,
+    indeedConfigured: false,
+    thirdConfigured: false,
+    configuredSourceCount: 0,
+  },
+  sourceCount: 0,
+};
+
+const DEFAULT_RECOVERY_GUIDE = [
+  "Set at least one source in Cloudflare Pages Variables and Secrets for both Production and Preview.",
+  "Use ATS variables (GREENHOUSE_BOARD_TOKENS or LEVER_COMPANIES) or RSS fallback URLs.",
+  "Save variables and redeploy the target environment.",
+  "Call /api/jobs/import?refresh=1, then retry Sync Sources in the Jobs page.",
+];
 
 function normalizeKey(value: string) {
   return value.trim().toLowerCase();
@@ -130,6 +153,8 @@ export type SyncJobsFromFeedsResult = {
   cached: boolean;
   errors: FeedImportSnapshot["errors"];
   sourceResults: FeedSourceResult[];
+  diagnostics: FeedImportDiagnostics;
+  recoveryGuide: string[];
   syncedAt: string;
 };
 
@@ -141,6 +166,8 @@ export type FeedSyncSummary = {
   updated: number;
   errors: FeedImportSnapshot["errors"];
   sourceResults: FeedSourceResult[];
+  diagnostics: FeedImportDiagnostics;
+  recoveryGuide: string[];
 };
 
 export async function syncJobsFromFeeds(options?: {
@@ -165,6 +192,14 @@ export async function syncJobsFromFeeds(options?: {
   const sourceResults = Array.isArray(payload.sourceResults)
     ? payload.sourceResults
     : [];
+  const diagnostics = payload.diagnostics ?? {
+    ...EMPTY_DIAGNOSTICS,
+    sourceCount: payload.sourceCount,
+  };
+  const recoveryGuide =
+    Array.isArray(payload.recoveryGuide) && payload.recoveryGuide.length > 0
+      ? payload.recoveryGuide
+      : DEFAULT_RECOVERY_GUIDE;
   const existingJobs = getJobsFromStorage();
   const nextMap = new Map(existingJobs.map((job) => [job.id, job]));
 
@@ -197,6 +232,8 @@ export async function syncJobsFromFeeds(options?: {
     updated,
     errors: payload.errors,
     sourceResults,
+    diagnostics,
+    recoveryGuide,
   };
 
   window.localStorage.setItem(LAST_SYNC_KEY, syncedAt);
@@ -211,6 +248,8 @@ export async function syncJobsFromFeeds(options?: {
     cached: payload.cached === true,
     errors: payload.errors,
     sourceResults,
+    diagnostics,
+    recoveryGuide,
     syncedAt,
   };
 }
@@ -234,7 +273,10 @@ export function getLastFeedSyncSummary(): FeedSyncSummary | null {
       typeof parsed.sourceCount !== "number" ||
       typeof parsed.totalImported !== "number" ||
       !Array.isArray(parsed.errors) ||
-      !Array.isArray(parsed.sourceResults)
+      !Array.isArray(parsed.sourceResults) ||
+      typeof parsed.diagnostics !== "object" ||
+      parsed.diagnostics == null ||
+      !Array.isArray(parsed.recoveryGuide)
     ) {
       return null;
     }
@@ -247,6 +289,8 @@ export function getLastFeedSyncSummary(): FeedSyncSummary | null {
       updated: typeof parsed.updated === "number" ? parsed.updated : 0,
       errors: parsed.errors,
       sourceResults: parsed.sourceResults,
+      diagnostics: parsed.diagnostics as FeedImportDiagnostics,
+      recoveryGuide: parsed.recoveryGuide,
     };
   } catch {
     return null;

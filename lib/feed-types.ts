@@ -33,10 +33,27 @@ export type FeedSourceResult = {
   message?: string;
 };
 
+export type FeedImportDiagnostics = {
+  ats: {
+    greenhouseBoardCount: number;
+    leverCompanyCount: number;
+    configuredSourceCount: number;
+  };
+  rss: {
+    linkedinConfigured: boolean;
+    indeedConfigured: boolean;
+    thirdConfigured: boolean;
+    configuredSourceCount: number;
+  };
+  sourceCount: number;
+};
+
 export type FeedImportSnapshot = {
   generatedAt: string;
   sourceCount: number;
   jobs: ImportedFeedJob[];
   errors: FeedImportError[];
   sourceResults: FeedSourceResult[];
+  diagnostics: FeedImportDiagnostics;
+  recoveryGuide: string[];
 };

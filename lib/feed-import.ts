@@ -1,6 +1,10 @@
 import { extractJobDraft } from "@/lib/job-extraction";
 import type { EmploymentType, JobSource } from "@/lib/local-jobs";
-import type { FeedImportSnapshot, ImportedFeedJob } from "@/lib/feed-types";
+import type {
+  FeedImportDiagnostics,
+  FeedImportSnapshot,
+  ImportedFeedJob,
+} from "@/lib/feed-types";
 
 type FeedSourceConfig = {
   key: string;
@@ -58,12 +62,67 @@ const DEFAULT_LOCATION_KEYWORDS = [
   "서울",
 ];
 
+const DEFAULT_RECOVERY_GUIDE = [
+  "Set at least one source in Cloudflare Pages Variables and Secrets for both Production and Preview.",
+  "Use ATS variables (GREENHOUSE_BOARD_TOKENS or LEVER_COMPANIES) or RSS fallback URLs.",
+  "Save variables and redeploy the target environment.",
+  "Call /api/jobs/import?refresh=1, then retry Sync Sources in the Jobs page.",
+];
+
 function splitCsv(value: string | undefined) {
   if (!value) return [];
   return value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeHttpUrl(value: string | undefined) {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === ",") return undefined;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return undefined;
+    }
+
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+export function buildFeedImportDiagnostics(
+  env: NodeJS.ProcessEnv,
+  sourceCount: number,
+): FeedImportDiagnostics {
+  const greenhouseBoardCount = splitCsv(env.GREENHOUSE_BOARD_TOKENS).length;
+  const leverCompanyCount = splitCsv(env.LEVER_COMPANIES).length;
+  const linkedinConfigured =
+    normalizeHttpUrl(env.LINKEDIN_ALERT_FEED_URL) != null;
+  const indeedConfigured = normalizeHttpUrl(env.INDEED_ALERT_FEED_URL) != null;
+  const thirdConfigured = normalizeHttpUrl(env.THIRD_ALERT_FEED_URL) != null;
+
+  return {
+    ats: {
+      greenhouseBoardCount,
+      leverCompanyCount,
+      configuredSourceCount: greenhouseBoardCount + leverCompanyCount,
+    },
+    rss: {
+      linkedinConfigured,
+      indeedConfigured,
+      thirdConfigured,
+      configuredSourceCount: [
+        linkedinConfigured,
+        indeedConfigured,
+        thirdConfigured,
+      ].filter(Boolean).length,
+    },
+    sourceCount,
+  };
 }
 
 function toDisplayNameFromSlug(value: string) {
@@ -364,11 +423,11 @@ function toFeedSourceConfig(env: NodeJS.ProcessEnv): FeedSourceConfig[] {
   return candidates
     .filter(
       (candidate): candidate is FeedSourceConfig =>
-        typeof candidate.url === "string" && candidate.url.trim().length > 0,
+        normalizeHttpUrl(candidate.url) != null,
     )
     .map((candidate) => ({
       ...candidate,
-      url: candidate.url.trim(),
+      url: normalizeHttpUrl(candidate.url)!,
     }));
 }
 
@@ -591,6 +650,8 @@ export async function collectFeedJobs(
 ): Promise<FeedImportSnapshot> {
   const feedSources = toFeedSourceConfig(env);
   const atsSources = toAtsSourceConfig(env);
+  const sourceCount = feedSources.length + atsSources.length;
+  const diagnostics = buildFeedImportDiagnostics(env, sourceCount);
   const errors: FeedImportSnapshot["errors"] = [];
   const sourceResults: FeedImportSnapshot["sourceResults"] = [];
   const roleKeywords = parseKeywordList(
@@ -623,10 +684,12 @@ export async function collectFeedJobs(
         {
           source: "configuration",
           message:
-            "No sources configured. Set GREENHOUSE_BOARD_TOKENS / LEVER_COMPANIES or LINKEDIN_ALERT_FEED_URL / INDEED_ALERT_FEED_URL / THIRD_ALERT_FEED_URL.",
+            "No sources configured. Set GREENHOUSE_BOARD_TOKENS / LEVER_COMPANIES or LINKEDIN_ALERT_FEED_URL / INDEED_ALERT_FEED_URL / THIRD_ALERT_FEED_URL in Cloudflare Pages Variables and Secrets (Production + Preview).",
         },
       ],
       sourceResults: [],
+      diagnostics,
+      recoveryGuide: DEFAULT_RECOVERY_GUIDE,
     };
   }
 
@@ -686,6 +749,8 @@ export async function collectFeedJobs(
     jobs: dedupeImportedJobs(filteredJobs),
     errors,
     sourceResults,
+    diagnostics,
+    recoveryGuide: DEFAULT_RECOVERY_GUIDE,
   };
 }
 

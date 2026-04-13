@@ -23,6 +23,21 @@ describe("/api/jobs/cron route", () => {
       jobs: [],
       errors: [],
       sourceResults: [],
+      diagnostics: {
+        ats: {
+          greenhouseBoardCount: 0,
+          leverCompanyCount: 0,
+          configuredSourceCount: 0,
+        },
+        rss: {
+          linkedinConfigured: false,
+          indeedConfigured: false,
+          thirdConfigured: false,
+          configuredSourceCount: 0,
+        },
+        sourceCount: 2,
+      },
+      recoveryGuide: ["Set env vars and retry"],
     });
     mockedWriteFeedSnapshotToCache.mockResolvedValue(undefined);
   });

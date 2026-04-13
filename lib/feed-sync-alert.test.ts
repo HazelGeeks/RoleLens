@@ -17,6 +17,8 @@ describe("buildFeedSyncAlert", () => {
     expect(alert).not.toBeNull();
     expect(alert?.level).toBe("error");
     expect(alert?.message.toLowerCase()).toContain("no valid feed source");
+    expect(alert?.message).toContain("LINKEDIN_ALERT_FEED_URL");
+    expect(alert?.message).toContain("Production and Preview");
   });
 
   it("returns warning for partial source failures", () => {

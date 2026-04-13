@@ -22,7 +22,7 @@ export function buildFeedSyncAlert(
     return {
       level: "error",
       message:
-        "No valid feed source is configured. Set GREENHOUSE_BOARD_TOKENS or LEVER_COMPANIES first, then retry sync.",
+        "No valid feed source is configured. Configure ATS (GREENHOUSE_BOARD_TOKENS or LEVER_COMPANIES) or RSS fallback (LINKEDIN_ALERT_FEED_URL / INDEED_ALERT_FEED_URL / THIRD_ALERT_FEED_URL) in Cloudflare Pages Variables and Secrets for both Production and Preview, redeploy, then retry sync.",
     };
   }
 

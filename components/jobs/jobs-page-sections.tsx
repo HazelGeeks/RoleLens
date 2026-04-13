@@ -18,8 +18,15 @@ import type {
   LocalJobPosting,
   RemoteType,
 } from "@/lib/local-jobs";
-import type { FeedSourceResult } from "@/lib/feed-types";
+import type { FeedImportDiagnostics, FeedSourceResult } from "@/lib/feed-types";
 import type { JobRow } from "@/components/jobs/jobs-table";
+
+const DEFAULT_OPERATIONAL_CHECKLIST = [
+  "Set at least one source in Cloudflare Pages Variables and Secrets for both Production and Preview.",
+  "Use ATS variables (GREENHOUSE_BOARD_TOKENS or LEVER_COMPANIES) or RSS fallback URLs.",
+  "Save variables and redeploy the target environment.",
+  "Call /api/jobs/import?refresh=1, then retry Sync Sources in the Jobs page.",
+];
 
 type JobsPageHeaderProps = {
   isSyncing: boolean;
@@ -80,6 +87,8 @@ type JobsFiltersCardProps = {
   syncMessage: string | null;
   syncError: string | null;
   syncWarning: string | null;
+  syncDiagnostics: FeedImportDiagnostics;
+  syncRecoveryGuide: string[];
   syncSourceResults: FeedSourceResult[];
 };
 
@@ -92,8 +101,15 @@ export function JobsFiltersCard({
   syncMessage,
   syncError,
   syncWarning,
+  syncDiagnostics,
+  syncRecoveryGuide,
   syncSourceResults,
 }: JobsFiltersCardProps) {
+  const operationalChecklist =
+    syncRecoveryGuide.length > 0
+      ? syncRecoveryGuide
+      : DEFAULT_OPERATIONAL_CHECKLIST;
+
   return (
     <Card>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_repeat(5,minmax(0,1fr))]">
@@ -198,10 +214,6 @@ export function JobsFiltersCard({
           role="alert"
         >
           <p>{syncError}</p>
-          <p className="mt-1 text-xs">
-            Recovery actions: retry Sync Sources, then verify feed URLs and
-            source-related environment settings.
-          </p>
         </div>
       ) : null}
 
@@ -218,6 +230,33 @@ export function JobsFiltersCard({
           </p>
         </div>
       ) : null}
+
+      {syncError || syncWarning ? (
+        <div className="mt-2 rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800">
+          <p className="font-medium">Operational Checklist</p>
+          <ol className="mt-1 list-decimal space-y-1 pl-4 text-xs text-slate-600 dark:text-slate-300">
+            {operationalChecklist.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+
+      <div className="mt-2 rounded-lg border border-slate-200 p-2 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
+        <p className="font-medium">Sync Diagnostics</p>
+        <p className="mt-1">
+          ATS: Greenhouse {syncDiagnostics.ats.greenhouseBoardCount}, Lever{" "}
+          {syncDiagnostics.ats.leverCompanyCount} (configured total{" "}
+          {syncDiagnostics.ats.configuredSourceCount})
+        </p>
+        <p>
+          RSS fallback: LinkedIn {syncDiagnostics.rss.linkedinConfigured ? "yes" : "no"}, Indeed{" "}
+          {syncDiagnostics.rss.indeedConfigured ? "yes" : "no"}, Third{" "}
+          {syncDiagnostics.rss.thirdConfigured ? "yes" : "no"} (configured total{" "}
+          {syncDiagnostics.rss.configuredSourceCount})
+        </p>
+        <p>Final sourceCount: {syncDiagnostics.sourceCount}</p>
+      </div>
 
       {syncSourceResults.length > 0 ? (
         <div

@@ -24,6 +24,22 @@ import {
   JobsFiltersCard,
   JobsPageHeader,
 } from "@/components/jobs/jobs-page-sections";
+import type { FeedImportDiagnostics } from "@/lib/feed-types";
+
+const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
+  ats: {
+    greenhouseBoardCount: 0,
+    leverCompanyCount: 0,
+    configuredSourceCount: 0,
+  },
+  rss: {
+    linkedinConfigured: false,
+    indeedConfigured: false,
+    thirdConfigured: false,
+    configuredSourceCount: 0,
+  },
+  sourceCount: 0,
+};
 
 export function JobsPageClient() {
   const { jobs, refreshJobs } = useLiveLocalJobs();
@@ -42,6 +58,10 @@ export function JobsPageClient() {
   const [syncSourceResults, setSyncSourceResults] = useState<
     FeedSourceResult[]
   >([]);
+  const [syncDiagnostics, setSyncDiagnostics] = useState<FeedImportDiagnostics>(
+    EMPTY_DIAGNOSTICS,
+  );
+  const [syncRecoveryGuide, setSyncRecoveryGuide] = useState<string[]>([]);
 
   const runFeedSync = useCallback(
     async (options?: { silent?: boolean; refresh?: boolean }) => {
@@ -58,6 +78,8 @@ export function JobsPageClient() {
         refreshJobs();
         setLastSyncAt(result.syncedAt);
         setSyncSourceResults(result.sourceResults);
+        setSyncDiagnostics(result.diagnostics);
+        setSyncRecoveryGuide(result.recoveryGuide);
         setSyncMessage(
           `Synced ${result.totalImported} postings (${result.added} new, ${result.updated} updated) from ${result.sourceCount} source(s) at ${new Date(result.syncedAt).toLocaleString()}.`,
         );
@@ -96,6 +118,8 @@ export function JobsPageClient() {
     const lastSummary = getLastFeedSyncSummary();
     if (lastSummary) {
       setSyncSourceResults(lastSummary.sourceResults);
+      setSyncDiagnostics(lastSummary.diagnostics);
+      setSyncRecoveryGuide(lastSummary.recoveryGuide);
       setSyncMessage(
         `Last sync imported ${lastSummary.totalImported} postings from ${lastSummary.sourceCount} source(s).`,
       );
@@ -255,6 +279,8 @@ export function JobsPageClient() {
         syncMessage={syncMessage}
         syncError={syncError}
         syncWarning={syncWarning}
+        syncDiagnostics={syncDiagnostics}
+        syncRecoveryGuide={syncRecoveryGuide}
         syncSourceResults={syncSourceResults}
       />
 
