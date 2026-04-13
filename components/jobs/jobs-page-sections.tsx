@@ -79,6 +79,7 @@ type JobsFiltersCardProps = {
   lastSyncAt: string | null;
   syncMessage: string | null;
   syncError: string | null;
+  syncWarning: string | null;
   syncSourceResults: FeedSourceResult[];
 };
 
@@ -90,6 +91,7 @@ export function JobsFiltersCard({
   lastSyncAt,
   syncMessage,
   syncError,
+  syncWarning,
   syncSourceResults,
 }: JobsFiltersCardProps) {
   return (
@@ -199,6 +201,20 @@ export function JobsFiltersCard({
           <p className="mt-1 text-xs">
             Recovery actions: retry Sync Sources, then verify feed URLs and
             source-related environment settings.
+          </p>
+        </div>
+      ) : null}
+
+      {syncWarning ? (
+        <div
+          className="mt-1 rounded-lg border border-amber-200 bg-amber-50 p-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+          role="status"
+          aria-live="polite"
+        >
+          <p>{syncWarning}</p>
+          <p className="mt-1 text-xs">
+            You can continue with imported data, then retry sync after fixing
+            the failed source settings.
           </p>
         </div>
       ) : null}

@@ -16,6 +16,7 @@ import {
 } from "@/lib/feed-sync";
 import type { FeedSourceResult } from "@/lib/feed-types";
 import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
+import { buildFeedSyncAlert } from "@/lib/feed-sync-alert";
 import {
   CompareShortlistCard,
   DueFollowUpsCard,
@@ -36,6 +37,7 @@ export function JobsPageClient() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [syncSourceResults, setSyncSourceResults] = useState<
     FeedSourceResult[]
@@ -45,6 +47,7 @@ export function JobsPageClient() {
     async (options?: { silent?: boolean; refresh?: boolean }) => {
       setIsSyncing(true);
       setSyncError(null);
+      setSyncWarning(null);
 
       if (!options?.silent) {
         setSyncMessage(null);
@@ -59,16 +62,25 @@ export function JobsPageClient() {
           `Synced ${result.totalImported} postings (${result.added} new, ${result.updated} updated) from ${result.sourceCount} source(s) at ${new Date(result.syncedAt).toLocaleString()}.`,
         );
 
-        if (result.errors.length > 0) {
-          setSyncError(
-            `${result.errors.length} source(s) failed. Retry sync once, then check source configuration and endpoint availability.`,
-          );
+        const alert = buildFeedSyncAlert({
+          sourceCount: result.sourceCount,
+          errors: result.errors,
+          sourceResults: result.sourceResults,
+        });
+
+        if (alert?.level === "error") {
+          setSyncError(alert.message);
+          setSyncWarning(null);
+        } else if (alert?.level === "warning") {
+          setSyncWarning(alert.message);
+          setSyncError(null);
         }
       } catch (error) {
         const message =
           error instanceof Error
             ? error.message
             : "Failed to sync feed sources";
+        setSyncWarning(null);
         setSyncError(
           `${message}. Recovery: retry sync. If it keeps failing, verify feed URLs and environment settings.`,
         );
@@ -87,10 +99,19 @@ export function JobsPageClient() {
       setSyncMessage(
         `Last sync imported ${lastSummary.totalImported} postings from ${lastSummary.sourceCount} source(s).`,
       );
-      if (lastSummary.errors.length > 0) {
-        setSyncError(
-          `${lastSummary.errors.length} source(s) failed in the last sync. Retry sync and check source settings if needed.`,
-        );
+
+      const alert = buildFeedSyncAlert({
+        sourceCount: lastSummary.sourceCount,
+        errors: lastSummary.errors,
+        sourceResults: lastSummary.sourceResults,
+      });
+
+      if (alert?.level === "error") {
+        setSyncError(alert.message);
+        setSyncWarning(null);
+      } else if (alert?.level === "warning") {
+        setSyncWarning(alert.message);
+        setSyncError(null);
       }
     }
 
@@ -233,6 +254,7 @@ export function JobsPageClient() {
         lastSyncAt={lastSyncAt}
         syncMessage={syncMessage}
         syncError={syncError}
+        syncWarning={syncWarning}
         syncSourceResults={syncSourceResults}
       />
 
