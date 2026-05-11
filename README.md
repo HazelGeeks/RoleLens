@@ -28,8 +28,11 @@ Why this mode exists:
    - `REVIEWING`
    - `READY_TO_APPLY`
    - `APPLIED`
-   - `INTERVIEW`
+   - `INTERVIEW_PENDING`
+   - `INTERVIEWING`
+   - `OFFER`
    - `REJECTED`
+   - `WITHDRAWN`
    - `CLOSED`
 
 ## Stable Daily Automation (Option 1)
@@ -88,13 +91,15 @@ If you see "No valid feed source is configured", run this checklist:
 
 1. Open Cloudflare Pages -> your project -> Settings -> Variables and Secrets.
 2. Set at least one source for both `Production` and `Preview` scopes:
-  - ATS: `GREENHOUSE_BOARD_TOKENS` or `LEVER_COMPANIES`
-  - RSS fallback: `LINKEDIN_ALERT_FEED_URL`, `INDEED_ALERT_FEED_URL`, `THIRD_ALERT_FEED_URL`
+   - ATS: `GREENHOUSE_BOARD_TOKENS` or `LEVER_COMPANIES`
+   - RSS fallback: `LINKEDIN_ALERT_FEED_URL`, `INDEED_ALERT_FEED_URL`, `THIRD_ALERT_FEED_URL`
+
 3. Save changes and redeploy the target environment.
 4. Call `GET /api/jobs/import?refresh=1` and verify:
-  - `diagnostics.ats` counts are not all zero (for ATS setup), or
-  - `diagnostics.rss.configuredSourceCount > 0` (for RSS setup)
-  - `sourceCount > 0`
+   - `diagnostics.ats` counts are not all zero (for ATS setup), or
+   - `diagnostics.rss.configuredSourceCount > 0` (for RSS setup)
+   - `sourceCount > 0`
+
 5. Open Jobs page and run `Sync Sources` again.
 
 Notes:
@@ -173,11 +178,21 @@ Issue #3 docs:
 ## Local Development
 
 ```bash
+nvm use
 npm install
 npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+If development cache/runtime gets unstable (for example ENOENT under `.next/static/development`):
+
+```bash
+pkill -f "next dev" || true
+rm -rf .next
+nvm use
+npm run dev
+```
 
 ## Scripts
 

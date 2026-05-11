@@ -124,7 +124,11 @@ export function JobsTable({
         cell: ({ row }) => {
           const date = row.original.followUpDate;
           if (!date) return <span className="text-sm text-slate-500">-</span>;
-          const due = date <= today;
+          const isInactive =
+            row.original.status === "REJECTED" ||
+            row.original.status === "WITHDRAWN" ||
+            row.original.status === "CLOSED";
+          const due = !isInactive && date <= today;
           return (
             <span
               className={cn(

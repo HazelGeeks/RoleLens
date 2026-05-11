@@ -57,6 +57,7 @@ export function DashboardClient() {
         job.followUpDate &&
         job.followUpDate <= today &&
         job.status !== "REJECTED" &&
+        job.status !== "WITHDRAWN" &&
         job.status !== "CLOSED"
       ) {
         dueFollowUps += 1;
@@ -76,7 +77,10 @@ export function DashboardClient() {
 
     const readyToApply = statusCounts.READY_TO_APPLY ?? 0;
     const activePipeline =
-      (statusCounts.APPLIED ?? 0) + (statusCounts.INTERVIEW ?? 0);
+      (statusCounts.APPLIED ?? 0) +
+      (statusCounts.INTERVIEW_PENDING ?? 0) +
+      (statusCounts.INTERVIEWING ?? 0) +
+      (statusCounts.OFFER ?? 0);
 
     return {
       totalJobs: jobs.length,
@@ -189,7 +193,7 @@ export function DashboardClient() {
         <Card>
           <CardTitle>Status Pipeline</CardTitle>
           <CardDescription>
-            Track execution flow from review to interview.
+            Track execution flow from review to offer.
           </CardDescription>
           <div className="space-y-2 pt-2">
             {Object.entries(stats.statusCounts).map(([status, value]) => (
@@ -202,7 +206,7 @@ export function DashboardClient() {
               </div>
             ))}
             <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-2 text-sm dark:border-blue-900 dark:bg-blue-950/40">
-              <span>Applied + Interview</span>
+              <span>Applied + Interview + Offer</span>
               <span className="font-semibold">{stats.activePipeline}</span>
             </div>
           </div>

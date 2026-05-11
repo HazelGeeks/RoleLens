@@ -66,6 +66,42 @@ describe("local jobs reliability", () => {
     expect(localStorage.getItem(LOCAL_JOBS_STORAGE_KEY)).toBe("[]");
   });
 
+  it("maps legacy INTERVIEW statuses to INTERVIEWING when reading storage", () => {
+    const now = new Date().toISOString();
+    setupWindow({
+      [LOCAL_JOBS_STORAGE_KEY]: JSON.stringify([
+        {
+          id: "legacy-1",
+          source: "MANUAL",
+          company: "Legacy Co",
+          title: "Frontend Engineer",
+          remoteType: "REMOTE",
+          descriptionRaw: "Legacy posting",
+          extractedSkills: ["React"],
+          fitScore: 80,
+          status: "INTERVIEW",
+          statusHistory: [
+            {
+              id: "h-legacy-1",
+              status: "INTERVIEW",
+              changedAt: now,
+            },
+          ],
+          tags: [],
+          notes: [],
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]),
+    });
+
+    const jobs = getJobsFromStorage();
+
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.status).toBe("INTERVIEWING");
+    expect(jobs[0]?.statusHistory[0]?.status).toBe("INTERVIEWING");
+  });
+
   it("dispatches update events for save/status/note/follow-up mutations", () => {
     const { dispatchEvent } = setupWindow();
 

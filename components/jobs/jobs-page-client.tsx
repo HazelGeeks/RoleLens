@@ -204,7 +204,12 @@ export function JobsPageClient() {
     const today = new Date().toISOString().slice(0, 10);
     return jobs
       .filter((job) => !!job.followUpDate && job.followUpDate <= today)
-      .filter((job) => job.status !== "CLOSED" && job.status !== "REJECTED")
+      .filter(
+        (job) =>
+          job.status !== "CLOSED" &&
+          job.status !== "REJECTED" &&
+          job.status !== "WITHDRAWN",
+      )
       .sort((a, b) =>
         (a.followUpDate || "").localeCompare(b.followUpDate || ""),
       )

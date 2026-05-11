@@ -25,26 +25,27 @@ describe("collectFeedJobs diagnostics", () => {
   it("reports sourceCount greater than zero with valid ATS input", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            jobs: [
-              {
-                id: 100,
-                title: "Frontend Engineer",
-                location: { name: "Toronto" },
-                absolute_url: "https://example.com/jobs/100",
-                content: "React TypeScript",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              jobs: [
+                {
+                  id: 100,
+                  title: "Frontend Engineer",
+                  location: { name: "Toronto" },
+                  absolute_url: "https://example.com/jobs/100",
+                  content: "React TypeScript",
+                },
+              ],
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
               },
-            ],
-          }),
-          {
-            status: 200,
-            headers: {
-              "content-type": "application/json",
             },
-          },
-        ),
+          ),
       ),
     );
 

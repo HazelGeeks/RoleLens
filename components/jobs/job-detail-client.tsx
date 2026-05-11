@@ -41,7 +41,8 @@ export function JobDetailClient() {
     !!job.followUpDate &&
     job.followUpDate <= today &&
     job.status !== "CLOSED" &&
-    job.status !== "REJECTED";
+    job.status !== "REJECTED" &&
+    job.status !== "WITHDRAWN";
 
   const setFollowUpAfterDays = (days: number) => {
     const date = new Date();

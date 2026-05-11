@@ -250,7 +250,8 @@ export function JobsFiltersCard({
           {syncDiagnostics.ats.configuredSourceCount})
         </p>
         <p>
-          RSS fallback: LinkedIn {syncDiagnostics.rss.linkedinConfigured ? "yes" : "no"}, Indeed{" "}
+          RSS fallback: LinkedIn{" "}
+          {syncDiagnostics.rss.linkedinConfigured ? "yes" : "no"}, Indeed{" "}
           {syncDiagnostics.rss.indeedConfigured ? "yes" : "no"}, Third{" "}
           {syncDiagnostics.rss.thirdConfigured ? "yes" : "no"} (configured total{" "}
           {syncDiagnostics.rss.configuredSourceCount})

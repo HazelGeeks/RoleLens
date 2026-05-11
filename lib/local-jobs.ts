@@ -1,3 +1,5 @@
+import { statusOptions } from "@/lib/constants";
+
 export type JobSource = "LINKEDIN" | "INDEED" | "COMPANY_SITE" | "MANUAL";
 export type RemoteType = "REMOTE" | "HYBRID" | "ONSITE" | "UNKNOWN";
 export type EmploymentType =
@@ -8,14 +10,7 @@ export type EmploymentType =
   | "INTERNSHIP"
   | "FREELANCE"
   | "OTHER";
-export type JobStatus =
-  | "SAVED"
-  | "REVIEWING"
-  | "READY_TO_APPLY"
-  | "APPLIED"
-  | "INTERVIEW"
-  | "REJECTED"
-  | "CLOSED";
+export type JobStatus = (typeof statusOptions)[number];
 
 export type JobNote = {
   id: string;
@@ -86,15 +81,10 @@ const employmentValues = [
   "FREELANCE",
   "OTHER",
 ] as const;
-const statusValues = [
-  "SAVED",
-  "REVIEWING",
-  "READY_TO_APPLY",
-  "APPLIED",
-  "INTERVIEW",
-  "REJECTED",
-  "CLOSED",
-] as const;
+const statusValues = statusOptions;
+const legacyStatusMap: Record<string, JobStatus> = {
+  INTERVIEW: "INTERVIEWING",
+};
 
 function isJobSource(value: unknown): value is JobSource {
   return typeof value === "string" && sourceValues.includes(value as JobSource);
@@ -113,8 +103,10 @@ function isEmploymentType(value: unknown): value is EmploymentType {
   );
 }
 
-function isJobStatus(value: unknown): value is JobStatus {
-  return typeof value === "string" && statusValues.includes(value as JobStatus);
+function normalizeJobStatus(value: unknown): JobStatus | undefined {
+  if (typeof value !== "string") return undefined;
+  if (statusValues.includes(value as JobStatus)) return value as JobStatus;
+  return legacyStatusMap[value];
 }
 
 function sanitizeDateOnly(value: string | undefined) {
@@ -142,7 +134,7 @@ function dispatchJobsUpdated(
 function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
   const now = new Date().toISOString();
   const createdAt = typeof raw.createdAt === "string" ? raw.createdAt : now;
-  const status = isJobStatus(raw.status) ? raw.status : "SAVED";
+  const status = normalizeJobStatus(raw.status) ?? "SAVED";
   const fallbackHistory: JobStatusHistoryItem[] = [
     {
       id: crypto.randomUUID(),
@@ -154,19 +146,33 @@ function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
 
   const statusHistory = Array.isArray(raw.statusHistory)
     ? raw.statusHistory
-        .filter(
-          (item): item is JobStatusHistoryItem =>
-            !!item &&
-            isJobStatus(item.status) &&
-            typeof item.changedAt === "string" &&
-            typeof item.id === "string",
-        )
-        .map((item) => ({
-          id: item.id,
-          status: item.status,
-          changedAt: item.changedAt,
-          note: typeof item.note === "string" ? item.note : undefined,
-        }))
+        .map((item): JobStatusHistoryItem | null => {
+          if (!item || typeof item !== "object") return null;
+          const statusValue = normalizeJobStatus(
+            (item as { status?: unknown }).status,
+          );
+
+          if (
+            !statusValue ||
+            typeof (item as { changedAt?: unknown }).changedAt !== "string" ||
+            typeof (item as { id?: unknown }).id !== "string"
+          ) {
+            return null;
+          }
+
+          const noteValue =
+            typeof (item as { note?: unknown }).note === "string"
+              ? (item as { note: string }).note
+              : undefined;
+
+          return {
+            id: (item as { id: string }).id,
+            status: statusValue,
+            changedAt: (item as { changedAt: string }).changedAt,
+            ...(noteValue ? { note: noteValue } : {}),
+          };
+        })
+        .filter((item): item is JobStatusHistoryItem => item != null)
     : fallbackHistory;
 
   return {
@@ -343,7 +349,13 @@ export function getDueFollowUps(referenceDate = new Date()) {
   const reference = referenceDate.toISOString().slice(0, 10);
   return getJobsFromStorage().filter((job) => {
     if (!job.followUpDate) return false;
-    if (job.status === "REJECTED" || job.status === "CLOSED") return false;
+    if (
+      job.status === "REJECTED" ||
+      job.status === "WITHDRAWN" ||
+      job.status === "CLOSED"
+    ) {
+      return false;
+    }
     return job.followUpDate <= reference;
   });
 }

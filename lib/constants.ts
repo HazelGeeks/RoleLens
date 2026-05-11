@@ -15,8 +15,11 @@ export const statusOptions = [
   "REVIEWING",
   "READY_TO_APPLY",
   "APPLIED",
-  "INTERVIEW",
+  "INTERVIEW_PENDING",
+  "INTERVIEWING",
+  "OFFER",
   "REJECTED",
+  "WITHDRAWN",
   "CLOSED",
 ] as const;
 
@@ -25,8 +28,11 @@ export const statusLabels: Record<(typeof statusOptions)[number], string> = {
   REVIEWING: "Reviewing",
   READY_TO_APPLY: "Ready To Apply",
   APPLIED: "Applied",
-  INTERVIEW: "Interview",
+  INTERVIEW_PENDING: "Interview Pending",
+  INTERVIEWING: "Interviewing",
+  OFFER: "Offer",
   REJECTED: "Rejected",
+  WITHDRAWN: "Withdrawn",
   CLOSED: "Closed",
 };
 
