@@ -1,0 +1,62 @@
+[
+  {
+    "name": "JobKorea Frontend Search",
+    "url": "https://www.jobkorea.co.kr/Search/?stext=%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C",
+    "company": "JobKorea",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "Saramin Frontend Search",
+    "url": "https://www.saramin.co.kr/zf_user/search?searchType=search&searchword=%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C",
+    "company": "Saramin",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "Wanted Frontend Search",
+    "url": "https://www.wanted.co.kr/search?query=%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C",
+    "company": "Wanted",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "RocketPunch Frontend Jobs",
+    "url": "https://www.rocketpunch.com/jobs?keywords=frontend",
+    "company": "RocketPunch",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "Remember Career Frontend Search",
+    "url": "https://career.rememberapp.co.kr/job/postings/search?search=frontend",
+    "company": "Remember",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "WeWorkRemotely Frontend Search",
+    "url": "https://weworkremotely.com/remote-jobs/search?term=frontend",
+    "company": "WeWorkRemotely",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "RemoteOK Developer Jobs",
+    "url": "https://remoteok.com/remote-dev-jobs",
+    "company": "RemoteOK",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "Remotive Software Jobs",
+    "url": "https://remotive.com/remote-jobs/software-dev",
+    "company": "Remotive",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "Indeed Frontend Search",
+    "url": "https://www.indeed.com/jobs?q=frontend+engineer",
+    "company": "Indeed",
+    "source_type": "INDEED"
+  },
+  {
+    "name": "LinkedIn Frontend Search",
+    "url": "https://www.linkedin.com/jobs/search/?keywords=frontend%20engineer",
+    "company": "LinkedIn",
+    "source_type": "LINKEDIN"
+  }
+]

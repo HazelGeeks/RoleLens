@@ -40,9 +40,7 @@ export function JobDetailClient() {
   const isFollowUpOverdue =
     !!job.followUpDate &&
     job.followUpDate <= today &&
-    job.status !== "CLOSED" &&
-    job.status !== "REJECTED" &&
-    job.status !== "WITHDRAWN";
+    job.status !== "ARCHIVE";
 
   const setFollowUpAfterDays = (days: number) => {
     const date = new Date();

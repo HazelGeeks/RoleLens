@@ -19,6 +19,8 @@ const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
   ats: {
     greenhouseBoardCount: 0,
     leverCompanyCount: 0,
+    ashbyOrganizationCount: 0,
+    smartRecruitersCompanyCount: 0,
     configuredSourceCount: 0,
   },
   rss: {
@@ -27,18 +29,121 @@ const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
     thirdConfigured: false,
     configuredSourceCount: 0,
   },
+  python: {
+    scrapedFeedConfigured: false,
+    configuredSourceCount: 0,
+  },
   sourceCount: 0,
 };
 
 const DEFAULT_RECOVERY_GUIDE = [
-  "Set at least one source in Cloudflare Pages Variables and Secrets for both Production and Preview.",
-  "Use ATS variables (GREENHOUSE_BOARD_TOKENS or LEVER_COMPANIES) or RSS fallback URLs.",
-  "Save variables and redeploy the target environment.",
-  "Call /api/jobs/import?refresh=1, then retry Sync Sources in the Jobs page.",
+  "Local dev: set at least one source in .env.local (copy from .env.example).",
+  "Cloudflare Pages: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
+  "Use PYTHON_SCRAPED_FEED_URL as the single ingestion source (site-crawled JSON).",
+  "Restart next dev (local) or redeploy the target environment (Cloudflare).",
+  "Call /api/jobs/import?refresh=1, then retry Sync Crawled Feed in the Jobs page.",
 ];
+
+const AUTO_IMPORT_TAG_PREFIXES = [
+  "python-scraper",
+  "greenhouse",
+  "lever",
+  "ashby",
+  "smartrecruiters",
+  "linkedin",
+  "indeed",
+];
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") return null;
+  return value as Record<string, unknown>;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function normalizeDiagnostics(
+  value: unknown,
+  fallbackSourceCount: number,
+): FeedImportDiagnostics {
+  const root = asRecord(value);
+  const ats = asRecord(root?.ats);
+  const rss = asRecord(root?.rss);
+  const python = asRecord(root?.python);
+
+  return {
+    ats: {
+      greenhouseBoardCount:
+        asNumber(ats?.greenhouseBoardCount) ??
+        EMPTY_DIAGNOSTICS.ats.greenhouseBoardCount,
+      leverCompanyCount:
+        asNumber(ats?.leverCompanyCount) ??
+        EMPTY_DIAGNOSTICS.ats.leverCompanyCount,
+      ashbyOrganizationCount:
+        asNumber(ats?.ashbyOrganizationCount) ??
+        EMPTY_DIAGNOSTICS.ats.ashbyOrganizationCount,
+      smartRecruitersCompanyCount:
+        asNumber(ats?.smartRecruitersCompanyCount) ??
+        EMPTY_DIAGNOSTICS.ats.smartRecruitersCompanyCount,
+      configuredSourceCount:
+        asNumber(ats?.configuredSourceCount) ??
+        EMPTY_DIAGNOSTICS.ats.configuredSourceCount,
+    },
+    rss: {
+      linkedinConfigured:
+        asBoolean(rss?.linkedinConfigured) ??
+        EMPTY_DIAGNOSTICS.rss.linkedinConfigured,
+      indeedConfigured:
+        asBoolean(rss?.indeedConfigured) ??
+        EMPTY_DIAGNOSTICS.rss.indeedConfigured,
+      thirdConfigured:
+        asBoolean(rss?.thirdConfigured) ??
+        EMPTY_DIAGNOSTICS.rss.thirdConfigured,
+      configuredSourceCount:
+        asNumber(rss?.configuredSourceCount) ??
+        EMPTY_DIAGNOSTICS.rss.configuredSourceCount,
+    },
+    python: {
+      scrapedFeedConfigured:
+        asBoolean(python?.scrapedFeedConfigured) ??
+        EMPTY_DIAGNOSTICS.python.scrapedFeedConfigured,
+      configuredSourceCount:
+        asNumber(python?.configuredSourceCount) ??
+        EMPTY_DIAGNOSTICS.python.configuredSourceCount,
+    },
+    sourceCount: asNumber(root?.sourceCount) ?? fallbackSourceCount,
+  };
+}
 
 function normalizeKey(value: string) {
   return value.trim().toLowerCase();
+}
+
+function toImportIdentity(input: {
+  source: string;
+  company: string;
+  title: string;
+  sourceUrl?: string;
+}) {
+  if (input.sourceUrl) {
+    return `url:${normalizeKey(input.sourceUrl)}`;
+  }
+
+  return `meta:${normalizeKey(input.source)}|${normalizeKey(input.company)}|${normalizeKey(input.title)}`;
+}
+
+function isAutoImportedJob(job: LocalJobPosting) {
+  return job.tags.some((tag) => {
+    const normalized = normalizeKey(tag);
+    return AUTO_IMPORT_TAG_PREFIXES.some((prefix) =>
+      normalized.startsWith(prefix),
+    );
+  });
 }
 
 function hashToId(seed: string) {
@@ -126,14 +231,14 @@ function mergeImportedJob(
     extractedSkills: skills,
     fitScore: fitBreakdown.overall,
     fitBreakdown,
-    status: existing?.status || "SAVED",
+    status: existing?.status || "SAVE",
     nextAction: existing?.nextAction,
     followUpDate: existing?.followUpDate,
     lastStatusChangedAt: existing?.lastStatusChangedAt || now,
     statusHistory: existing?.statusHistory || [
       {
         id: crypto.randomUUID(),
-        status: "SAVED",
+        status: "SAVE",
         changedAt: now,
         note: "Imported from external feed",
       },
@@ -192,23 +297,41 @@ export async function syncJobsFromFeeds(options?: {
   const sourceResults = Array.isArray(payload.sourceResults)
     ? payload.sourceResults
     : [];
-  const diagnostics = payload.diagnostics ?? {
-    ...EMPTY_DIAGNOSTICS,
-    sourceCount: payload.sourceCount,
-  };
+  const diagnostics = normalizeDiagnostics(payload.diagnostics, payload.sourceCount);
   const recoveryGuide =
     Array.isArray(payload.recoveryGuide) && payload.recoveryGuide.length > 0
       ? payload.recoveryGuide
       : DEFAULT_RECOVERY_GUIDE;
+  const incomingIdentities = new Set(
+    payload.jobs.map((job) =>
+      toImportIdentity({
+        source: job.source,
+        company: job.company,
+        title: job.title,
+        sourceUrl: job.sourceUrl,
+      }),
+    ),
+  );
   const existingJobs = getJobsFromStorage();
-  const nextMap = new Map(existingJobs.map((job) => [job.id, job]));
+  const retainedJobs = existingJobs.filter((job) => {
+    if (!isAutoImportedJob(job)) return true;
+    return incomingIdentities.has(
+      toImportIdentity({
+        source: job.source,
+        company: job.company,
+        title: job.title,
+        sourceUrl: job.sourceUrl,
+      }),
+    );
+  });
+  const nextMap = new Map(retainedJobs.map((job) => [job.id, job]));
 
   let added = 0;
   let updated = 0;
 
   for (const imported of payload.jobs) {
     const stableId = resolveStableId(imported);
-    const existing = findExistingJob(existingJobs, imported, stableId);
+    const existing = findExistingJob(retainedJobs, imported, stableId);
     const merged = mergeImportedJob(imported, existing);
     nextMap.set(merged.id, merged);
 
@@ -289,7 +412,7 @@ export function getLastFeedSyncSummary(): FeedSyncSummary | null {
       updated: typeof parsed.updated === "number" ? parsed.updated : 0,
       errors: parsed.errors,
       sourceResults: parsed.sourceResults,
-      diagnostics: parsed.diagnostics as FeedImportDiagnostics,
+      diagnostics: normalizeDiagnostics(parsed.diagnostics, parsed.sourceCount),
       recoveryGuide: parsed.recoveryGuide,
     };
   } catch {

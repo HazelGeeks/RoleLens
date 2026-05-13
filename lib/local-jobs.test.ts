@@ -66,7 +66,7 @@ describe("local jobs reliability", () => {
     expect(localStorage.getItem(LOCAL_JOBS_STORAGE_KEY)).toBe("[]");
   });
 
-  it("maps legacy INTERVIEW statuses to INTERVIEWING when reading storage", () => {
+  it("maps legacy statuses to the new 4-state model when reading storage", () => {
     const now = new Date().toISOString();
     setupWindow({
       [LOCAL_JOBS_STORAGE_KEY]: JSON.stringify([
@@ -83,7 +83,7 @@ describe("local jobs reliability", () => {
           statusHistory: [
             {
               id: "h-legacy-1",
-              status: "INTERVIEW",
+              status: "REJECTED",
               changedAt: now,
             },
           ],
@@ -98,8 +98,8 @@ describe("local jobs reliability", () => {
     const jobs = getJobsFromStorage();
 
     expect(jobs).toHaveLength(1);
-    expect(jobs[0]?.status).toBe("INTERVIEWING");
-    expect(jobs[0]?.statusHistory[0]?.status).toBe("INTERVIEWING");
+    expect(jobs[0]?.status).toBe("SUBMITTED");
+    expect(jobs[0]?.statusHistory[0]?.status).toBe("ARCHIVE");
   });
 
   it("dispatches update events for save/status/note/follow-up mutations", () => {
@@ -115,11 +115,11 @@ describe("local jobs reliability", () => {
       descriptionRaw: "React and TypeScript",
       extractedSkills: ["React", "TypeScript"],
       fitScore: 82,
-      status: "SAVED",
+      status: "SAVE",
       statusHistory: [
         {
           id: "h-1",
-          status: "SAVED",
+          status: "SAVE",
           changedAt: now,
         },
       ],
@@ -129,7 +129,7 @@ describe("local jobs reliability", () => {
       updatedAt: now,
     });
 
-    updateStatus("job-1", "APPLIED");
+    updateStatus("job-1", "SUBMITTED");
     addNote("job-1", "Applied with tailored resume");
     updateFollowUp("job-1", {
       nextAction: "Follow up with recruiter",

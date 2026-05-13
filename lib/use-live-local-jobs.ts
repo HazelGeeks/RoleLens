@@ -9,15 +9,17 @@ import {
 } from "@/lib/local-jobs";
 
 export function useLiveLocalJobs() {
-  const [jobs, setJobs] = useState<LocalJobPosting[]>(() =>
-    getJobsFromStorage(),
-  );
+  // Keep the first client render identical to SSR output.
+  // We read localStorage after mount to avoid hydration mismatch.
+  const [jobs, setJobs] = useState<LocalJobPosting[]>([]);
 
   const refreshJobs = useCallback(() => {
     setJobs(getJobsFromStorage());
   }, []);
 
   useEffect(() => {
+    refreshJobs();
+
     const handleJobsUpdated = () => {
       refreshJobs();
     };

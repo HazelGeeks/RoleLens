@@ -67,7 +67,7 @@ Base headers:
 {
   "company": "Figma",
   "title": "Frontend Engineer",
-  "status": "SAVED",
+  "status": "SAVE",
   "clientRequestId": "device-a-2026-04-13-001"
 }
 ```
@@ -115,7 +115,7 @@ Example body:
 {
   "op": "status",
   "expectedVersion": 4,
-  "status": "APPLIED",
+  "status": "SUBMITTED",
   "note": "Submitted resume and portfolio"
 }
 ```

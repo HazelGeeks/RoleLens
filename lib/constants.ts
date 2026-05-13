@@ -11,29 +11,17 @@ export const employmentTypeOptions = [
 ] as const;
 
 export const statusOptions = [
-  "SAVED",
-  "REVIEWING",
-  "READY_TO_APPLY",
-  "APPLIED",
-  "INTERVIEW_PENDING",
-  "INTERVIEWING",
-  "OFFER",
-  "REJECTED",
-  "WITHDRAWN",
-  "CLOSED",
+  "SAVE",
+  "INTEREST",
+  "SUBMITTED",
+  "ARCHIVE",
 ] as const;
 
 export const statusLabels: Record<(typeof statusOptions)[number], string> = {
-  SAVED: "Saved",
-  REVIEWING: "Reviewing",
-  READY_TO_APPLY: "Ready To Apply",
-  APPLIED: "Applied",
-  INTERVIEW_PENDING: "Interview Pending",
-  INTERVIEWING: "Interviewing",
-  OFFER: "Offer",
-  REJECTED: "Rejected",
-  WITHDRAWN: "Withdrawn",
-  CLOSED: "Closed",
+  SAVE: "Save",
+  INTEREST: "Interest",
+  SUBMITTED: "Submitted",
+  ARCHIVE: "Archive",
 };
 
 export const sourceLabels: Record<(typeof sourceOptions)[number], string> = {

@@ -1,0 +1,82 @@
+name: Python Scrape Now
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_urls:
+        description: "Optional comma/newline separated URLs (merged with sources file)"
+        required: false
+        default: ""
+        type: string
+      sources_file:
+        description: "JSON source catalog path ({name,url,company?,source_type?})"
+        required: false
+        default: "python/scraper/sources.sites.json"
+        type: string
+      output_path:
+        description: "Repository path for scraped JSON output"
+        required: false
+        default: "data/scraped/python-scraped-jobs.json"
+        type: string
+      timeout_seconds:
+        description: "HTTP timeout per source (seconds)"
+        required: false
+        default: "20"
+        type: string
+      limit_per_source:
+        description: "Max links kept per source"
+        required: false
+        default: "120"
+        type: string
+      commit_changes:
+        description: "Commit updated JSON back to repository"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run scraper
+        run: |
+          python3 python/scraper/scrape_jobs.py \
+            --sources-file "${{ inputs.sources_file }}" \
+            --source-urls "${{ inputs.source_urls }}" \
+            --timeout "${{ inputs.timeout_seconds }}" \
+            --limit-per-source "${{ inputs.limit_per_source }}" \
+            --output "${{ inputs.output_path }}"
+
+      - name: Upload scraped JSON artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-scraped-jobs
+          path: ${{ inputs.output_path }}
+
+      - name: Commit scraped output
+        if: ${{ inputs.commit_changes == 'true' }}
+        run: |
+          if git diff --quiet -- "${{ inputs.output_path }}"; then
+            echo "No output changes to commit"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${{ inputs.output_path }}"
+          git commit -m "chore: refresh python scraped jobs snapshot"
+          git push

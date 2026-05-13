@@ -30,12 +30,18 @@ const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
   ats: {
     greenhouseBoardCount: 0,
     leverCompanyCount: 0,
+    ashbyOrganizationCount: 0,
+    smartRecruitersCompanyCount: 0,
     configuredSourceCount: 0,
   },
   rss: {
     linkedinConfigured: false,
     indeedConfigured: false,
     thirdConfigured: false,
+    configuredSourceCount: 0,
+  },
+  python: {
+    scrapedFeedConfigured: false,
     configuredSourceCount: 0,
   },
   sourceCount: 0,
@@ -101,10 +107,10 @@ export function JobsPageClient() {
         const message =
           error instanceof Error
             ? error.message
-            : "Failed to sync feed sources";
+            : "Failed to sync crawled feed";
         setSyncWarning(null);
         setSyncError(
-          `${message}. Recovery: retry sync. If it keeps failing, verify feed URLs and environment settings.`,
+          `${message}. Recovery: retry sync. If it keeps failing, verify PYTHON_SCRAPED_FEED_URL and deployment environment settings.`,
         );
       } finally {
         setIsSyncing(false);
@@ -116,6 +122,8 @@ export function JobsPageClient() {
   useEffect(() => {
     setLastSyncAt(getLastFeedSyncAt());
     const lastSummary = getLastFeedSyncSummary();
+    let shouldForceRefresh = false;
+
     if (lastSummary) {
       setSyncSourceResults(lastSummary.sourceResults);
       setSyncDiagnostics(lastSummary.diagnostics);
@@ -137,10 +145,14 @@ export function JobsPageClient() {
         setSyncWarning(alert.message);
         setSyncError(null);
       }
+
+      shouldForceRefresh =
+        lastSummary.sourceCount === 0 ||
+        lastSummary.errors.some((entry) => entry.source === "configuration");
     }
 
-    if (!shouldAutoSyncToday()) return;
-    void runFeedSync({ silent: true });
+    if (!shouldAutoSyncToday() && !shouldForceRefresh) return;
+    void runFeedSync({ silent: true, refresh: true });
   }, [runFeedSync]);
 
   const rows = useMemo(() => {
@@ -204,12 +216,7 @@ export function JobsPageClient() {
     const today = new Date().toISOString().slice(0, 10);
     return jobs
       .filter((job) => !!job.followUpDate && job.followUpDate <= today)
-      .filter(
-        (job) =>
-          job.status !== "CLOSED" &&
-          job.status !== "REJECTED" &&
-          job.status !== "WITHDRAWN",
-      )
+      .filter((job) => job.status !== "ARCHIVE")
       .sort((a, b) =>
         (a.followUpDate || "").localeCompare(b.followUpDate || ""),
       )

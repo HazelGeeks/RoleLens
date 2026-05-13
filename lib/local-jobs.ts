@@ -83,7 +83,17 @@ const employmentValues = [
 ] as const;
 const statusValues = statusOptions;
 const legacyStatusMap: Record<string, JobStatus> = {
-  INTERVIEW: "INTERVIEWING",
+  SAVED: "SAVE",
+  REVIEWING: "INTEREST",
+  READY_TO_APPLY: "INTEREST",
+  APPLIED: "SUBMITTED",
+  INTERVIEW: "SUBMITTED",
+  INTERVIEW_PENDING: "SUBMITTED",
+  INTERVIEWING: "SUBMITTED",
+  OFFER: "SUBMITTED",
+  REJECTED: "ARCHIVE",
+  WITHDRAWN: "ARCHIVE",
+  CLOSED: "ARCHIVE",
 };
 
 function isJobSource(value: unknown): value is JobSource {
@@ -134,7 +144,7 @@ function dispatchJobsUpdated(
 function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
   const now = new Date().toISOString();
   const createdAt = typeof raw.createdAt === "string" ? raw.createdAt : now;
-  const status = normalizeJobStatus(raw.status) ?? "SAVED";
+  const status = normalizeJobStatus(raw.status) ?? "SAVE";
   const fallbackHistory: JobStatusHistoryItem[] = [
     {
       id: crypto.randomUUID(),
@@ -349,11 +359,7 @@ export function getDueFollowUps(referenceDate = new Date()) {
   const reference = referenceDate.toISOString().slice(0, 10);
   return getJobsFromStorage().filter((job) => {
     if (!job.followUpDate) return false;
-    if (
-      job.status === "REJECTED" ||
-      job.status === "WITHDRAWN" ||
-      job.status === "CLOSED"
-    ) {
+    if (job.status === "ARCHIVE") {
       return false;
     }
     return job.followUpDate <= reference;

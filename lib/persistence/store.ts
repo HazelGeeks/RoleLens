@@ -120,7 +120,7 @@ export async function createPersistentJob(args: {
     title: args.input.title,
     location: args.input.location,
     sourceUrl: args.input.sourceUrl,
-    status: args.input.status || "SAVED",
+    status: args.input.status || "SAVE",
     nextAction: args.input.nextAction,
     followUpDate: args.input.followUpDate,
     tags: normalizeTags(args.input.tags),

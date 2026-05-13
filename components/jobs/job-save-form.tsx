@@ -38,7 +38,7 @@ const defaultValues: CreateJobInput = {
   seniority: "",
   workAuthorizationNote: "",
   descriptionRaw: "",
-  status: "SAVED",
+  status: "SAVE",
   nextAction: "",
   followUpDate: "",
   notes: "",

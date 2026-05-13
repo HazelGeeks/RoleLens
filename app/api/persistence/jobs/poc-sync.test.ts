@@ -44,7 +44,7 @@ describe("/api/persistence/jobs PoC sync", () => {
         body: JSON.stringify({
           company: "Figma",
           title: "Frontend Engineer",
-          status: "SAVED",
+          status: "SAVE",
         }),
       },
     );
@@ -87,7 +87,7 @@ describe("/api/persistence/jobs PoC sync", () => {
         body: JSON.stringify({
           company: "Stripe",
           title: "Frontend Platform Engineer",
-          status: "SAVED",
+          status: "SAVE",
         }),
       }),
     );
@@ -105,7 +105,7 @@ describe("/api/persistence/jobs PoC sync", () => {
         headers: headersB,
         body: JSON.stringify({
           op: "status",
-          status: "APPLIED",
+          status: "SUBMITTED",
           note: "Applied from device-b",
           expectedVersion: 1,
         }),
@@ -166,7 +166,7 @@ describe("/api/persistence/jobs PoC sync", () => {
     expect(retryPayload.ok).toBe(true);
     expect(retryPayload.job.version).toBe(3);
     expect(retryPayload.job.nextAction).toBe("Prepare interview packet");
-    expect(retryPayload.job.status).toBe("APPLIED");
+    expect(retryPayload.job.status).toBe("SUBMITTED");
 
     const fetchResponse = await GET_BY_ID(
       new Request(`https://rolelens.pages.dev/api/persistence/jobs/${jobId}`, {

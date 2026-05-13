@@ -10,7 +10,7 @@
 
 1. Device A creates a new job entry.
 2. Device B opens the list and sees the same entry without manual export/import.
-3. Device B updates status to APPLIED and adds a note.
+3. Device B updates status to SUBMITTED and adds a note.
 4. Device A attempts to edit stale data and receives a conflict-safe response.
 5. Device A retries with latest version and update succeeds.
 

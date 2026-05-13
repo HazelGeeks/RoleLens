@@ -13,6 +13,55 @@ import {
 } from "@/lib/presentation";
 import type { LocalJobPosting } from "@/lib/local-jobs";
 
+function decodeHtmlEntities(value: string) {
+  let next = value;
+
+  // Decode repeatedly so values like "&amp;lt;h2&amp;gt;" also normalize.
+  for (let i = 0; i < 3; i += 1) {
+    const decoded = next
+      .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) =>
+        String.fromCodePoint(parseInt(hex, 16)),
+      )
+      .replace(/&#([0-9]+);/g, (_, dec: string) =>
+        String.fromCodePoint(parseInt(dec, 10)),
+      );
+
+    if (decoded === next) break;
+    next = decoded;
+  }
+
+  return next;
+}
+
+function normalizeDescriptionForDisplay(value: string) {
+  const decoded = decodeHtmlEntities(value);
+  const withBreaks = decoded
+    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+    .replace(
+      /<\/(p|div|section|article|li|ul|ol|h[1-6]|tr|table|blockquote)>/gi,
+      "\n",
+    )
+    .replace(
+      /<(p|div|section|article|li|ul|ol|h[1-6]|tr|table|blockquote)\b[^>]*>/gi,
+      "\n",
+    )
+    .replace(/<[^>]+>/g, " ");
+
+  const lines = withBreaks
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  return lines.join("\n");
+}
+
 export function JobDetailNotFound() {
   return (
     <div className="space-y-3">
@@ -206,13 +255,14 @@ type JobInsightCardsProps = {
 
 export function JobInsightCards({ job }: JobInsightCardsProps) {
   const breakdown = job.fitBreakdown ?? null;
+  const description = normalizeDescriptionForDisplay(job.descriptionRaw);
 
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <Card className="space-y-3">
         <CardTitle>Description</CardTitle>
         <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200">
-          {job.descriptionRaw}
+          {description || "-"}
         </p>
       </Card>
 

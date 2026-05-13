@@ -27,12 +27,18 @@ describe("/api/jobs/cron route", () => {
         ats: {
           greenhouseBoardCount: 0,
           leverCompanyCount: 0,
+          ashbyOrganizationCount: 0,
+          smartRecruitersCompanyCount: 0,
           configuredSourceCount: 0,
         },
         rss: {
           linkedinConfigured: false,
           indeedConfigured: false,
           thirdConfigured: false,
+          configuredSourceCount: 0,
+        },
+        python: {
+          scrapedFeedConfigured: false,
           configuredSourceCount: 0,
         },
         sourceCount: 2,

@@ -56,9 +56,7 @@ export function DashboardClient() {
       if (
         job.followUpDate &&
         job.followUpDate <= today &&
-        job.status !== "REJECTED" &&
-        job.status !== "WITHDRAWN" &&
-        job.status !== "CLOSED"
+        job.status !== "ARCHIVE"
       ) {
         dueFollowUps += 1;
       }
@@ -75,18 +73,15 @@ export function DashboardClient() {
     }));
     const avgFitScore = fitScoreCount > 0 ? fitScoreTotal / fitScoreCount : 0;
 
-    const readyToApply = statusCounts.READY_TO_APPLY ?? 0;
+    const saved = statusCounts.SAVE ?? 0;
     const activePipeline =
-      (statusCounts.APPLIED ?? 0) +
-      (statusCounts.INTERVIEW_PENDING ?? 0) +
-      (statusCounts.INTERVIEWING ?? 0) +
-      (statusCounts.OFFER ?? 0);
+      (statusCounts.INTEREST ?? 0) + (statusCounts.SUBMITTED ?? 0);
 
     return {
       totalJobs: jobs.length,
       avgFitScore: Math.round(avgFitScore),
       dueFollowUps,
-      readyToApply,
+      saved,
       activePipeline,
       statusCounts,
       sourceCounts,
@@ -159,8 +154,8 @@ export function DashboardClient() {
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-slate-500">Ready To Apply</p>
-          <p className="text-3xl font-semibold">{stats.readyToApply}</p>
+          <p className="text-sm text-slate-500">Saved</p>
+          <p className="text-3xl font-semibold">{stats.saved}</p>
         </Card>
         <Card>
           <p className="text-sm text-slate-500">Follow-ups Due</p>
@@ -193,7 +188,7 @@ export function DashboardClient() {
         <Card>
           <CardTitle>Status Pipeline</CardTitle>
           <CardDescription>
-            Track execution flow from review to offer.
+            Track execution flow from save to submission.
           </CardDescription>
           <div className="space-y-2 pt-2">
             {Object.entries(stats.statusCounts).map(([status, value]) => (
@@ -206,7 +201,7 @@ export function DashboardClient() {
               </div>
             ))}
             <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-2 text-sm dark:border-blue-900 dark:bg-blue-950/40">
-              <span>Applied + Interview + Offer</span>
+              <span>Interest + Submitted</span>
               <span className="font-semibold">{stats.activePipeline}</span>
             </div>
           </div>

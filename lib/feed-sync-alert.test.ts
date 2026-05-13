@@ -17,7 +17,7 @@ describe("buildFeedSyncAlert", () => {
     expect(alert).not.toBeNull();
     expect(alert?.level).toBe("error");
     expect(alert?.message.toLowerCase()).toContain("no valid feed source");
-    expect(alert?.message).toContain("LINKEDIN_ALERT_FEED_URL");
+    expect(alert?.message).toContain("PYTHON_SCRAPED_FEED_URL");
     expect(alert?.message).toContain("Production and Preview");
   });
 

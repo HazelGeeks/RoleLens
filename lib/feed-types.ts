@@ -37,12 +37,18 @@ export type FeedImportDiagnostics = {
   ats: {
     greenhouseBoardCount: number;
     leverCompanyCount: number;
+    ashbyOrganizationCount: number;
+    smartRecruitersCompanyCount: number;
     configuredSourceCount: number;
   };
   rss: {
     linkedinConfigured: boolean;
     indeedConfigured: boolean;
     thirdConfigured: boolean;
+    configuredSourceCount: number;
+  };
+  python: {
+    scrapedFeedConfigured: boolean;
     configuredSourceCount: number;
   };
   sourceCount: number;
