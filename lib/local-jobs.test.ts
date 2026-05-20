@@ -105,7 +105,7 @@ describe("local jobs reliability", () => {
     expect(jobs[0]?.location).toBe("Vancouver, British Columbia, Canada");
   });
 
-  it("maps legacy statuses to the new 4-state model when reading storage", () => {
+  it("maps legacy statuses to the new 5-state model when reading storage", () => {
     const now = new Date().toISOString();
     setupWindow({
       [LOCAL_JOBS_STORAGE_KEY]: JSON.stringify([

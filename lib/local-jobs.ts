@@ -86,6 +86,7 @@ const employmentValues = [
 ] as const;
 const statusValues = statusOptions;
 const legacyStatusMap: Record<string, JobStatus> = {
+  NEW: "NEW",
   SAVED: "SAVE",
   REVIEWING: "INTEREST",
   READY_TO_APPLY: "INTEREST",
@@ -167,7 +168,7 @@ function dispatchJobsUpdated(
 function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
   const now = new Date().toISOString();
   const createdAt = typeof raw.createdAt === "string" ? raw.createdAt : now;
-  const status = normalizeJobStatus(raw.status) ?? "SAVE";
+  const status = normalizeJobStatus(raw.status) ?? "NEW";
   const fallbackHistory: JobStatusHistoryItem[] = [
     {
       id: crypto.randomUUID(),

@@ -130,7 +130,6 @@ type JobsFiltersCardProps = {
   lastSyncAt: string | null;
   syncMessage: string | null;
   syncError: string | null;
-  syncWarning: string | null;
   syncDiagnostics: FeedImportDiagnostics;
   syncRecoveryGuide: string[];
   syncSourceResults: FeedSourceResult[];
@@ -145,7 +144,6 @@ export function JobsFiltersCard({
   lastSyncAt,
   syncMessage,
   syncError,
-  syncWarning,
   syncDiagnostics,
   syncRecoveryGuide,
   syncSourceResults,
@@ -288,21 +286,7 @@ export function JobsFiltersCard({
         </div>
       ) : null}
 
-      {syncWarning ? (
-        <div
-          className="mt-1 rounded-lg border border-amber-200 bg-amber-50 p-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-          role="status"
-          aria-live="polite"
-        >
-          <p>{syncWarning}</p>
-          <p className="mt-1 text-xs break-words">
-            You can continue with imported data, then retry sync after fixing
-            the failed source settings.
-          </p>
-        </div>
-      ) : null}
-
-      {syncError || syncWarning ? (
+      {syncError ? (
         <div className="mt-2 rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800">
           <p className="font-medium">Operational Checklist</p>
           <ol className="mt-1 list-decimal space-y-1 pl-4 text-xs text-slate-600 dark:text-slate-300">

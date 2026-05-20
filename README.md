@@ -24,10 +24,12 @@ Why this mode exists:
 4. Detail page with notes and status updates
 5. Dashboard analytics (skills/source/remote/seniority)
 6. Status tracking pipeline:
+   - `NEW`
    - `SAVE`
    - `INTEREST`
    - `SUBMITTED`
    - `ARCHIVE`
+7. Login / Sign-up scaffold for future personalized dashboard flows
 
 ## Stable Daily Automation
 

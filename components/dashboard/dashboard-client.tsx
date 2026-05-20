@@ -12,6 +12,7 @@ import {
 import { prettifyEnum } from "@/lib/presentation";
 import { statusLabels } from "@/lib/constants";
 import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
+import { useAuth } from "@/components/providers/auth-provider";
 
 function countMapToArray(input: Record<string, number>) {
   return Object.entries(input).map(([name, value]) => ({
@@ -22,6 +23,7 @@ function countMapToArray(input: Record<string, number>) {
 
 export function DashboardClient() {
   const { jobs } = useLiveLocalJobs();
+  const { user } = useAuth();
 
   const stats = useMemo(() => {
     const statusCounts: Record<string, number> = {};
@@ -73,7 +75,7 @@ export function DashboardClient() {
     }));
     const avgFitScore = fitScoreCount > 0 ? fitScoreTotal / fitScoreCount : 0;
 
-    const saved = statusCounts.SAVE ?? 0;
+    const saved = (statusCounts.NEW ?? 0) + (statusCounts.SAVE ?? 0);
     const activePipeline =
       (statusCounts.INTEREST ?? 0) + (statusCounts.SUBMITTED ?? 0);
 
@@ -95,13 +97,32 @@ export function DashboardClient() {
   if (jobs.length === 0) {
     return (
       <div className="space-y-4">
-        <div>
+        <header>
           <h2 className="text-2xl font-semibold">Analytics Dashboard</h2>
           <p className="text-sm text-slate-500">
-            Monitor application momentum and demand signals from your saved
-            postings.
+            {user
+              ? `${user.name}, your personalized metrics are ready once postings are synced.`
+              : "Sign in to make this dashboard personal to your account across devices."}
           </p>
-        </div>
+        </header>
+
+        {!user ? (
+          <Card className="space-y-3" role="status" aria-live="polite">
+            <CardTitle>Login and sign-up foundation is ready</CardTitle>
+            <CardDescription>
+              Account onboarding routes are now available. You can continue in
+              guest mode, then migrate to authenticated flows later.
+            </CardDescription>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/login">
+                <Button>Login</Button>
+              </Link>
+              <Link href="/signup">
+                <Button variant="secondary">Sign up</Button>
+              </Link>
+            </div>
+          </Card>
+        ) : null}
 
         <Card className="space-y-3" role="status" aria-live="polite">
           <CardTitle>No data to analyze yet</CardTitle>
@@ -125,12 +146,35 @@ export function DashboardClient() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-semibold">Analytics Dashboard</h2>
+        <h2 className="text-2xl font-semibold">
+          {user ? `${user.name}'s Analytics Dashboard` : "Analytics Dashboard"}
+        </h2>
         <p className="text-sm text-slate-500">
-          Monitor application momentum and demand signals from your saved
-          postings.
+          {user
+            ? "Monitor your application momentum and demand signals from tracked postings."
+            : "Sign in to keep this dashboard tied to one account across devices."}
         </p>
       </div>
+
+      {!user ? (
+        <Card className="space-y-3" role="status" aria-live="polite">
+          <CardTitle>Use account mode for true personalization</CardTitle>
+          <CardDescription>
+            Guest mode is still available, but login/signup is now scaffolded so
+            you can evolve into per-user dashboards safely.
+          </CardDescription>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/login">
+              <Button size="sm">Login</Button>
+            </Link>
+            <Link href="/signup">
+              <Button variant="secondary" size="sm">
+                Sign up
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <Card>
@@ -154,7 +198,7 @@ export function DashboardClient() {
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-slate-500">Saved</p>
+          <p className="text-sm text-slate-500">New + Saved</p>
           <p className="text-3xl font-semibold">{stats.saved}</p>
         </Card>
         <Card>
@@ -188,7 +232,7 @@ export function DashboardClient() {
         <Card>
           <CardTitle>Status Pipeline</CardTitle>
           <CardDescription>
-            Track execution flow from save to submission.
+            Track execution flow from new to submission.
           </CardDescription>
           <div className="space-y-2 pt-2">
             {Object.entries(stats.statusCounts).map(([status, value]) => (

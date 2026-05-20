@@ -4,6 +4,7 @@ import type {
   PersistentJob,
   PersistentJobPatch,
 } from "@/lib/persistence/types";
+import { getActiveAuthSessionUserId } from "@/lib/auth-client";
 
 const USER_ID_KEY = "rolelens.persistence.userId";
 const DEVICE_ID_KEY = "rolelens.persistence.deviceId";
@@ -32,10 +33,16 @@ function getIdentity() {
     };
   }
 
-  let userId = window.localStorage.getItem(USER_ID_KEY);
-  if (!userId) {
-    userId = `local-user-${crypto.randomUUID()}`;
-    window.localStorage.setItem(USER_ID_KEY, userId);
+  const activeSessionUserId = getActiveAuthSessionUserId();
+  let userId: string;
+  if (activeSessionUserId) {
+    userId = `account-${activeSessionUserId}`;
+  } else {
+    const cachedUserId = window.localStorage.getItem(USER_ID_KEY);
+    userId = cachedUserId || `local-user-${crypto.randomUUID()}`;
+    if (!cachedUserId) {
+      window.localStorage.setItem(USER_ID_KEY, userId);
+    }
   }
 
   let deviceId = window.localStorage.getItem(DEVICE_ID_KEY);

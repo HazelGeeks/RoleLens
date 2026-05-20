@@ -84,6 +84,11 @@ function compareByLocationFitAndCreated(left: JobRow, right: JobRow) {
   return compareByFitAndCreated(left, right);
 }
 
+type SyncToast = {
+  id: number;
+  message: string;
+};
+
 export function JobsPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -99,7 +104,7 @@ export function JobsPageClient() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [syncWarning, setSyncWarning] = useState<string | null>(null);
+  const [syncToast, setSyncToast] = useState<SyncToast | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [syncSourceResults, setSyncSourceResults] = useState<
     FeedSourceResult[]
@@ -112,6 +117,28 @@ export function JobsPageClient() {
     useState<FeedPlatform | null>(null);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
+  const showSyncToast = useCallback((message: string) => {
+    setSyncToast({
+      id: Date.now(),
+      message,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!syncToast) return;
+    const timeout = window.setTimeout(() => {
+      setSyncToast((current) => (current?.id === syncToast.id ? null : current));
+    }, 6000);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [syncToast]);
+
+  const dismissSyncToast = useCallback(() => {
+    setSyncToast(null);
+  }, []);
+
   const runFeedSync = useCallback(
     async (options?: {
       silent?: boolean;
@@ -122,7 +149,6 @@ export function JobsPageClient() {
       setIsSyncing(true);
       setActiveSyncPlatform(platform);
       setSyncError(null);
-      setSyncWarning(null);
 
       if (!options?.silent) {
         setSyncMessage(null);
@@ -165,9 +191,8 @@ export function JobsPageClient() {
 
         if (alert?.level === "error") {
           setSyncError(alert.message);
-          setSyncWarning(null);
         } else if (alert?.level === "warning") {
-          setSyncWarning(alert.message);
+          showSyncToast(alert.message);
           setSyncError(null);
         }
       } catch (error) {
@@ -175,7 +200,6 @@ export function JobsPageClient() {
           error instanceof Error
             ? error.message
             : "Failed to sync crawled feed";
-        setSyncWarning(null);
 
         if (message.includes("failed to write DB")) {
           resetJobsStorage();
@@ -183,19 +207,33 @@ export function JobsPageClient() {
           setSyncMessage("Local cache was reset because DB write failed. Retry Sync All Feeds.");
         }
 
+        if (message.includes("Manual feed refresh is disabled")) {
+          setSyncError(null);
+          showSyncToast(
+            "Manual sync is disabled on this public deployment to prevent abuse. Showing cached results only; scheduled server sync via /api/jobs/cron will keep data updated.",
+          );
+          if (options?.silent) {
+            setSyncMessage("Loaded the latest cached feed snapshot.");
+          }
+          return;
+        }
+
+        if (message.includes("Rate limit exceeded")) {
+          setSyncError(null);
+          showSyncToast("Sync is temporarily rate-limited. Please wait and retry.");
+          return;
+        }
+
         const safeMessage = message.endsWith(".") ? message.slice(0, -1) : message;
-        const recovery = message.includes("Manual feed refresh is disabled")
-          ? "Recovery: this deployment blocks manual sync to prevent abuse. Use cached data and run /api/jobs/cron with x-cron-secret from a trusted server workflow."
-          : message.includes("Rate limit exceeded")
-            ? "Recovery: wait until rate limit resets, then retry."
-            : "Recovery: retry sync. If it keeps failing, verify PYTHON_SCRAPED_FEED_URL and deployment environment settings.";
+        const recovery =
+          "Recovery: retry sync. If it keeps failing, verify PYTHON_SCRAPED_FEED_URL and deployment environment settings.";
         setSyncError(safeMessage + ". " + recovery);
       } finally {
         setIsSyncing(false);
         setActiveSyncPlatform(null);
       }
     },
-    [refreshJobs],
+    [refreshJobs, showSyncToast],
   );
 
   useEffect(() => {
@@ -244,9 +282,8 @@ export function JobsPageClient() {
 
       if (alert?.level === "error") {
         setSyncError(alert.message);
-        setSyncWarning(null);
       } else if (alert?.level === "warning") {
-        setSyncWarning(alert.message);
+        showSyncToast(alert.message);
         setSyncError(null);
       }
 
@@ -256,8 +293,8 @@ export function JobsPageClient() {
     }
 
     if (!shouldAutoSyncToday() && !shouldForceRefresh) return;
-    void runFeedSync({ silent: true, refresh: true });
-  }, [runFeedSync]);
+    void runFeedSync({ silent: true });
+  }, [runFeedSync, showSyncToast]);
 
   const rows = useMemo(() => {
     const normalizedSkill = requiredSkill.trim().toLowerCase();
@@ -448,7 +485,6 @@ export function JobsPageClient() {
         lastSyncAt={lastSyncAt}
         syncMessage={syncMessage}
         syncError={syncError}
-        syncWarning={syncWarning}
         syncDiagnostics={syncDiagnostics}
         syncRecoveryGuide={syncRecoveryGuide}
         syncSourceResults={syncSourceResults}
@@ -514,6 +550,28 @@ export function JobsPageClient() {
             </div>
 
             <NewJobClient navigateToDetail={false} onSaved={handleSavedFromModal} />
+          </div>
+        </div>
+      ) : null}
+
+      {syncToast ? (
+        <div className="pointer-events-none fixed bottom-4 right-4 z-50 w-full max-w-sm px-3 sm:px-0">
+          <div
+            className="pointer-events-auto rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 shadow-lg dark:border-amber-900 dark:bg-amber-950/80 dark:text-amber-200"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="leading-5">{syncToast.message}</p>
+              <button
+                type="button"
+                onClick={dismissSyncToast}
+                className="shrink-0 rounded border border-amber-300 px-2 py-0.5 text-xs font-medium hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:border-amber-700 dark:hover:bg-amber-900"
+                aria-label="Dismiss sync notice"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

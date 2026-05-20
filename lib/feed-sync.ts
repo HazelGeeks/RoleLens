@@ -279,14 +279,14 @@ function mergeImportedJob(
     extractedSkills: skills,
     fitScore: fitBreakdown.overall,
     fitBreakdown,
-    status: existing?.status || "SAVE",
+    status: existing?.status || "NEW",
     nextAction: existing?.nextAction,
     followUpDate: existing?.followUpDate,
     lastStatusChangedAt: existing?.lastStatusChangedAt || now,
     statusHistory: existing?.statusHistory || [
       {
         id: crypto.randomUUID(),
-        status: "SAVE",
+        status: "NEW",
         changedAt: now,
         note: "Imported from external feed",
       },
