@@ -59,6 +59,9 @@ Korean source note:
 Legacy source variables (`GREENHOUSE_*`, `LEVER_*`, RSS fallback URLs) are not used in the Python-only flow.
 
 - `CRON_SECRET` (required; `/api/jobs/cron` rejects all calls without `x-cron-secret`)
+- `SYNC_ADMIN_SECRET` (optional; protects manual import refresh via `x-rolelens-sync-secret`, falls back to `CRON_SECRET` when unset)
+- `ALLOW_PUBLIC_FEED_REFRESH` (optional; default recommended `0` in production to block public expensive refresh calls)
+- `IMPORT_PUBLIC_RATE_LIMIT_PER_MIN` (optional; default `60`, anonymous import-route request budget per IP)
 
 ### Daily Cron Trigger (GitHub Actions)
 
@@ -82,6 +85,8 @@ Header: x-cron-secret: $ROLELENS_CRON_SECRET
 ```
 
 On the app list screen, manual refresh supports `Sync All Feeds` plus platform-scoped sync buttons (`Sync Indeed`, `Sync LinkedIn`, `Sync Saramin`, `Sync JobKorea`).
+
+Production hardening default: keep `ALLOW_PUBLIC_FEED_REFRESH=0`. In that mode, public users can read cached `/api/jobs/import` snapshots, but expensive refresh calls (`refresh=1` or `platform=...`) require `x-rolelens-sync-secret` (or `x-cron-secret`) from a trusted server workflow.
 
 ### Python Scrape Trigger (GitHub Actions)
 
@@ -117,6 +122,7 @@ If you see "No valid feed source is configured", run this local-first checklist:
 
 3. For Cloudflare Pages, set `PYTHON_SCRAPED_FEED_URL` for both `Production` and `Preview`, then redeploy.
 4. Call `GET /api/jobs/import?refresh=1` (or platform scope: `GET /api/jobs/import?refresh=1&platform=indeed`) and verify:
+   - If `ALLOW_PUBLIC_FEED_REFRESH=0` in production, include `x-rolelens-sync-secret` (or `x-cron-secret`) for this check.
    - `diagnostics.python.configuredSourceCount > 0`
    - `sourceCount > 0`
 

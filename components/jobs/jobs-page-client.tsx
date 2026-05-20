@@ -184,9 +184,12 @@ export function JobsPageClient() {
         }
 
         const safeMessage = message.endsWith(".") ? message.slice(0, -1) : message;
-        setSyncError(
-          `${safeMessage}. Recovery: retry sync. If it keeps failing, verify PYTHON_SCRAPED_FEED_URL and deployment environment settings.`,
-        );
+        const recovery = message.includes("Manual feed refresh is disabled")
+          ? "Recovery: this deployment blocks manual sync to prevent abuse. Use cached data and run /api/jobs/cron with x-cron-secret from a trusted server workflow."
+          : message.includes("Rate limit exceeded")
+            ? "Recovery: wait until rate limit resets, then retry."
+            : "Recovery: retry sync. If it keeps failing, verify PYTHON_SCRAPED_FEED_URL and deployment environment settings.";
+        setSyncError(safeMessage + ". " + recovery);
       } finally {
         setIsSyncing(false);
         setActiveSyncPlatform(null);

@@ -64,6 +64,8 @@ const AUTO_IMPORT_TAG_PREFIXES = [
   "linkedin",
   "indeed",
 ];
+const PERSISTENCE_TAG_MAX_LENGTH = 32;
+const PERSISTENCE_TAG_MAX_COUNT = 20;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object") return null;
@@ -133,6 +135,41 @@ function normalizeDiagnostics(
 
 function normalizeKey(value: string) {
   return value.trim().toLowerCase();
+}
+
+function normalizeTagForPersistence(value: string) {
+  let normalized = value.trim();
+  if (!normalized) return undefined;
+
+  if (normalized.length > PERSISTENCE_TAG_MAX_LENGTH) {
+    normalized = normalized
+      .replace(/(?:[-_\s])search$/i, "")
+      .replace(/[-_\s]+$/g, "")
+      .trim();
+  }
+
+  if (normalized.length > PERSISTENCE_TAG_MAX_LENGTH) {
+    normalized = normalized.slice(0, PERSISTENCE_TAG_MAX_LENGTH).trimEnd();
+  }
+
+  return normalized || undefined;
+}
+
+function normalizeTagsForPersistence(tags: string[]) {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const rawTag of tags) {
+    const normalized = normalizeTagForPersistence(rawTag);
+    if (!normalized) continue;
+    const key = normalizeKey(normalized);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(normalized);
+    if (result.length >= PERSISTENCE_TAG_MAX_COUNT) break;
+  }
+
+  return result;
 }
 
 function toImportIdentity(input: {
@@ -254,7 +291,7 @@ function mergeImportedJob(
         note: "Imported from external feed",
       },
     ],
-    tags,
+    tags: normalizeTagsForPersistence(tags),
     notes: existing?.notes || [],
     createdAt: existing?.createdAt || now,
     updatedAt: now,
@@ -307,7 +344,17 @@ export async function syncJobsFromFeeds(options?: {
   });
 
   if (!response.ok) {
-    throw new Error(`Feed sync failed with status ${response.status}`);
+    let details = "";
+    try {
+      const payload = (await response.json()) as { message?: string };
+      if (payload?.message) {
+        details = ": " + payload.message;
+      }
+    } catch {
+      details = "";
+    }
+
+    throw new Error(`Feed sync failed with status ${response.status}${details}`);
   }
 
   const payload = (await response.json()) as FeedImportSnapshot & {
