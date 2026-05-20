@@ -26,7 +26,6 @@ export const createJobSchema = z
     ),
     salaryCurrency: z.enum(currencyOptions).optional(),
     seniority: z.string().trim().optional(),
-    workAuthorizationNote: z.string().trim().optional(),
     descriptionRaw: z.string().trim().min(30, "Paste enough description text"),
     status: z.enum(statusOptions),
     nextAction: z

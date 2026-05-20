@@ -7,26 +7,41 @@ import {
   LOCAL_JOBS_UPDATED_EVENT,
   type LocalJobPosting,
 } from "@/lib/local-jobs";
+import {
+  listPersistentJobsClient,
+  mergeLocalWithPersistent,
+} from "@/lib/persistence-client";
 
 export function useLiveLocalJobs() {
   // Keep the first client render identical to SSR output.
   // We read localStorage after mount to avoid hydration mismatch.
   const [jobs, setJobs] = useState<LocalJobPosting[]>([]);
 
-  const refreshJobs = useCallback(() => {
-    setJobs(getJobsFromStorage());
+  const refreshJobs = useCallback(async () => {
+    const localJobs = getJobsFromStorage();
+
+    try {
+      const persistentJobs = await listPersistentJobsClient();
+      const merged = mergeLocalWithPersistent(localJobs, persistentJobs);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify(merged));
+      }
+      setJobs(merged);
+    } catch {
+      setJobs(localJobs);
+    }
   }, []);
 
   useEffect(() => {
-    refreshJobs();
+    void refreshJobs();
 
     const handleJobsUpdated = () => {
-      refreshJobs();
+      void refreshJobs();
     };
 
     const handleStorageEvent = (event: StorageEvent) => {
       if (event.key === LOCAL_JOBS_STORAGE_KEY) {
-        refreshJobs();
+        void refreshJobs();
       }
     };
 

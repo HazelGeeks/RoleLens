@@ -28,6 +28,17 @@ on:
         required: false
         default: "120"
         type: string
+      platform:
+        description: "all | indeed | linkedin | saramin | jobkorea"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - "all"
+          - "indeed"
+          - "linkedin"
+          - "saramin"
+          - "jobkorea"
       commit_changes:
         description: "Commit updated JSON back to repository"
         required: false
@@ -52,6 +63,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install scraper dependencies
+        run: |
+          python3 -m pip install -r python/scraper/requirements.txt
+
       - name: Run scraper
         run: |
           python3 python/scraper/scrape_jobs.py \
@@ -59,6 +74,7 @@ jobs:
             --source-urls "${{ inputs.source_urls }}" \
             --timeout "${{ inputs.timeout_seconds }}" \
             --limit-per-source "${{ inputs.limit_per_source }}" \
+            --platform "${{ inputs.platform }}" \
             --output "${{ inputs.output_path }}"
 
       - name: Upload scraped JSON artifact

@@ -42,7 +42,9 @@ async function runCronImport(request: Request) {
     return auth.error;
   }
 
-  const snapshot = await collectFeedJobs(process.env);
+  const snapshot = await collectFeedJobs(process.env, {
+    requestUrl: request.url,
+  });
   await writeFeedSnapshotToCache(request, snapshot);
 
   return Response.json({

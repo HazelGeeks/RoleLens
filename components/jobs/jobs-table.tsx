@@ -66,7 +66,7 @@ export function JobsTable({
               onChange={(event) =>
                 onToggleSelect(row.original.id, event.target.checked)
               }
-              aria-label={`Select ${row.original.title} for comparison`}
+              aria-label={`Select ${row.original.title} at ${row.original.company} for comparison`}
             />
           );
         },
@@ -84,10 +84,18 @@ export function JobsTable({
               >
                 {row.original.title}
               </Link>
-              <p className="text-xs text-slate-500">{row.original.company}</p>
             </div>
           );
         },
+      },
+      {
+        accessorKey: "company",
+        header: "Company",
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-700 dark:text-slate-200">
+            {row.original.company}
+          </span>
+        ),
       },
       {
         accessorKey: "location",
@@ -191,9 +199,7 @@ export function JobsTable({
     [onToggleSelect, selectedIds, today],
   );
 
-  const [sorting, setSorting] = React.useState<SortingState>([
-    { id: "fitScore", desc: true },
-  ]);
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize: ROWS_PER_PAGE,
@@ -234,8 +240,8 @@ export function JobsTable({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-        <table className="w-full min-w-[1120px] text-left text-sm">
+      <div className="w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+        <table className="w-full min-w-[1260px] text-left text-sm">
           <thead className="bg-slate-100/80 dark:bg-slate-900">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>

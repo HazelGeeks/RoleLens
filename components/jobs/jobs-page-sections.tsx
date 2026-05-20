@@ -19,22 +19,48 @@ import type {
   RemoteType,
 } from "@/lib/local-jobs";
 import type { FeedImportDiagnostics, FeedSourceResult } from "@/lib/feed-types";
+import {
+  feedPlatformLabels,
+  type FeedPlatform,
+} from "@/lib/feed-platform";
 import type { JobRow } from "@/components/jobs/jobs-table";
+import {
+  jobsSortLabels,
+  jobsSortOptions,
+  type JobsSortOption,
+} from "@/lib/jobs-sort";
 
 const DEFAULT_OPERATIONAL_CHECKLIST = [
-  "Local dev: set at least one source in .env.local (copy from .env.example).",
+  "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
+  "To use a hosted crawler output locally, set PYTHON_SCRAPED_FEED_URL in .env.local.",
   "Cloudflare Pages: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
-  "Use PYTHON_SCRAPED_FEED_URL as the single ingestion source (site-crawled JSON).",
-  "Restart next dev (local) or redeploy the target environment (Cloudflare).",
-  "Call /api/jobs/import?refresh=1, then retry Sync Crawled Feed in the Jobs page.",
+  "Use PYTHON_SCRAPED_FEED_URL as the ingestion source in deployed environments.",
+  "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
+  "Call /api/jobs/import?refresh=1, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
 ];
 
 type JobsPageHeaderProps = {
   isSyncing: boolean;
-  onSync: () => void;
+  activeSyncPlatform: FeedPlatform | null;
+  onSyncAll: () => void;
+  onSyncPlatform: (platform: Exclude<FeedPlatform, "all">) => void;
+  onOpenSaveModal: () => void;
 };
 
-export function JobsPageHeader({ isSyncing, onSync }: JobsPageHeaderProps) {
+const PLATFORM_BUTTONS: Array<Exclude<FeedPlatform, "all">> = [
+  "indeed",
+  "linkedin",
+  "saramin",
+  "jobkorea",
+];
+
+export function JobsPageHeader({
+  isSyncing,
+  activeSyncPlatform,
+  onSyncAll,
+  onSyncPlatform,
+  onOpenSaveModal,
+}: JobsPageHeaderProps) {
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
@@ -47,14 +73,29 @@ export function JobsPageHeader({ isSyncing, onSync }: JobsPageHeaderProps) {
         <Button
           type="button"
           variant="secondary"
-          onClick={onSync}
+          onClick={onSyncAll}
           disabled={isSyncing}
         >
-          {isSyncing ? "Syncing..." : "Sync Crawled Feed"}
+          {isSyncing && activeSyncPlatform === "all"
+            ? "Syncing all..."
+            : "Sync All Feeds"}
         </Button>
-        <Link href="/jobs/new">
-          <Button>Save New Posting</Button>
-        </Link>
+        {PLATFORM_BUTTONS.map((platform) => (
+          <Button
+            key={platform}
+            type="button"
+            variant="secondary"
+            onClick={() => onSyncPlatform(platform)}
+            disabled={isSyncing}
+          >
+            {isSyncing && activeSyncPlatform === platform
+              ? "Syncing " + feedPlatformLabels[platform] + "..."
+              : "Sync " + feedPlatformLabels[platform]}
+          </Button>
+        ))}
+        <Button type="button" onClick={onOpenSaveModal}>
+          Save New Posting
+        </Button>
       </div>
     </header>
   );
@@ -67,6 +108,7 @@ type JobsFilterState = {
   remoteType: RemoteType | "ALL";
   minFit: string;
   requiredSkill: string;
+  sortBy: JobsSortOption;
 };
 
 type JobsFilterActions = {
@@ -76,6 +118,7 @@ type JobsFilterActions = {
   setRemoteType: (value: RemoteType | "ALL") => void;
   setMinFit: (value: string) => void;
   setRequiredSkill: (value: string) => void;
+  setSortBy: (value: JobsSortOption) => void;
   resetFilters: () => void;
 };
 
@@ -91,6 +134,7 @@ type JobsFiltersCardProps = {
   syncDiagnostics: FeedImportDiagnostics;
   syncRecoveryGuide: string[];
   syncSourceResults: FeedSourceResult[];
+  sourceCounts: Record<JobSource, number>;
 };
 
 export function JobsFiltersCard({
@@ -105,6 +149,7 @@ export function JobsFiltersCard({
   syncDiagnostics,
   syncRecoveryGuide,
   syncSourceResults,
+  sourceCounts,
 }: JobsFiltersCardProps) {
   const operationalChecklist =
     syncRecoveryGuide.length > 0
@@ -113,7 +158,7 @@ export function JobsFiltersCard({
 
   return (
     <Card>
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_repeat(5,minmax(0,1fr))]">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_repeat(6,minmax(0,1fr))]">
         <Input
           value={filters.q}
           onChange={(event) => actions.setQ(event.target.value)}
@@ -143,7 +188,7 @@ export function JobsFiltersCard({
           <option value="ALL">All Source</option>
           {sourceOptions.map((value) => (
             <option key={value} value={value}>
-              {sourceLabels[value]}
+              {sourceLabels[value]} ({sourceCounts[value]})
             </option>
           ))}
         </Select>
@@ -176,6 +221,19 @@ export function JobsFiltersCard({
           placeholder="Required skill"
           aria-label="Filter by required skill"
         />
+        <Select
+          value={filters.sortBy}
+          onChange={(event) =>
+            actions.setSortBy(event.target.value as JobsSortOption)
+          }
+          aria-label="Sort postings"
+        >
+          {jobsSortOptions.map((value) => (
+            <option key={value} value={value}>
+              {jobsSortLabels[value]}
+            </option>
+          ))}
+        </Select>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
@@ -209,6 +267,18 @@ export function JobsFiltersCard({
         </p>
       ) : null}
 
+      {filters.source !== "ALL" && sourceCounts[filters.source] === 0 ? (
+        <p
+          className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+          role="status"
+          aria-live="polite"
+        >
+          No {sourceLabels[filters.source]} postings are available yet. Run
+          platform sync for {sourceLabels[filters.source]} or switch source
+          filter to All Source.
+        </p>
+      ) : null}
+
       {syncError ? (
         <div
           className="mt-1 rounded-lg border border-rose-200 bg-rose-50 p-2 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200"
@@ -225,7 +295,7 @@ export function JobsFiltersCard({
           aria-live="polite"
         >
           <p>{syncWarning}</p>
-          <p className="mt-1 text-xs">
+          <p className="mt-1 text-xs break-words">
             You can continue with imported data, then retry sync after fixing
             the failed source settings.
           </p>
@@ -282,7 +352,7 @@ export function JobsFiltersCard({
                   </span>
                 </div>
                 {result.message ? (
-                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  <p className="mt-1 break-words text-xs text-slate-600 dark:text-slate-300">
                     {result.message}
                   </p>
                 ) : null}
@@ -297,12 +367,18 @@ export function JobsFiltersCard({
 
 type JobsEmptyStateCardProps = {
   isSyncing: boolean;
-  onSync: () => void;
+  activeSyncPlatform: FeedPlatform | null;
+  onSyncAll: () => void;
+  onSyncPlatform: (platform: Exclude<FeedPlatform, "all">) => void;
+  onOpenSaveModal: () => void;
 };
 
 export function JobsEmptyStateCard({
   isSyncing,
-  onSync,
+  activeSyncPlatform,
+  onSyncAll,
+  onSyncPlatform,
+  onOpenSaveModal,
 }: JobsEmptyStateCardProps) {
   return (
     <Card className="space-y-3" role="status" aria-live="polite">
@@ -312,17 +388,32 @@ export function JobsEmptyStateCard({
         environment.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Link href="/jobs/new">
-          <Button>Save New Posting</Button>
-        </Link>
+        <Button type="button" onClick={onOpenSaveModal}>
+          Save New Posting
+        </Button>
         <Button
           type="button"
           variant="secondary"
-          onClick={onSync}
+          onClick={onSyncAll}
           disabled={isSyncing}
         >
-          {isSyncing ? "Syncing..." : "Sync Crawled Feed"}
+          {isSyncing && activeSyncPlatform === "all"
+            ? "Syncing all..."
+            : "Sync All Feeds"}
         </Button>
+        {PLATFORM_BUTTONS.map((platform) => (
+          <Button
+            key={platform}
+            type="button"
+            variant="secondary"
+            onClick={() => onSyncPlatform(platform)}
+            disabled={isSyncing}
+          >
+            {isSyncing && activeSyncPlatform === platform
+              ? "Syncing " + feedPlatformLabels[platform] + "..."
+              : "Sync " + feedPlatformLabels[platform]}
+          </Button>
+        ))}
       </div>
     </Card>
   );

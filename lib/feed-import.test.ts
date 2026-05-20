@@ -72,10 +72,10 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
                   externalId: "py:sample:1",
                   source: "MANUAL",
                   sourceLabel: "PythonScraper:sample",
-                  sourceUrl: "https://example.com/jobs/1",
+                  sourceUrl:
+                    "https://www.linkedin.com/jobs/search/?keywords=frontend%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada",
                   company: "Sample Co",
                   title: "Frontend Engineer",
-                  location: "Seoul, Korea",
                   descriptionRaw: "React TypeScript role",
                   tags: ["python-scraper"],
                   publishedAt: "2026-05-11T00:00:00.000Z",
@@ -101,6 +101,93 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
     expect(result.diagnostics.python.configuredSourceCount).toBe(1);
     expect(result.jobs.length).toBeGreaterThan(0);
     expect(result.jobs[0]?.sourceLabel).toContain("Python");
+    expect(result.jobs[0]?.location).toBe("Vancouver, British Columbia, Canada");
+  });
+
+  it("uses local fallback feed route in local development", async () => {
+    const mockedFetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            jobs: [],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        ),
+    );
+    vi.stubGlobal("fetch", mockedFetch);
+
+    const result = await collectFeedJobs(
+      { NODE_ENV: "development", PYTHON_SCRAPED_FEED_URL: "" },
+      { requestUrl: "http://localhost:3000/api/jobs/import?refresh=1" },
+    );
+
+    expect(result.sourceCount).toBe(1);
+    expect(result.diagnostics.python.scrapedFeedConfigured).toBe(true);
+    expect(mockedFetch).toHaveBeenCalledOnce();
+  });
+
+  it("filters imported jobs by platform when requested", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              jobs: [
+                {
+                  externalId: "py:indeed:1",
+                  source: "INDEED",
+                  sourceLabel: "PythonScraper:Indeed Frontend Search",
+                  sourceUrl: "https://www.indeed.com/viewjob?jk=123",
+                  company: "Indeed",
+                  title: "Frontend Engineer",
+                  location: "Vancouver, BC",
+                  descriptionRaw: "React TypeScript role",
+                  tags: ["python-scraper", "indeed-frontend-search"],
+                  publishedAt: "2026-05-11T00:00:00.000Z",
+                },
+                {
+                  externalId: "py:linkedin:1",
+                  source: "LINKEDIN",
+                  sourceLabel: "PythonScraper:LinkedIn Frontend Search",
+                  sourceUrl: "https://www.linkedin.com/jobs/view/123",
+                  company: "LinkedIn",
+                  title: "Frontend Engineer",
+                  location: "Vancouver, BC",
+                  descriptionRaw: "React TypeScript role",
+                  tags: ["python-scraper", "linkedin-frontend-search"],
+                  publishedAt: "2026-05-11T00:00:00.000Z",
+                },
+              ],
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          ),
+      ),
+    );
+
+    const result = await collectFeedJobs(
+      {
+        PYTHON_SCRAPED_FEED_URL: "https://example.com/scraped-jobs.json",
+        TARGET_LOCATION_KEYWORDS: "vancouver",
+      },
+      { platform: "indeed" },
+    );
+
+    expect(result.sourceCount).toBe(1);
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0]?.source).toBe("INDEED");
+    expect(result.sourceResults[0]?.importedJobs).toBe(1);
+    expect(result.sourceResults[0]?.message).toContain("Platform filter (indeed)");
   });
 
   it("returns diagnostics and recovery guide on configuration error", async () => {

@@ -1,7 +1,14 @@
+import { Suspense } from "react";
 import { JobsPageClient } from "@/components/jobs/jobs-page-client";
 
-export const runtime = "edge";
+function Loading() {
+  return <p className="text-sm text-slate-500">Loading jobs...</p>;
+}
 
 export default function Home() {
-  return <JobsPageClient />;
+  return (
+    <Suspense fallback={<Loading />}>
+      <JobsPageClient />
+    </Suspense>
+  );
 }

@@ -67,7 +67,7 @@ export function JobDetailNotFound() {
     <div className="space-y-3">
       <h2 className="text-2xl font-semibold">Job not found</h2>
       <p className="text-sm text-slate-500">
-        This item may not exist in local storage.
+        This item may not exist in the current local cache or persistence store.
       </p>
       <Link href="/" className="text-blue-600 hover:underline">
         Back to list
@@ -290,10 +290,6 @@ export function JobInsightCards({ job }: JobInsightCardsProps) {
             ))}
           </div>
         ) : null}
-        <p className="text-sm text-slate-500">
-          {job.workAuthorizationNote || "No work authorization note"}
-        </p>
-
         <div className="space-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
           <p className="text-sm font-semibold">Status Timeline</p>
           {job.statusHistory.length === 0 ? (

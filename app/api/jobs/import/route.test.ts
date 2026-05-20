@@ -72,11 +72,42 @@ describe("/api/jobs/import route", () => {
       };
       recoveryGuide: string[];
       cached: boolean;
+      platform: string;
     };
 
     expect(response.status).toBe(200);
     expect(payload.cached).toBe(false);
+    expect(payload.platform).toBe("all");
     expect(payload.diagnostics.sourceCount).toBe(0);
     expect(payload.recoveryGuide.length).toBeGreaterThan(0);
+    expect(mockedCollectFeedJobs).toHaveBeenCalledWith(process.env, {
+      requestUrl: request.url,
+      platform: "all",
+    });
+  });
+
+  it("supports platform-scoped imports without using snapshot cache", async () => {
+    const request = new Request(
+      "https://rolelens.pages.dev/api/jobs/import?platform=indeed",
+      {
+        method: "GET",
+      },
+    );
+
+    const response = await GET(request);
+    const payload = (await response.json()) as {
+      cached: boolean;
+      platform: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.cached).toBe(false);
+    expect(payload.platform).toBe("indeed");
+    expect(mockedReadFeedSnapshotFromCache).not.toHaveBeenCalled();
+    expect(mockedWriteFeedSnapshotToCache).not.toHaveBeenCalled();
+    expect(mockedCollectFeedJobs).toHaveBeenCalledWith(process.env, {
+      requestUrl: request.url,
+      platform: "indeed",
+    });
   });
 });

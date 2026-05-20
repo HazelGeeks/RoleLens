@@ -1,6 +1,6 @@
 import { statusOptions } from "@/lib/constants";
 
-export type JobSource = "LINKEDIN" | "INDEED" | "COMPANY_SITE" | "MANUAL";
+export type JobSource = "LINKEDIN" | "INDEED" | "SARAMIN" | "JOBKOREA" | "MANUAL";
 export type RemoteType = "REMOTE" | "HYBRID" | "ONSITE" | "UNKNOWN";
 export type EmploymentType =
   | "FULL_TIME"
@@ -29,6 +29,7 @@ export type LocalJobPosting = {
   id: string;
   source: JobSource;
   sourceUrl?: string;
+  persistentId?: string;
   company: string;
   title: string;
   location?: string;
@@ -52,6 +53,7 @@ export type LocalJobPosting = {
   notes: JobNote[];
   createdAt: string;
   updatedAt: string;
+  persistentVersion?: number;
 };
 
 export const LOCAL_JOBS_STORAGE_KEY = "rolelens.jobs.v1";
@@ -62,7 +64,8 @@ export type LocalJobsUpdatedReason =
   | "upsert"
   | "note"
   | "status"
-  | "follow-up";
+  | "follow-up"
+  | "reset";
 
 export type LocalJobsUpdatedDetail = {
   reason: LocalJobsUpdatedReason;
@@ -70,7 +73,7 @@ export type LocalJobsUpdatedDetail = {
   updatedAt: string;
 };
 
-const sourceValues = ["LINKEDIN", "INDEED", "COMPANY_SITE", "MANUAL"] as const;
+const sourceValues = ["LINKEDIN", "INDEED", "SARAMIN", "JOBKOREA", "MANUAL"] as const;
 const remoteValues = ["REMOTE", "HYBRID", "ONSITE", "UNKNOWN"] as const;
 const employmentValues = [
   "FULL_TIME",
@@ -122,6 +125,26 @@ function normalizeJobStatus(value: unknown): JobStatus | undefined {
 function sanitizeDateOnly(value: string | undefined) {
   if (!value) return undefined;
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+}
+
+function sanitizeLocation(value: unknown) {
+  if (typeof value !== "string") return undefined;
+
+  const normalized = value.trim();
+  if (!normalized) return undefined;
+
+  const withoutEquals = normalized.replace(/^=+/, "");
+  const plusNormalized = withoutEquals.replace(/\+/g, " ");
+
+  let decoded = plusNormalized;
+  try {
+    decoded = decodeURIComponent(plusNormalized);
+  } catch {
+    decoded = plusNormalized;
+  }
+
+  const cleaned = decoded.trim();
+  return cleaned.length > 0 ? cleaned : undefined;
 }
 
 function dispatchJobsUpdated(
@@ -192,12 +215,13 @@ function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
       typeof raw.sourceUrl === "string" && raw.sourceUrl
         ? raw.sourceUrl
         : undefined,
+    persistentId:
+      typeof raw.persistentId === "string" && raw.persistentId
+        ? raw.persistentId
+        : undefined,
     company: typeof raw.company === "string" ? raw.company : "Unknown Company",
     title: typeof raw.title === "string" ? raw.title : "Unknown Role",
-    location:
-      typeof raw.location === "string" && raw.location
-        ? raw.location
-        : undefined,
+    location: sanitizeLocation(raw.location),
     remoteType: isRemoteType(raw.remoteType) ? raw.remoteType : "UNKNOWN",
     employmentType: isEmploymentType(raw.employmentType)
       ? raw.employmentType
@@ -249,6 +273,10 @@ function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
       : [],
     createdAt,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : now,
+    persistentVersion:
+      typeof raw.persistentVersion === "number" && Number.isFinite(raw.persistentVersion)
+        ? raw.persistentVersion
+        : undefined,
   };
 }
 
@@ -289,6 +317,12 @@ export function saveJobsToStorage(
   if (typeof window === "undefined") return;
   window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify(jobs));
   dispatchJobsUpdated(reason, jobs.length);
+}
+
+export function resetJobsStorage() {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify([]));
+  dispatchJobsUpdated("reset", 0);
 }
 
 export function upsertJob(job: LocalJobPosting) {

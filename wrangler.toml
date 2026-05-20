@@ -1,0 +1,13 @@
+name = "rolelens"
+compatibility_date = "2026-04-16"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rolelens-db"
+database_id = "bb959e06-5523-4c26-a12d-55113fac9cc2"
+preview_database_id = "bb959e06-5523-4c26-a12d-55113fac9cc2"
+[vars]
+PERSISTENCE_BACKEND = "d1"
+PERSISTENCE_D1_BINDING = "DB"
+

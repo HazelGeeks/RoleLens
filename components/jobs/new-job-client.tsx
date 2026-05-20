@@ -5,8 +5,20 @@ import { JobSaveForm } from "@/components/jobs/job-save-form";
 import type { CreateJobParsed } from "@/lib/validators";
 import { calculateFitScore, extractSkills } from "@/lib/fit-score";
 import { upsertJob } from "@/lib/local-jobs";
+import {
+  mirrorLocalJobToPersistence,
+  toLocalJobFromPersistent,
+} from "@/lib/persistence-client";
 
-export function NewJobClient() {
+type NewJobClientProps = {
+  navigateToDetail?: boolean;
+  onSaved?: (jobId: string) => void;
+};
+
+export function NewJobClient({
+  navigateToDetail = true,
+  onSaved,
+}: NewJobClientProps = {}) {
   const router = useRouter();
 
   const handleSubmit = async (values: CreateJobParsed) => {
@@ -14,12 +26,11 @@ export function NewJobClient() {
       title: values.title,
       descriptionRaw: values.descriptionRaw,
       seniority: values.seniority,
-      workAuthorizationNote: values.workAuthorizationNote,
     });
 
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
-    upsertJob({
+    const localJob = {
       id,
       source: values.source,
       sourceUrl: values.sourceUrl || undefined,
@@ -32,11 +43,8 @@ export function NewJobClient() {
       salaryMax: values.salaryMax,
       salaryCurrency: values.salaryCurrency || "CAD",
       seniority: values.seniority || undefined,
-      workAuthorizationNote: values.workAuthorizationNote || undefined,
       descriptionRaw: values.descriptionRaw,
-      extractedSkills: Array.from(
-        new Set(extractSkills(values.descriptionRaw)),
-      ),
+      extractedSkills: Array.from(new Set(extractSkills(values.descriptionRaw))),
       fitScore: fitBreakdown.overall,
       fitBreakdown,
       status: values.status,
@@ -68,9 +76,19 @@ export function NewJobClient() {
         : [],
       createdAt: now,
       updatedAt: now,
-    });
+    };
 
-    router.push(`/jobs?id=${encodeURIComponent(id)}`);
+    upsertJob(localJob);
+
+    const persisted = await mirrorLocalJobToPersistence(localJob);
+    const mergedJob = toLocalJobFromPersistent(persisted, localJob);
+    upsertJob(mergedJob);
+
+    onSaved?.(mergedJob.id);
+
+    if (navigateToDetail) {
+      router.push(`/jobs?id=${encodeURIComponent(mergedJob.id)}`);
+    }
     router.refresh();
   };
 

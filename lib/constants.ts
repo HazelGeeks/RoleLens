@@ -1,4 +1,4 @@
-export const sourceOptions = ["LINKEDIN", "INDEED", "COMPANY_SITE", "MANUAL"] as const;
+export const sourceOptions = ["LINKEDIN", "INDEED", "SARAMIN", "JOBKOREA", "MANUAL"] as const;
 export const remoteTypeOptions = ["REMOTE", "HYBRID", "ONSITE", "UNKNOWN"] as const;
 export const employmentTypeOptions = [
   "FULL_TIME",
@@ -27,7 +27,8 @@ export const statusLabels: Record<(typeof statusOptions)[number], string> = {
 export const sourceLabels: Record<(typeof sourceOptions)[number], string> = {
   LINKEDIN: "LinkedIn",
   INDEED: "Indeed",
-  COMPANY_SITE: "Company Site",
+  SARAMIN: "Saramin",
+  JOBKOREA: "JobKorea",
   MANUAL: "Manual",
 };
 

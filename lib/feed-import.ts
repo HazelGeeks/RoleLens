@@ -5,6 +5,11 @@ import type {
   FeedImportSnapshot,
   ImportedFeedJob,
 } from "@/lib/feed-types";
+import {
+  type FeedPlatform,
+  matchesFeedPlatform,
+  parseFeedPlatform,
+} from "@/lib/feed-platform";
 
 type FeedSourceConfig = {
   key: string;
@@ -52,6 +57,11 @@ type PythonScrapedSourceConfig = {
   defaultCompany?: string;
 };
 
+type CollectFeedJobsOptions = {
+  requestUrl?: string;
+  platform?: FeedPlatform;
+};
+
 type ParsedFeedItem = {
   title: string;
   link?: string;
@@ -70,6 +80,11 @@ const DEFAULT_ROLE_KEYWORDS = [
   "typescript",
   "web ui",
   "ui engineer",
+  "backend",
+  "back-end",
+  "software engineer",
+  "blockchain",
+  "web3",
 ];
 const DEFAULT_LOCATION_KEYWORDS = [
   "canada",
@@ -85,11 +100,12 @@ const DEFAULT_LOCATION_KEYWORDS = [
 ];
 
 const DEFAULT_RECOVERY_GUIDE = [
-  "Local dev: set at least one source in .env.local (copy from .env.example).",
+  "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
+  "To use a hosted crawler output locally, set PYTHON_SCRAPED_FEED_URL in .env.local.",
   "Cloudflare Pages: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
-  "Use PYTHON_SCRAPED_FEED_URL as the single ingestion source (site-crawled JSON).",
-  "Restart next dev (local) or redeploy the target environment (Cloudflare).",
-  "Call /api/jobs/import?refresh=1, then retry Sync Crawled Feed in the Jobs page.",
+  "Use PYTHON_SCRAPED_FEED_URL as the ingestion source in deployed environments.",
+  "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
+  "Call /api/jobs/import?refresh=1, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
 ];
 
 const ASHBY_JOB_BOARD_ENDPOINT =
@@ -97,6 +113,7 @@ const ASHBY_JOB_BOARD_ENDPOINT =
 const ASHBY_JOB_BOARD_QUERY =
   "query ApiJobBoard($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { teams { id name } jobPostings { id title locationName teamId workplaceType employmentType } } }";
 const SMARTRECRUITERS_PAGE_LIMIT = 100;
+const LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH = "/api/jobs/local-python-scraped-feed";
 
 function splitCsv(value: string | undefined) {
   if (!value) return [];
@@ -124,12 +141,9 @@ function normalizeHttpUrl(value: string | undefined) {
 }
 
 export function buildFeedImportDiagnostics(
-  env: NodeJS.ProcessEnv,
   sourceCount: number,
+  pythonScrapedConfigured: boolean,
 ): FeedImportDiagnostics {
-  const pythonScrapedConfigured =
-    normalizeHttpUrl(env.PYTHON_SCRAPED_FEED_URL) != null;
-
   return {
     ats: {
       greenhouseBoardCount: 0,
@@ -240,6 +254,42 @@ function escapeRegex(value: string) {
 
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function normalizeCompanyToken(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+const BOARD_COMPANY_LABELS = new Set([
+  "linkedin",
+  "indeed",
+  "jobkorea",
+  "saramin",
+  "weworkremotely",
+  "remoteok",
+  "wanted",
+  "rocketpunch",
+  "remember",
+  "remotive",
+  "pythonscraper",
+]);
+
+function isBoardCompanyLabel(value: string) {
+  return BOARD_COMPANY_LABELS.has(normalizeCompanyToken(value));
+}
+
+const NON_COMPANY_TOKENS_RE =
+  /\b(full[ -]?time|part[ -]?time|contract|intern(?:ship)?|remote|anywhere|new york|vancouver|canada|usd|eur|krw|원격|모집|채용|가능자|경력)\b/i;
+
+function isLikelyCompanyCandidate(value: string) {
+  const candidate = normalizeWhitespace(value);
+  if (candidate.length < 2 || candidate.length > 80) return false;
+  if (candidate.split(/\s+/).length > 5) return false;
+  if (isBoardCompanyLabel(candidate)) return false;
+  if (/[,$€£₩%]/.test(candidate)) return false;
+  if (/\d{2,}/.test(candidate)) return false;
+  if (NON_COMPANY_TOKENS_RE.test(candidate)) return false;
+  return true;
 }
 
 function stripHtml(value: string) {
@@ -357,7 +407,8 @@ function parseSource(value: string | undefined): JobSource | undefined {
   if (
     upper === "LINKEDIN" ||
     upper === "INDEED" ||
-    upper === "COMPANY_SITE" ||
+    upper === "SARAMIN" ||
+    upper === "JOBKOREA" ||
     upper === "MANUAL"
   ) {
     return upper;
@@ -408,17 +459,100 @@ function parseRemoteTypeFromWorkplace(
 }
 
 function inferCompanyFromTitle(title: string) {
-  const parts = title.split(" - ").map((part) => normalizeWhitespace(part));
+  const normalizedTitle = normalizeWhitespace(title);
+  const atMatch = normalizedTitle.match(/\bat\s+([^|,·•]+)$/i);
+  if (atMatch?.[1]) {
+    const candidate = normalizeWhitespace(atMatch[1]);
+    if (isLikelyCompanyCandidate(candidate)) {
+      return candidate;
+    }
+  }
+
+  const wwrInlineMatch = normalizedTitle.match(
+    /\b\d{1,2}d\s+([A-Za-z][A-Za-z0-9&'. -]{1,60}?)(?=\s+(?:Remote|Anywhere|Full-Time|Part-Time|Contract|New York(?: City)?|Vancouver|Toronto|Calgary|Montreal|San Francisco|London|\$|[A-Z][a-z]+,\s*[A-Z]{2}))/,
+  );
+  if (wwrInlineMatch?.[1]) {
+    const candidate = normalizeWhitespace(wwrInlineMatch[1]);
+    if (isLikelyCompanyCandidate(candidate)) {
+      return candidate;
+    }
+  }
+
+  const parts = normalizedTitle.split(" - ").map((part) => normalizeWhitespace(part));
   if (parts.length < 2) return undefined;
 
   const roleHint =
-    /(engineer|developer|designer|manager|lead|architect|frontend|back[ -]?end|full[ -]?stack|intern)/i;
+    /(engineer|developer|designer|manager|lead|architect|frontend|back[ -]?end|full[ -]?stack|intern|개발자|엔지니어|디자이너)/i;
   const first = parts[0];
   const last = parts[parts.length - 1];
 
-  if (roleHint.test(first) && !roleHint.test(last)) return last;
-  if (!roleHint.test(first) && roleHint.test(last)) return first;
+  if (roleHint.test(first) && !roleHint.test(last) && isLikelyCompanyCandidate(last)) {
+    return last;
+  }
+  if (!roleHint.test(first) && roleHint.test(last) && isLikelyCompanyCandidate(first)) {
+    return first;
+  }
   return undefined;
+}
+
+function inferCompanyFromSourceUrl(sourceUrl: string | undefined) {
+  if (!sourceUrl) return undefined;
+
+  try {
+    const parsed = new URL(sourceUrl);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname;
+
+    if (host.includes("linkedin.com")) {
+      const linkedinMatch = path.match(/\/jobs\/view\/[^/?#]*-at-([a-z0-9-]+)-\d+/i);
+      if (linkedinMatch?.[1]) {
+        const inferred = linkedinMatch[1]
+          .split("-")
+          .map((chunk) =>
+            chunk.length > 0 ? chunk[0].toUpperCase() + chunk.slice(1) : chunk,
+          )
+          .join(" ");
+        return isBoardCompanyLabel(inferred) ? undefined : inferred;
+      }
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+function normalizeScrapedCompany(input: {
+  rawCompany: string | undefined;
+  sourceLabel: string;
+  sourceUrl: string | undefined;
+}) {
+  const company = input.rawCompany ? normalizeWhitespace(input.rawCompany) : undefined;
+  if (!company) return undefined;
+
+  if (isBoardCompanyLabel(company)) return undefined;
+
+  const normalizedCompany = company.toLowerCase();
+  const normalizedSourceLabel = input.sourceLabel.toLowerCase();
+  if (normalizedSourceLabel.includes(normalizedCompany)) return undefined;
+
+  try {
+    if (input.sourceUrl) {
+      const host = new URL(input.sourceUrl).hostname.toLowerCase();
+      if (
+        (host.includes("linkedin.com") && normalizedCompany === "linkedin") ||
+        (host.includes("indeed.") && normalizedCompany === "indeed") ||
+        (host.includes("jobkorea.") && normalizedCompany === "jobkorea") ||
+        (host.includes("saramin.") && normalizedCompany === "saramin")
+      ) {
+        return undefined;
+      }
+    }
+  } catch {
+    // ignore malformed sourceUrl and keep evaluating the company candidate
+  }
+
+  return company;
 }
 
 function normalizeImportedItem(
@@ -508,13 +642,35 @@ function toAtsSourceConfig(env: NodeJS.ProcessEnv): AtsSourceConfig[] {
 
 function toPythonScrapedSourceConfig(
   env: NodeJS.ProcessEnv,
+  options: CollectFeedJobsOptions,
 ): PythonScrapedSourceConfig | null {
-  const url = normalizeHttpUrl(env.PYTHON_SCRAPED_FEED_URL);
+  const configuredUrl = normalizeHttpUrl(env.PYTHON_SCRAPED_FEED_URL);
+  const isProduction = env.NODE_ENV === "production";
+
+  let url = configuredUrl;
+  if (!url && options.requestUrl) {
+    try {
+      const requestBaseUrl = new URL(options.requestUrl);
+      const isLocalRequest =
+        requestBaseUrl.hostname === "localhost" ||
+        requestBaseUrl.hostname === "127.0.0.1";
+
+      if (!isProduction || isLocalRequest) {
+        url = new URL(
+          LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH,
+          requestBaseUrl,
+        ).toString();
+      }
+    } catch {
+      url = undefined;
+    }
+  }
+
   if (!url) return null;
 
   return {
     key: "python-scraped",
-    source: parseSource(env.PYTHON_SCRAPED_SOURCE_TYPE) ?? "COMPANY_SITE",
+    source: parseSource(env.PYTHON_SCRAPED_SOURCE_TYPE) ?? "MANUAL",
     label: env.PYTHON_SCRAPED_SOURCE_LABEL || "Python Scraper",
     url,
     defaultCompany: env.PYTHON_SCRAPED_DEFAULT_COMPANY,
@@ -562,7 +718,7 @@ function mapAtsDraftToImported(input: {
 
   return {
     externalId: input.externalId,
-    source: "COMPANY_SITE",
+    source: "MANUAL",
     sourceLabel: input.sourceLabel,
     sourceUrl: input.sourceUrl,
     company: input.companyName,
@@ -609,12 +765,26 @@ function normalizePythonScrapedItem(
     descriptionRaw: rawDescription,
   });
 
-  const company =
-    asString(raw.company) ||
-    draft.company ||
-    source.defaultCompany ||
-    inferCompanyFromTitle(title) ||
-    "Unknown Company";
+  const companyCandidates = [
+    asString(raw.company),
+    draft.company,
+    inferCompanyFromTitle(title),
+    inferCompanyFromSourceUrl(sourceUrl),
+    source.defaultCompany,
+  ];
+  let company: string | undefined;
+  for (const candidate of companyCandidates) {
+    const normalizedCompany = normalizeScrapedCompany({
+      rawCompany: candidate,
+      sourceLabel,
+      sourceUrl,
+    });
+    if (!normalizedCompany) continue;
+    company = normalizedCompany;
+    break;
+  }
+
+  company ||= "Unknown Company";
   const externalId =
     asString(raw.externalId) ||
     asString(raw.id) ||
@@ -1003,13 +1173,14 @@ async function fetchAndParseAtsSource(
 
 export async function collectFeedJobs(
   env: NodeJS.ProcessEnv = process.env,
+  options: CollectFeedJobsOptions = {},
 ): Promise<FeedImportSnapshot> {
   const feedSources = toFeedSourceConfig(env);
   const atsSources = toAtsSourceConfig(env);
-  const pythonScrapedSource = toPythonScrapedSourceConfig(env);
+  const pythonScrapedSource = toPythonScrapedSourceConfig(env, options);
   const sourceCount =
     feedSources.length + atsSources.length + (pythonScrapedSource ? 1 : 0);
-  const diagnostics = buildFeedImportDiagnostics(env, sourceCount);
+  const diagnostics = buildFeedImportDiagnostics(sourceCount, !!pythonScrapedSource);
   const errors: FeedImportSnapshot["errors"] = [];
   const sourceResults: FeedImportSnapshot["sourceResults"] = [];
   const roleKeywords = parseKeywordList(
@@ -1020,6 +1191,7 @@ export async function collectFeedJobs(
     env.TARGET_LOCATION_KEYWORDS,
     DEFAULT_LOCATION_KEYWORDS,
   );
+  const platform = parseFeedPlatform(options.platform);
 
   const tasks: Array<{ label: string; run: () => Promise<ImportedFeedJob[]> }> =
     [
@@ -1050,7 +1222,7 @@ export async function collectFeedJobs(
         {
           source: "configuration",
           message:
-            "No sources configured. Set PYTHON_SCRAPED_FEED_URL in .env.local (local dev) or Cloudflare Pages Variables and Secrets (Production + Preview).",
+            "No sources configured. Local dev: call via /api/jobs/import (uses local fallback) or set PYTHON_SCRAPED_FEED_URL in .env.local. Cloudflare: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
         },
       ],
       sourceResults: [],
@@ -1065,13 +1237,18 @@ export async function collectFeedJobs(
         const imported = await task.run();
         return {
           source: task.label,
-          imported,
+          imported:
+            platform === "all"
+              ? imported
+              : imported.filter((job) => matchesFeedPlatform(job, platform)),
+          totalImported: imported.length,
           error: null as string | null,
         };
       } catch (error) {
         return {
           source: task.label,
           imported: [] as ImportedFeedJob[],
+          totalImported: 0,
           error:
             error instanceof Error
               ? error.message
@@ -1100,6 +1277,10 @@ export async function collectFeedJobs(
       source: result.source,
       ok: true,
       importedJobs: result.imported.length,
+      message:
+        platform === "all"
+          ? undefined
+          : `Platform filter (${platform}): ${result.imported.length}/${result.totalImported}`,
     });
   }
 

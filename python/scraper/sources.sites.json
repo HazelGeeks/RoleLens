@@ -3,17 +3,71 @@
     "name": "JobKorea Frontend Search",
     "url": "https://www.jobkorea.co.kr/Search/?stext=%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C",
     "company": "JobKorea",
-    "source_type": "MANUAL"
+    "source_type": "JOBKOREA"
+  },
+  {
+    "name": "JobKorea Blockchain Search",
+    "url": "https://www.jobkorea.co.kr/Search/?stext=%EB%B8%94%EB%A1%9D%EC%B2%B4%EC%9D%B8",
+    "company": "JobKorea",
+    "source_type": "JOBKOREA"
+  },
+  {
+    "name": "JobKorea Backend Search",
+    "url": "https://www.jobkorea.co.kr/Search/?stext=%EB%B0%B1%EC%97%94%EB%93%9C",
+    "company": "JobKorea",
+    "source_type": "JOBKOREA"
+  },
+  {
+    "name": "JobKorea Software Engineer Search",
+    "url": "https://www.jobkorea.co.kr/Search/?stext=software+engineer",
+    "company": "JobKorea",
+    "source_type": "JOBKOREA"
   },
   {
     "name": "Saramin Frontend Search",
     "url": "https://www.saramin.co.kr/zf_user/search?searchType=search&searchword=%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C",
     "company": "Saramin",
-    "source_type": "MANUAL"
+    "source_type": "SARAMIN"
+  },
+  {
+    "name": "Saramin Blockchain Search",
+    "url": "https://www.saramin.co.kr/zf_user/search?searchType=search&searchword=%EB%B8%94%EB%A1%9D%EC%B2%B4%EC%9D%B8",
+    "company": "Saramin",
+    "source_type": "SARAMIN"
+  },
+  {
+    "name": "Saramin Backend Search",
+    "url": "https://www.saramin.co.kr/zf_user/search?searchType=search&searchword=%EB%B0%B1%EC%97%94%EB%93%9C",
+    "company": "Saramin",
+    "source_type": "SARAMIN"
+  },
+  {
+    "name": "Saramin Software Engineer Search",
+    "url": "https://www.saramin.co.kr/zf_user/search?searchType=search&searchword=software+engineer",
+    "company": "Saramin",
+    "source_type": "SARAMIN"
   },
   {
     "name": "Wanted Frontend Search",
     "url": "https://www.wanted.co.kr/search?query=%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C",
+    "company": "Wanted",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "Wanted Blockchain Search",
+    "url": "https://www.wanted.co.kr/search?query=%EB%B8%94%EB%A1%9D%EC%B2%B4%EC%9D%B8",
+    "company": "Wanted",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "Wanted Backend Search",
+    "url": "https://www.wanted.co.kr/search?query=%EB%B0%B1%EC%97%94%EB%93%9C",
+    "company": "Wanted",
+    "source_type": "MANUAL"
+  },
+  {
+    "name": "Wanted Software Engineer Search",
+    "url": "https://www.wanted.co.kr/search?query=software%20engineer",
     "company": "Wanted",
     "source_type": "MANUAL"
   },
@@ -49,13 +103,49 @@
   },
   {
     "name": "Indeed Frontend Search",
-    "url": "https://www.indeed.com/jobs?q=frontend+engineer",
+    "url": "https://ca.indeed.com/jobs?q=frontend+engineer&l=Vancouver%2C+BC",
+    "company": "Indeed",
+    "source_type": "INDEED"
+  },
+  {
+    "name": "Indeed Blockchain Search",
+    "url": "https://ca.indeed.com/jobs?q=blockchain+engineer&l=Vancouver%2C+BC",
+    "company": "Indeed",
+    "source_type": "INDEED"
+  },
+  {
+    "name": "Indeed Backend Search",
+    "url": "https://ca.indeed.com/jobs?q=backend+engineer&l=Vancouver%2C+BC",
+    "company": "Indeed",
+    "source_type": "INDEED"
+  },
+  {
+    "name": "Indeed Software Engineer Search",
+    "url": "https://ca.indeed.com/jobs?q=software+engineer&l=Vancouver%2C+BC",
     "company": "Indeed",
     "source_type": "INDEED"
   },
   {
     "name": "LinkedIn Frontend Search",
-    "url": "https://www.linkedin.com/jobs/search/?keywords=frontend%20engineer",
+    "url": "https://www.linkedin.com/jobs/search/?keywords=frontend%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada",
+    "company": "LinkedIn",
+    "source_type": "LINKEDIN"
+  },
+  {
+    "name": "LinkedIn Blockchain Search",
+    "url": "https://www.linkedin.com/jobs/search/?keywords=blockchain%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada",
+    "company": "LinkedIn",
+    "source_type": "LINKEDIN"
+  },
+  {
+    "name": "LinkedIn Backend Search",
+    "url": "https://www.linkedin.com/jobs/search/?keywords=backend%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada",
+    "company": "LinkedIn",
+    "source_type": "LINKEDIN"
+  },
+  {
+    "name": "LinkedIn Software Engineer Search",
+    "url": "https://www.linkedin.com/jobs/search/?keywords=software%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada",
     "company": "LinkedIn",
     "source_type": "LINKEDIN"
   }

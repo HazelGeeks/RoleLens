@@ -50,7 +50,7 @@ describe("feed sync observability", () => {
               jobs: [
                 {
                   externalId: "gh:acme:1",
-                  source: "COMPANY_SITE",
+                  source: "MANUAL",
                   sourceLabel: "Greenhouse",
                   company: "Acme",
                   title: "Frontend Engineer",
@@ -89,7 +89,7 @@ describe("feed sync observability", () => {
       ),
     );
 
-    const result = await syncJobsFromFeeds({ refresh: true });
+    const result = await syncJobsFromFeeds({ refresh: true, persistToDb: false });
 
     expect(result.totalImported).toBe(1);
     expect(result.sourceCount).toBe(2);
@@ -155,7 +155,7 @@ describe("feed sync observability", () => {
     const now = "2026-05-10T00:00:00.000Z";
     const legacyImported: LocalJobPosting = {
       id: "legacy-greenhouse-1",
-      source: "COMPANY_SITE",
+      source: "MANUAL",
       sourceUrl: "https://boards.greenhouse.io/acme/jobs/1",
       company: "Acme",
       title: "Old Greenhouse Posting",
@@ -263,7 +263,7 @@ describe("feed sync observability", () => {
       ),
     );
 
-    await syncJobsFromFeeds({ refresh: true });
+    await syncJobsFromFeeds({ refresh: true, persistToDb: false });
 
     expect(mockedSaveJobsToStorage).toHaveBeenCalledTimes(1);
     const saved = mockedSaveJobsToStorage.mock.calls[0]?.[0] ?? [];
@@ -271,4 +271,130 @@ describe("feed sync observability", () => {
     expect(savedIds).toContain("manual-1");
     expect(savedIds).not.toContain("legacy-greenhouse-1");
   });
+  it("supports platform-scoped sync without deleting other platform jobs", async () => {
+    const now = "2026-05-10T00:00:00.000Z";
+    const indeedJob: LocalJobPosting = {
+      id: "indeed-1",
+      source: "INDEED",
+      sourceUrl: "https://www.indeed.com/viewjob?jk=1",
+      company: "Indeed",
+      title: "Old Indeed Posting",
+      remoteType: "REMOTE",
+      descriptionRaw: "Old imported indeed posting",
+      extractedSkills: ["React"],
+      fitScore: 70,
+      status: "SAVE",
+      statusHistory: [
+        {
+          id: "h-indeed",
+          status: "SAVE",
+          changedAt: now,
+          note: "Imported from external feed",
+        },
+      ],
+      tags: ["python-scraper", "indeed-frontend-search"],
+      notes: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const linkedinJob: LocalJobPosting = {
+      id: "linkedin-1",
+      source: "LINKEDIN",
+      sourceUrl: "https://www.linkedin.com/jobs/view/1",
+      company: "LinkedIn",
+      title: "LinkedIn Posting",
+      remoteType: "REMOTE",
+      descriptionRaw: "Imported linkedin posting",
+      extractedSkills: ["TypeScript"],
+      fitScore: 75,
+      status: "SAVE",
+      statusHistory: [
+        {
+          id: "h-linkedin",
+          status: "SAVE",
+          changedAt: now,
+          note: "Imported from external feed",
+        },
+      ],
+      tags: ["python-scraper", "linkedin-frontend-search"],
+      notes: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    mockedGetJobsFromStorage.mockReturnValue([indeedJob, linkedinJob]);
+
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            generatedAt: "2026-05-13T00:00:00.000Z",
+            sourceCount: 1,
+            jobs: [
+              {
+                externalId: "py:indeed:1",
+                source: "INDEED",
+                sourceLabel: "PythonScraper:Indeed Frontend Search",
+                sourceUrl: "https://www.indeed.com/viewjob?jk=1",
+                company: "Indeed",
+                title: "Frontend Engineer",
+                descriptionRaw: "React TypeScript role",
+                extractedSkills: ["React", "TypeScript"],
+                tags: ["python-scraper", "indeed-frontend-search"],
+              },
+            ],
+            errors: [],
+            sourceResults: [
+              {
+                source: "PythonScraper",
+                ok: true,
+                importedJobs: 1,
+              },
+            ],
+            diagnostics: {
+              ats: {
+                greenhouseBoardCount: 0,
+                leverCompanyCount: 0,
+                ashbyOrganizationCount: 0,
+                smartRecruitersCompanyCount: 0,
+                configuredSourceCount: 0,
+              },
+              rss: {
+                linkedinConfigured: false,
+                indeedConfigured: false,
+                thirdConfigured: false,
+                configuredSourceCount: 0,
+              },
+              python: {
+                scrapedFeedConfigured: true,
+                configuredSourceCount: 1,
+              },
+              sourceCount: 1,
+            },
+            recoveryGuide: ["retry"],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await syncJobsFromFeeds({ refresh: true, platform: "indeed", persistToDb: false });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/jobs/import?refresh=1&platform=indeed",
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+    expect(mockedSaveJobsToStorage).toHaveBeenCalledTimes(1);
+    const saved = mockedSaveJobsToStorage.mock.calls[0]?.[0] ?? [];
+    const savedIds = saved.map((job) => job.id);
+    expect(savedIds).toContain("linkedin-1");
+    expect(savedIds).toContain("indeed-1");
+  });
+
 });

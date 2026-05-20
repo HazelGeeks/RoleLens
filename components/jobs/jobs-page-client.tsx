@@ -1,12 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { JobsTable, type JobRow } from "@/components/jobs/jobs-table";
+import { NewJobClient } from "@/components/jobs/new-job-client";
 import {
   type JobStatus,
   type JobSource,
   type RemoteType,
+  resetJobsStorage,
 } from "@/lib/local-jobs";
 import {
   getLastFeedSyncAt,
@@ -17,6 +21,7 @@ import {
 import type { FeedSourceResult } from "@/lib/feed-types";
 import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
 import { buildFeedSyncAlert } from "@/lib/feed-sync-alert";
+import type { JobsSortOption } from "@/lib/jobs-sort";
 import {
   CompareShortlistCard,
   DueFollowUpsCard,
@@ -25,6 +30,10 @@ import {
   JobsPageHeader,
 } from "@/components/jobs/jobs-page-sections";
 import type { FeedImportDiagnostics } from "@/lib/feed-types";
+import {
+  feedPlatformLabels,
+  type FeedPlatform,
+} from "@/lib/feed-platform";
 
 const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
   ats: {
@@ -47,7 +56,37 @@ const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
   sourceCount: 0,
 };
 
+function getLocationPriority(location: string | null) {
+  if (!location) return 0;
+  const normalized = location.toLowerCase();
+
+  if (normalized.includes("vancouver") || normalized.includes("밴쿠버")) {
+    return 3;
+  }
+
+  if (normalized.includes("canada") || normalized.includes("캐나다")) {
+    return 2;
+  }
+
+  return 0;
+}
+
+function compareByFitAndCreated(left: JobRow, right: JobRow) {
+  const fitDiff = (right.fitScore ?? -1) - (left.fitScore ?? -1);
+  if (fitDiff !== 0) return fitDiff;
+  return right.createdAt.localeCompare(left.createdAt);
+}
+
+function compareByLocationFitAndCreated(left: JobRow, right: JobRow) {
+  const locationPriorityDiff =
+    getLocationPriority(right.location) - getLocationPriority(left.location);
+  if (locationPriorityDiff !== 0) return locationPriorityDiff;
+  return compareByFitAndCreated(left, right);
+}
+
 export function JobsPageClient() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { jobs, refreshJobs } = useLiveLocalJobs();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<JobStatus | "ALL">("ALL");
@@ -55,6 +94,7 @@ export function JobsPageClient() {
   const [remoteType, setRemoteType] = useState<RemoteType | "ALL">("ALL");
   const [minFit, setMinFit] = useState("");
   const [requiredSkill, setRequiredSkill] = useState("");
+  const [sortBy, setSortBy] = useState<JobsSortOption>("SMART");
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -68,10 +108,19 @@ export function JobsPageClient() {
     EMPTY_DIAGNOSTICS,
   );
   const [syncRecoveryGuide, setSyncRecoveryGuide] = useState<string[]>([]);
+  const [activeSyncPlatform, setActiveSyncPlatform] =
+    useState<FeedPlatform | null>(null);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
   const runFeedSync = useCallback(
-    async (options?: { silent?: boolean; refresh?: boolean }) => {
+    async (options?: {
+      silent?: boolean;
+      refresh?: boolean;
+      platform?: FeedPlatform;
+    }) => {
+      const platform = options?.platform ?? "all";
       setIsSyncing(true);
+      setActiveSyncPlatform(platform);
       setSyncError(null);
       setSyncWarning(null);
 
@@ -80,14 +129,32 @@ export function JobsPageClient() {
       }
 
       try {
-        const result = await syncJobsFromFeeds({ refresh: options?.refresh });
-        refreshJobs();
+        const result = await syncJobsFromFeeds({
+          refresh: options?.refresh,
+          platform,
+        });
+        await refreshJobs();
         setLastSyncAt(result.syncedAt);
         setSyncSourceResults(result.sourceResults);
         setSyncDiagnostics(result.diagnostics);
         setSyncRecoveryGuide(result.recoveryGuide);
+        const platformLabel = feedPlatformLabels[platform];
+        const targetLabel =
+          platform === "all" ? "all feeds" : platformLabel + " feed";
         setSyncMessage(
-          `Synced ${result.totalImported} postings (${result.added} new, ${result.updated} updated) from ${result.sourceCount} source(s) at ${new Date(result.syncedAt).toLocaleString()}.`,
+          "Synced " +
+            result.totalImported +
+            " postings (" +
+            result.added +
+            " new, " +
+            result.updated +
+            " updated) from " +
+            targetLabel +
+            " using " +
+            result.sourceCount +
+            " source(s) at " +
+            new Date(result.syncedAt).toLocaleString() +
+            ".",
         );
 
         const alert = buildFeedSyncAlert({
@@ -109,15 +176,49 @@ export function JobsPageClient() {
             ? error.message
             : "Failed to sync crawled feed";
         setSyncWarning(null);
+
+        if (message.includes("failed to write DB")) {
+          resetJobsStorage();
+          await refreshJobs();
+          setSyncMessage("Local cache was reset because DB write failed. Retry Sync All Feeds.");
+        }
+
+        const safeMessage = message.endsWith(".") ? message.slice(0, -1) : message;
         setSyncError(
-          `${message}. Recovery: retry sync. If it keeps failing, verify PYTHON_SCRAPED_FEED_URL and deployment environment settings.`,
+          `${safeMessage}. Recovery: retry sync. If it keeps failing, verify PYTHON_SCRAPED_FEED_URL and deployment environment settings.`,
         );
       } finally {
         setIsSyncing(false);
+        setActiveSyncPlatform(null);
       }
     },
     [refreshJobs],
   );
+
+  useEffect(() => {
+    if (searchParams.get("save") !== "1") return;
+    setIsSaveModalOpen(true);
+    router.replace("/", { scroll: false });
+  }, [router, searchParams]);
+
+  useEffect(() => {
+    if (!isSaveModalOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsSaveModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isSaveModalOpen]);
 
   useEffect(() => {
     setLastSyncAt(getLastFeedSyncAt());
@@ -209,8 +310,36 @@ export function JobsPageClient() {
           followUpDate: job.followUpDate || null,
           createdAt: job.createdAt,
         }),
-      );
-  }, [jobs, minFit, q, remoteType, requiredSkill, source, status]);
+      )
+      .sort((left, right) => {
+        if (sortBy === "CREATED_DESC") {
+          return right.createdAt.localeCompare(left.createdAt);
+        }
+
+        if (sortBy === "FIT_DESC") {
+          return compareByFitAndCreated(left, right);
+        }
+
+        if (sortBy === "LOCATION_PRIORITY") {
+          return compareByLocationFitAndCreated(left, right);
+        }
+
+        if (source === "ALL") {
+          return right.createdAt.localeCompare(left.createdAt);
+        }
+
+        return compareByLocationFitAndCreated(left, right);
+      });
+  }, [jobs, minFit, q, remoteType, requiredSkill, source, sortBy, status]);
+
+  const sourceCounts = useMemo(
+    () =>
+      jobs.reduce<Record<JobSource, number>>(
+        (counts, job) => ({ ...counts, [job.source]: counts[job.source] + 1 }),
+        { LINKEDIN: 0, INDEED: 0, SARAMIN: 0, JOBKOREA: 0, MANUAL: 0 },
+      ),
+    [jobs],
+  );
 
   const dueFollowUps = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -253,11 +382,29 @@ export function JobsPageClient() {
     setRemoteType("ALL");
     setMinFit("");
     setRequiredSkill("");
+    setSortBy("SMART");
   };
 
-  const runManualSync = () => {
-    void runFeedSync({ refresh: true });
+  const runManualSyncAll = () => {
+    void runFeedSync({ refresh: true, platform: "all" });
   };
+
+  const runManualSyncPlatform = (platform: Exclude<FeedPlatform, "all">) => {
+    void runFeedSync({ refresh: true, platform });
+  };
+
+  const openSaveModal = () => {
+    setIsSaveModalOpen(true);
+  };
+
+  const closeSaveModal = () => {
+    setIsSaveModalOpen(false);
+  };
+
+  const handleSavedFromModal = useCallback(() => {
+    setIsSaveModalOpen(false);
+    void refreshJobs();
+  }, [refreshJobs]);
 
   const filters = {
     q,
@@ -266,6 +413,7 @@ export function JobsPageClient() {
     remoteType,
     minFit,
     requiredSkill,
+    sortBy,
   };
 
   const filterActions = {
@@ -275,12 +423,19 @@ export function JobsPageClient() {
     setRemoteType,
     setMinFit,
     setRequiredSkill,
+    setSortBy,
     resetFilters,
   };
 
   return (
-    <div className="space-y-4">
-      <JobsPageHeader isSyncing={isSyncing} onSync={runManualSync} />
+    <div className="min-w-0 space-y-4">
+      <JobsPageHeader
+        isSyncing={isSyncing}
+        activeSyncPlatform={activeSyncPlatform}
+        onSyncAll={runManualSyncAll}
+        onSyncPlatform={runManualSyncPlatform}
+        onOpenSaveModal={openSaveModal}
+      />
 
       <JobsFiltersCard
         filters={filters}
@@ -294,10 +449,17 @@ export function JobsPageClient() {
         syncDiagnostics={syncDiagnostics}
         syncRecoveryGuide={syncRecoveryGuide}
         syncSourceResults={syncSourceResults}
+        sourceCounts={sourceCounts}
       />
 
       {jobs.length === 0 ? (
-        <JobsEmptyStateCard isSyncing={isSyncing} onSync={runManualSync} />
+        <JobsEmptyStateCard
+          isSyncing={isSyncing}
+          activeSyncPlatform={activeSyncPlatform}
+          onSyncAll={runManualSyncAll}
+          onSyncPlatform={runManualSyncPlatform}
+          onOpenSaveModal={openSaveModal}
+        />
       ) : null}
 
       {jobs.length > 0 && dueFollowUps.length > 0 ? (
@@ -316,6 +478,41 @@ export function JobsPageClient() {
             onToggleSelect={toggleCompare}
           />
         </Card>
+      ) : null}
+
+      {isSaveModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 p-3 sm:p-6"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeSaveModal();
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-posting-modal-title"
+            className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:p-6"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 id="save-posting-modal-title" className="text-xl font-semibold">
+                  Save Job Posting
+                </h3>
+                <p className="text-sm text-slate-500">
+                  Paste URL and description, auto-fill fields, then save without
+                  leaving this page.
+                </p>
+              </div>
+              <Button type="button" variant="secondary" onClick={closeSaveModal}>
+                Close
+              </Button>
+            </div>
+
+            <NewJobClient navigateToDetail={false} onSaved={handleSavedFromModal} />
+          </div>
+        </div>
       ) : null}
     </div>
   );

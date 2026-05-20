@@ -43,7 +43,9 @@ function inferSourceFromUrl(sourceUrl?: string): JobSource | undefined {
   const lower = sourceUrl.toLowerCase();
   if (lower.includes("linkedin.")) return "LINKEDIN";
   if (lower.includes("indeed.")) return "INDEED";
-  return "COMPANY_SITE";
+  if (lower.includes("saramin.co.kr")) return "SARAMIN";
+  if (lower.includes("jobkorea.co.kr")) return "JOBKOREA";
+  return "MANUAL";
 }
 
 function inferCompanyFromUrl(sourceUrl?: string) {
@@ -109,11 +111,53 @@ function inferTitle(text: string) {
   return undefined;
 }
 
-function inferLocation(text: string) {
+function decodeUriComponentSafe(value: string) {
+  const plusNormalized = value.replace(/\+/g, " ");
+  try {
+    return decodeURIComponent(plusNormalized);
+  } catch {
+    return plusNormalized;
+  }
+}
+
+function parseLocationFromSourceUrl(sourceUrl?: string) {
+  if (!sourceUrl) return undefined;
+
+  try {
+    const parsed = new URL(sourceUrl);
+    const location =
+      parsed.searchParams.get("location") ?? parsed.searchParams.get("l");
+    if (!location) return undefined;
+
+    const cleaned = normalizeWhitespace(location.replace(/^=+/, ""));
+    return cleaned || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function inferLocation(text: string, sourceUrl?: string) {
+  const fromSourceUrl = parseLocationFromSourceUrl(sourceUrl);
+  if (fromSourceUrl) return fromSourceUrl;
+
   const labeled = text.match(
-    /(?:location|based\s+in|based\s+at)\s*[:\-]?\s*([^\n]{2,100})/i,
+    /(?:location|based\s+in|based\s+at)\s*[:\-]\s*([^\n]{2,100})/i,
   )?.[1];
-  if (labeled) return normalizeWhitespace(labeled);
+  if (labeled) {
+    const cleaned = normalizeWhitespace(
+      decodeUriComponentSafe(labeled).replace(/^=+/, ""),
+    );
+    if (cleaned) return cleaned;
+  }
+
+  const queryStyle = text.match(/(?:^|[?&])(?:location|l)=([^&\n]{2,100})/i)?.[1];
+  if (queryStyle) {
+    const cleaned = normalizeWhitespace(
+      decodeUriComponentSafe(queryStyle).replace(/^=+/, ""),
+    );
+    if (cleaned) return cleaned;
+  }
+
   return undefined;
 }
 
@@ -241,7 +285,7 @@ export function extractJobDraft(
       inferCompanyFromText(extractionText) ??
       inferCompanyFromUrl(input.sourceUrl),
     title: inferTitle(extractionText),
-    location: inferLocation(extractionText),
+    location: inferLocation(extractionText, input.sourceUrl),
     remoteType,
     employmentType: inferEmploymentType(extractionText),
     salaryMin: salary.salaryMin,

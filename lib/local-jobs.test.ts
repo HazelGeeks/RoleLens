@@ -4,6 +4,7 @@ import {
   getJobsFromStorage,
   LOCAL_JOBS_STORAGE_KEY,
   LOCAL_JOBS_UPDATED_EVENT,
+  resetJobsStorage,
   updateFollowUp,
   updateStatus,
   upsertJob,
@@ -64,6 +65,44 @@ describe("local jobs reliability", () => {
 
     expect(jobs).toEqual([]);
     expect(localStorage.getItem(LOCAL_JOBS_STORAGE_KEY)).toBe("[]");
+  });
+
+  it("decodes URL-encoded location values when reading storage", () => {
+    const now = new Date().toISOString();
+    setupWindow({
+      [LOCAL_JOBS_STORAGE_KEY]: JSON.stringify([
+        {
+          id: "encoded-location-1",
+          source: "LINKEDIN",
+          sourceUrl:
+            "https://www.linkedin.com/jobs/search/?keywords=frontend%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada",
+          company: "Sample Co",
+          title: "Frontend Engineer",
+          location: "=Vancouver%2C%20British%20Columbia%2C%20Canada",
+          remoteType: "REMOTE",
+          descriptionRaw: "React and TypeScript",
+          extractedSkills: ["React", "TypeScript"],
+          fitScore: 80,
+          status: "SAVE",
+          statusHistory: [
+            {
+              id: "h-encoded-location-1",
+              status: "SAVE",
+              changedAt: now,
+            },
+          ],
+          tags: [],
+          notes: [],
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]),
+    });
+
+    const jobs = getJobsFromStorage();
+
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.location).toBe("Vancouver, British Columbia, Canada");
   });
 
   it("maps legacy statuses to the new 4-state model when reading storage", () => {
@@ -145,5 +184,23 @@ describe("local jobs reliability", () => {
     });
 
     expect(reasons).toEqual(["upsert", "status", "note", "follow-up"]);
+  });
+
+  it("resets storage to an empty array and dispatches reset event", () => {
+    const { localStorage, dispatchEvent } = setupWindow({
+      [LOCAL_JOBS_STORAGE_KEY]: JSON.stringify([
+        { id: "keep", company: "Acme", title: "Role" },
+      ]),
+    });
+
+    resetJobsStorage();
+
+    expect(localStorage.getItem(LOCAL_JOBS_STORAGE_KEY)).toBe("[]");
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
+
+    const event = dispatchEvent.mock.calls[0]?.[0] as CustomEvent<LocalJobsUpdatedDetail>;
+    expect(event.type).toBe(LOCAL_JOBS_UPDATED_EVENT);
+    expect(event.detail.reason).toBe("reset");
+    expect(event.detail.totalJobs).toBe(0);
   });
 });

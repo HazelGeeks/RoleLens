@@ -36,7 +36,6 @@ const defaultValues: CreateJobInput = {
   salaryMax: undefined,
   salaryCurrency: "CAD",
   seniority: "",
-  workAuthorizationNote: "",
   descriptionRaw: "",
   status: "SAVE",
   nextAction: "",
@@ -109,10 +108,6 @@ export function JobSaveForm({ onSubmit }: SaveFormProps) {
     }
 
     applyIfEmpty("seniority", extracted.seniority ?? "");
-    applyIfEmpty(
-      "workAuthorizationNote",
-      extracted.workAuthorizationNote ?? "",
-    );
 
     if (extracted.salaryCurrency) {
       applyIfEmpty("salaryCurrency", extracted.salaryCurrency);
@@ -270,14 +265,6 @@ export function JobSaveForm({ onSubmit }: SaveFormProps) {
             </option>
           ))}
         </Select>
-      </div>
-
-      <div className="space-y-1 lg:col-span-2">
-        <label className="text-sm font-medium">Work Authorization Note</label>
-        <Input
-          {...register("workAuthorizationNote")}
-          placeholder="Must be authorized in Canada"
-        />
       </div>
 
       <div className="space-y-1 lg:col-span-2">

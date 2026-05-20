@@ -11,7 +11,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "cf:build": "next build && npx @cloudflare/next-on-pages@1",
-    "cf:deploy": "wrangler pages deploy .vercel/output/static --project-name=$CLOUDFLARE_PROJECT_NAME"
+    "cf:deploy": "wrangler pages deploy .vercel/output/static --project-name=$CLOUDFLARE_PROJECT_NAME",
+    "d1:migrate:local": "wrangler d1 migrations apply rolelens-db --local",
+    "d1:migrate:preview": "wrangler d1 migrations apply rolelens-db --preview",
+    "d1:migrate:prod": "wrangler d1 migrations apply rolelens-db --remote",
+    "dev:d1": "npm run d1:migrate:local && npm run cf:build && wrangler pages dev .vercel/output/static --persist-to .wrangler/state --port 3000 --env-file .env.local"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

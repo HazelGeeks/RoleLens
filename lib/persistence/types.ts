@@ -1,4 +1,26 @@
-import type { JobStatus } from "@/lib/local-jobs";
+import type {
+  EmploymentType,
+  JobSource,
+  JobStatus,
+  JobStatusHistoryItem,
+  RemoteType,
+} from "@/lib/local-jobs";
+
+export type PersistentJobMeta = {
+  source: JobSource;
+  remoteType: RemoteType;
+  employmentType?: EmploymentType;
+  salaryMin?: number;
+  salaryMax?: number;
+  salaryCurrency?: string;
+  seniority?: string;
+  workAuthorizationNote?: string;
+  descriptionRaw?: string;
+  extractedSkills: string[];
+  fitScore: number;
+  fitBreakdown?: Record<string, number>;
+  statusHistory?: JobStatusHistoryItem[];
+};
 
 export type PersistentJobNote = {
   id: string;
@@ -23,6 +45,7 @@ export type PersistentJob = {
   updatedAt: string;
   updatedByDevice: string;
   version: number;
+  meta?: PersistentJobMeta;
 };
 
 export type CreatePersistentJobInput = {
@@ -36,6 +59,7 @@ export type CreatePersistentJobInput = {
   tags?: string[];
   initialNote?: string;
   clientRequestId?: string;
+  meta?: PersistentJobMeta;
 };
 
 export type UpdatePersistentJobChanges = {
@@ -46,6 +70,7 @@ export type UpdatePersistentJobChanges = {
   nextAction?: string;
   followUpDate?: string;
   tags?: string[];
+  meta?: PersistentJobMeta;
 };
 
 export type PersistentJobPatch =

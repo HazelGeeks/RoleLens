@@ -10,6 +10,16 @@ import {
   saveJobsToStorage,
   type LocalJobPosting,
 } from "@/lib/local-jobs";
+import {
+  buildPersistenceHeaders,
+  mirrorLocalJobToPersistence,
+  toLocalJobFromPersistent,
+} from "@/lib/persistence-client";
+import {
+  type FeedPlatform,
+  matchesFeedPlatform,
+  parseFeedPlatform,
+} from "@/lib/feed-platform";
 
 const LAST_SYNC_KEY = "rolelens.feed.lastSyncAt";
 const LAST_SYNC_DATE_KEY = "rolelens.feed.lastSyncDate";
@@ -37,11 +47,12 @@ const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
 };
 
 const DEFAULT_RECOVERY_GUIDE = [
-  "Local dev: set at least one source in .env.local (copy from .env.example).",
+  "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
+  "To use a hosted crawler output locally, set PYTHON_SCRAPED_FEED_URL in .env.local.",
   "Cloudflare Pages: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
-  "Use PYTHON_SCRAPED_FEED_URL as the single ingestion source (site-crawled JSON).",
-  "Restart next dev (local) or redeploy the target environment (Cloudflare).",
-  "Call /api/jobs/import?refresh=1, then retry Sync Crawled Feed in the Jobs page.",
+  "Use PYTHON_SCRAPED_FEED_URL as the ingestion source in deployed environments.",
+  "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
+  "Call /api/jobs/import?refresh=1, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
 ];
 
 const AUTO_IMPORT_TAG_PREFIXES = [
@@ -277,14 +288,22 @@ export type FeedSyncSummary = {
 
 export async function syncJobsFromFeeds(options?: {
   refresh?: boolean;
+  platform?: FeedPlatform;
+  persistToDb?: boolean;
 }): Promise<SyncJobsFromFeedsResult> {
   const params = new URLSearchParams();
   if (options?.refresh) params.set("refresh", "1");
+
+  const platform = parseFeedPlatform(options?.platform);
+  if (platform !== "all") {
+    params.set("platform", platform);
+  }
 
   const query = params.toString();
   const response = await fetch(`/api/jobs/import${query ? `?${query}` : ""}`, {
     method: "GET",
     cache: "no-store",
+    headers: buildPersistenceHeaders(),
   });
 
   if (!response.ok) {
@@ -313,8 +332,12 @@ export async function syncJobsFromFeeds(options?: {
     ),
   );
   const existingJobs = getJobsFromStorage();
+  const shouldPruneStale = payload.errors.length === 0;
   const retainedJobs = existingJobs.filter((job) => {
     if (!isAutoImportedJob(job)) return true;
+    if (!shouldPruneStale) return true;
+    if (platform !== "all" && !matchesFeedPlatform(job, platform)) return true;
+
     return incomingIdentities.has(
       toImportIdentity({
         source: job.source,
@@ -328,20 +351,41 @@ export async function syncJobsFromFeeds(options?: {
 
   let added = 0;
   let updated = 0;
+  const importedJobIds = new Set<string>();
 
   for (const imported of payload.jobs) {
     const stableId = resolveStableId(imported);
     const existing = findExistingJob(retainedJobs, imported, stableId);
     const merged = mergeImportedJob(imported, existing);
     nextMap.set(merged.id, merged);
+    importedJobIds.add(merged.id);
 
     if (existing) updated += 1;
     else added += 1;
   }
 
-  const mergedJobs = Array.from(nextMap.values()).sort((a, b) =>
+  let mergedJobs = Array.from(nextMap.values()).sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt),
   );
+
+  if (options?.persistToDb !== false) {
+    for (const job of mergedJobs.filter((entry) => importedJobIds.has(entry.id))) {
+      try {
+        const persistent = await mirrorLocalJobToPersistence(job);
+        nextMap.set(job.id, toLocalJobFromPersistent(persistent, job));
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "unknown error";
+        throw new Error(
+          `Feed sync persisted locally but failed to write DB (${job.company} - ${job.title}): ${detail}`,
+        );
+      }
+    }
+
+    mergedJobs = Array.from(nextMap.values()).sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt),
+    );
+  }
+
   saveJobsToStorage(mergedJobs);
 
   const today = new Date().toISOString().slice(0, 10);
