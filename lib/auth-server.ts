@@ -228,6 +228,24 @@ async function verifyPassword(password: string, storedHash: string) {
   return safeEqualBytes(actualBytes, expectedBytes);
 }
 
+function getD1FromGlobalScope(bindingName: string): D1DatabaseLike | undefined {
+  const scope = globalThis as Record<string, unknown> & {
+    __env__?: Record<string, unknown>;
+    __ENV__?: Record<string, unknown>;
+  };
+
+  const direct = scope[bindingName];
+  if (isD1DatabaseLike(direct)) return direct;
+
+  const lowerEnvCandidate = scope.__env__?.[bindingName];
+  if (isD1DatabaseLike(lowerEnvCandidate)) return lowerEnvCandidate;
+
+  const upperEnvCandidate = scope.__ENV__?.[bindingName];
+  if (isD1DatabaseLike(upperEnvCandidate)) return upperEnvCandidate;
+
+  return undefined;
+}
+
 async function getD1DatabaseFromRequestContext(): Promise<D1DatabaseLike | undefined> {
   const bindingName =
     process.env.PERSISTENCE_D1_BINDING?.trim() || DEFAULT_D1_BINDING;
@@ -237,10 +255,14 @@ async function getD1DatabaseFromRequestContext(): Promise<D1DatabaseLike | undef
     const context = getRequestContext();
     const env = context.env as Record<string, unknown> | undefined;
     const candidate = env?.[bindingName];
-    return isD1DatabaseLike(candidate) ? candidate : undefined;
+    if (isD1DatabaseLike(candidate)) {
+      return candidate;
+    }
   } catch {
-    return undefined;
+    // Ignore context lookup errors; global binding fallback is checked below.
   }
+
+  return getD1FromGlobalScope(bindingName);
 }
 
 async function resolveAuthBackend(): Promise<AuthBackend> {

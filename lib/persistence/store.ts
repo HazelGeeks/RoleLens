@@ -138,6 +138,24 @@ function isD1DatabaseLike(value: unknown): value is D1DatabaseLike {
   return typeof maybeDb.prepare === "function";
 }
 
+function getD1FromGlobalScope(bindingName: string): D1DatabaseLike | undefined {
+  const scope = globalThis as Record<string, unknown> & {
+    __env__?: Record<string, unknown>;
+    __ENV__?: Record<string, unknown>;
+  };
+
+  const direct = scope[bindingName];
+  if (isD1DatabaseLike(direct)) return direct;
+
+  const lowerEnvCandidate = scope.__env__?.[bindingName];
+  if (isD1DatabaseLike(lowerEnvCandidate)) return lowerEnvCandidate;
+
+  const upperEnvCandidate = scope.__ENV__?.[bindingName];
+  if (isD1DatabaseLike(upperEnvCandidate)) return upperEnvCandidate;
+
+  return undefined;
+}
+
 async function getD1DatabaseFromContext(): Promise<D1DatabaseLike | undefined> {
   const bindingName =
     process.env.PERSISTENCE_D1_BINDING?.trim() || DEFAULT_D1_BINDING;
@@ -147,10 +165,14 @@ async function getD1DatabaseFromContext(): Promise<D1DatabaseLike | undefined> {
     const context = getRequestContext();
     const env = context.env as Record<string, unknown> | undefined;
     const candidate = env?.[bindingName];
-    return isD1DatabaseLike(candidate) ? candidate : undefined;
+    if (isD1DatabaseLike(candidate)) {
+      return candidate;
+    }
   } catch {
-    return undefined;
+    // Ignore context lookup errors; global binding fallback is checked below.
   }
+
+  return getD1FromGlobalScope(bindingName);
 }
 
 async function resolvePersistenceBackend(): Promise<PersistenceBackend> {
@@ -162,11 +184,20 @@ async function resolvePersistenceBackend(): Promise<PersistenceBackend> {
     );
   }
 
-  if (configured !== "d1") {
+  if (configured === "memory") {
     return { kind: "memory" };
   }
 
   const db = await getD1DatabaseFromContext();
+
+  if (configured !== "d1" && db) {
+    return { kind: "d1", db };
+  }
+
+  if (configured !== "d1") {
+    return { kind: "memory" };
+  }
+
   if (!db) {
     if (process.env.NODE_ENV !== "production") {
       console.warn(
