@@ -15,6 +15,7 @@ import {
   signInLocalAuth,
   signOutLocalAuth,
   signUpLocalAuth,
+  syncAuthSessionFromServer,
   type AuthSessionUser,
 } from "@/lib/auth-client";
 
@@ -32,13 +33,13 @@ type AuthActionResult =
 type AuthContextValue = {
   status: AuthStatus;
   user: AuthSessionUser | null;
-  signIn: (input: { email: string; password: string }) => AuthActionResult;
+  signIn: (input: { email: string; password: string }) => Promise<AuthActionResult>;
   signUp: (input: {
     name: string;
     email: string;
     password: string;
-  }) => AuthActionResult;
-  signOut: () => void;
+  }) => Promise<AuthActionResult>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -54,7 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refreshFromStorage();
+    void (async () => {
+      await syncAuthSessionFromServer();
+      refreshFromStorage();
+    })();
 
     const handleSessionUpdated = () => {
       refreshFromStorage();
@@ -81,8 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refreshFromStorage]);
 
-  const signIn = useCallback<AuthContextValue["signIn"]>((input) => {
-    const result = signInLocalAuth(input);
+  const signIn = useCallback<AuthContextValue["signIn"]>(async (input) => {
+    const result = await signInLocalAuth(input);
     if (result.ok) {
       setUser(result.user);
       setStatus("authenticated");
@@ -93,8 +97,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, []);
 
-  const signUp = useCallback<AuthContextValue["signUp"]>((input) => {
-    const result = signUpLocalAuth(input);
+  const signUp = useCallback<AuthContextValue["signUp"]>(async (input) => {
+    const result = await signUpLocalAuth(input);
     if (result.ok) {
       setUser(result.user);
       setStatus("authenticated");
@@ -105,8 +109,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, []);
 
-  const signOut = useCallback(() => {
-    signOutLocalAuth();
+  const signOut = useCallback(async () => {
+    await signOutLocalAuth();
     setUser(null);
     setStatus("guest");
   }, []);

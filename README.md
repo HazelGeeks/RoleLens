@@ -24,12 +24,13 @@ Why this mode exists:
 4. Detail page with notes and status updates
 5. Dashboard analytics (skills/source/remote/seniority)
 6. Status tracking pipeline:
+   - `NONE` (`-`, default)
    - `NEW`
    - `SAVE`
    - `INTEREST`
    - `SUBMITTED`
    - `ARCHIVE`
-7. Login / Sign-up scaffold for future personalized dashboard flows
+7. Login / Sign-up with server-side session auth (D1 in Cloudflare runtime, memory fallback locally)
 
 ## Stable Daily Automation
 
@@ -64,6 +65,12 @@ Legacy source variables (`GREENHOUSE_*`, `LEVER_*`, RSS fallback URLs) are not u
 - `SYNC_ADMIN_SECRET` (optional; protects manual import refresh via `x-rolelens-sync-secret`, falls back to `CRON_SECRET` when unset)
 - `ALLOW_PUBLIC_FEED_REFRESH` (optional; default recommended `0` in production to block public expensive refresh calls)
 - `IMPORT_PUBLIC_RATE_LIMIT_PER_MIN` (optional; default `60`, anonymous import-route request budget per IP)
+
+Auth security:
+
+- `AUTH_PASSWORD_PEPPER` (required in production; added to password hashing material before DB storage)
+  - Set as `AUTH_PASSWORD_PEPPER=<long-random-value>` (example generation: `openssl rand -base64 48`)
+  - In non-production local dev, if omitted, RoleLens uses a development fallback pepper and logs a warning.
 
 ### Daily Cron Trigger (GitHub Actions)
 

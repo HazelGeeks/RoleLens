@@ -24,6 +24,7 @@ function countMapToArray(input: Record<string, number>) {
 export function DashboardClient() {
   const { jobs } = useLiveLocalJobs();
   const { user } = useAuth();
+  const savedJobs = useMemo(() => jobs.filter((job) => job.status === "SAVE"), [jobs]);
 
   const stats = useMemo(() => {
     const statusCounts: Record<string, number> = {};
@@ -37,7 +38,7 @@ export function DashboardClient() {
     let dueFollowUps = 0;
     const today = new Date().toISOString().slice(0, 10);
 
-    for (const job of jobs) {
+    for (const job of savedJobs) {
       statusCounts[job.status] = (statusCounts[job.status] ?? 0) + 1;
       sourceCounts[job.source] = (sourceCounts[job.source] ?? 0) + 1;
       remoteCounts[job.remoteType] = (remoteCounts[job.remoteType] ?? 0) + 1;
@@ -74,17 +75,16 @@ export function DashboardClient() {
       count: skillCounts[skill] ?? 0,
     }));
     const avgFitScore = fitScoreCount > 0 ? fitScoreTotal / fitScoreCount : 0;
-
-    const saved = (statusCounts.NEW ?? 0) + (statusCounts.SAVE ?? 0);
     const activePipeline =
       (statusCounts.INTEREST ?? 0) + (statusCounts.SUBMITTED ?? 0);
+    const sourceVariety = Object.keys(sourceCounts).length;
 
     return {
-      totalJobs: jobs.length,
+      totalJobs: savedJobs.length,
       avgFitScore: Math.round(avgFitScore),
       dueFollowUps,
-      saved,
       activePipeline,
+      sourceVariety,
       statusCounts,
       sourceCounts,
       remoteCounts,
@@ -92,9 +92,9 @@ export function DashboardClient() {
       topSkills,
       focusSkills,
     };
-  }, [jobs]);
+  }, [savedJobs]);
 
-  if (jobs.length === 0) {
+  if (savedJobs.length === 0) {
     return (
       <div className="space-y-4">
         <header>
@@ -108,7 +108,7 @@ export function DashboardClient() {
 
         {!user ? (
           <Card className="space-y-3" role="status" aria-live="polite">
-            <CardTitle>Login and sign-up foundation is ready</CardTitle>
+            <CardTitle>Login and sign-up is active</CardTitle>
             <CardDescription>
               Account onboarding routes are now available. You can continue in
               guest mode, then migrate to authenticated flows later.
@@ -127,8 +127,7 @@ export function DashboardClient() {
         <Card className="space-y-3" role="status" aria-live="polite">
           <CardTitle>No data to analyze yet</CardTitle>
           <CardDescription>
-            Save your first posting or run source sync. Dashboard metrics update
-            automatically after data changes.
+            Only postings with status Save are included in dashboard metrics. Set status to Save from the Jobs page to include it here.
           </CardDescription>
           <div className="flex flex-wrap gap-2">
             <Link href="/jobs/new">
@@ -178,7 +177,7 @@ export function DashboardClient() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <Card>
-          <p className="text-sm text-slate-500">Total Postings</p>
+          <p className="text-sm text-slate-500">Saved Postings</p>
           <p className="text-3xl font-semibold">{stats.totalJobs}</p>
         </Card>
         <Card>
@@ -198,8 +197,8 @@ export function DashboardClient() {
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-slate-500">New + Saved</p>
-          <p className="text-3xl font-semibold">{stats.saved}</p>
+          <p className="text-sm text-slate-500">Sources Covered</p>
+          <p className="text-3xl font-semibold">{stats.sourceVariety}</p>
         </Card>
         <Card>
           <p className="text-sm text-slate-500">Follow-ups Due</p>

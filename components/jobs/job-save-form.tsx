@@ -37,7 +37,7 @@ const defaultValues: CreateJobInput = {
   salaryCurrency: "CAD",
   seniority: "",
   descriptionRaw: "",
-  status: "NEW",
+  status: "NONE",
   nextAction: "",
   followUpDate: "",
   notes: "",

@@ -5,128 +5,114 @@ export type AuthSessionUser = {
   createdAt: string;
 };
 
-type StoredAuthUser = AuthSessionUser & {
-  passwordHash: string;
-  updatedAt: string;
-};
-
 type AuthSession = {
   user: AuthSessionUser;
-  signedInAt: string;
 };
 
-type AuthFailure = {
+type AuthFailureResult = {
   ok: false;
   message: string;
 };
 
-type AuthSuccess = {
+type AuthSuccessResult = {
   ok: true;
   user: AuthSessionUser;
 };
 
-export type AuthOperationResult = AuthFailure | AuthSuccess;
+export type AuthOperationResult = AuthFailureResult | AuthSuccessResult;
 
-export const AUTH_USERS_STORAGE_KEY = "rolelens.auth.users.v1";
 export const AUTH_SESSION_STORAGE_KEY = "rolelens.auth.session.v1";
 export const AUTH_SESSION_UPDATED_EVENT = "rolelens:auth-session-updated";
 
-function parseJson<T>(raw: string | null): T | null {
+function parseJson(raw: string | null): unknown {
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as T;
+    return JSON.parse(raw) as unknown;
   } catch {
     return null;
   }
 }
 
-function normalizeEmail(value: string) {
-  return value.trim().toLowerCase();
-}
+function parseSessionUser(value: unknown): AuthSessionUser | null {
+  if (!value || typeof value !== "object") return null;
 
-function hashPasswordForLocalPreview(password: string) {
-  // Local scaffold only. This is not a production-grade password strategy.
-  let hash = 2166136261;
-  for (let index = 0; index < password.length; index += 1) {
-    hash ^= password.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return `h${(hash >>> 0).toString(16)}`;
-}
-
-function readUsers(): StoredAuthUser[] {
-  if (typeof window === "undefined") return [];
-
-  const parsed = parseJson<unknown>(
-    window.localStorage.getItem(AUTH_USERS_STORAGE_KEY),
-  );
-  if (!Array.isArray(parsed)) return [];
-
-  return parsed.filter((entry): entry is StoredAuthUser => {
-    if (!entry || typeof entry !== "object") return false;
-    const value = entry as Partial<StoredAuthUser>;
-    return (
-      typeof value.id === "string" &&
-      typeof value.email === "string" &&
-      typeof value.name === "string" &&
-      typeof value.createdAt === "string" &&
-      typeof value.updatedAt === "string" &&
-      typeof value.passwordHash === "string"
-    );
-  });
-}
-
-function writeUsers(users: StoredAuthUser[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(AUTH_USERS_STORAGE_KEY, JSON.stringify(users));
-}
-
-function readSession(): AuthSession | null {
-  if (typeof window === "undefined") return null;
-  const parsed = parseJson<unknown>(
-    window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY),
-  );
-
-  if (!parsed || typeof parsed !== "object") return null;
-  const value = parsed as Partial<AuthSession>;
-  if (!value.user || typeof value.user !== "object") return null;
-
-  const user = value.user as Partial<AuthSessionUser>;
+  const user = value as Partial<AuthSessionUser>;
   if (
     typeof user.id !== "string" ||
     typeof user.name !== "string" ||
     typeof user.email !== "string" ||
-    typeof user.createdAt !== "string" ||
-    typeof value.signedInAt !== "string"
+    typeof user.createdAt !== "string"
   ) {
     return null;
   }
 
   return {
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      createdAt: user.createdAt,
-    },
-    signedInAt: value.signedInAt,
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    createdAt: user.createdAt,
   };
 }
 
-function writeSession(session: AuthSession | null) {
+function readSession(): AuthSession | null {
+  if (typeof window === "undefined") return null;
+
+  const parsed = parseJson(window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY));
+  if (!parsed || typeof parsed !== "object") return null;
+
+  const record = parsed as { user?: unknown };
+  const user = parseSessionUser(record.user);
+  if (!user) return null;
+
+  return { user };
+}
+
+function writeSessionUser(user: AuthSessionUser | null) {
   if (typeof window === "undefined") return;
 
-  if (!session) {
+  if (!user) {
     window.localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
   } else {
-    window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
+    window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify({ user }));
   }
 
   window.dispatchEvent(new CustomEvent(AUTH_SESSION_UPDATED_EVENT));
 }
 
-export function getActiveAuthSessionUser() {
+function getApiErrorMessage(payload: unknown) {
+  if (!payload || typeof payload !== "object") return null;
+  const maybeMessage = (payload as { message?: unknown }).message;
+  return typeof maybeMessage === "string" ? maybeMessage : null;
+}
+
+async function parseAuthResponse(response: Response): Promise<AuthOperationResult> {
+  const payload = (await response.json().catch(() => null)) as unknown;
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      message:
+        getApiErrorMessage(payload) ||
+        "Authentication request failed (" + response.status + ")",
+    };
+  }
+
+  const user = parseSessionUser((payload as { user?: unknown })?.user);
+  if (!user) {
+    return {
+      ok: false,
+      message: "Invalid auth response shape.",
+    };
+  }
+
+  writeSessionUser(user);
+  return {
+    ok: true,
+    user,
+  };
+}
+
+export function getActiveAuthSessionUser(): AuthSessionUser | null {
   return readSession()?.user ?? null;
 }
 
@@ -134,96 +120,69 @@ export function getActiveAuthSessionUserId() {
   return getActiveAuthSessionUser()?.id ?? null;
 }
 
-export function signUpLocalAuth(input: {
+export async function syncAuthSessionFromServer() {
+  const response = await fetch("/api/auth/session", {
+    method: "GET",
+    cache: "no-store",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    writeSessionUser(null);
+    return null;
+  }
+
+  const payload = (await response.json().catch(() => null)) as { user?: unknown } | null;
+  const user = parseSessionUser(payload?.user);
+  writeSessionUser(user);
+  return user;
+}
+
+export async function signUpLocalAuth(input: {
   name: string;
   email: string;
   password: string;
-}): AuthOperationResult {
-  if (typeof window === "undefined") {
-    return { ok: false, message: "Local auth is only available in the browser." };
-  }
-
-  const normalizedName = input.name.trim();
-  const normalizedEmail = normalizeEmail(input.email);
-
-  if (normalizedName.length < 2) {
-    return { ok: false, message: "Name must be at least 2 characters." };
-  }
-
-  if (!normalizedEmail || !normalizedEmail.includes("@")) {
-    return { ok: false, message: "Please enter a valid email address." };
-  }
-
-  if (input.password.trim().length < 8) {
-    return { ok: false, message: "Password must be at least 8 characters." };
-  }
-
-  const users = readUsers();
-  if (users.some((user) => normalizeEmail(user.email) === normalizedEmail)) {
-    return { ok: false, message: "This email is already registered." };
-  }
-
-  const now = new Date().toISOString();
-  const user: StoredAuthUser = {
-    id: `user-${crypto.randomUUID()}`,
-    email: normalizedEmail,
-    name: normalizedName,
-    createdAt: now,
-    updatedAt: now,
-    passwordHash: hashPasswordForLocalPreview(input.password),
-  };
-
-  writeUsers([...users, user]);
-  writeSession({
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      createdAt: user.createdAt,
+}): Promise<AuthOperationResult> {
+  const response = await fetch("/api/auth/signup", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json",
     },
-    signedInAt: now,
+    body: JSON.stringify({
+      name: input.name,
+      email: input.email,
+      password: input.password,
+    }),
   });
 
-  return {
-    ok: true,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      createdAt: user.createdAt,
-    },
-  };
+  return parseAuthResponse(response);
 }
 
-export function signInLocalAuth(input: {
+export async function signInLocalAuth(input: {
   email: string;
   password: string;
-}): AuthOperationResult {
-  const normalizedEmail = normalizeEmail(input.email);
-  const users = readUsers();
-  const matchedUser = users.find(
-    (user) => normalizeEmail(user.email) === normalizedEmail,
-  );
+}): Promise<AuthOperationResult> {
+  const response = await fetch("/api/auth/login", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      email: input.email,
+      password: input.password,
+    }),
+  });
 
-  if (!matchedUser) {
-    return { ok: false, message: "No account found for this email." };
-  }
-
-  const passwordHash = hashPasswordForLocalPreview(input.password);
-  if (matchedUser.passwordHash !== passwordHash) {
-    return { ok: false, message: "Incorrect password." };
-  }
-
-  const user: AuthSessionUser = {
-    id: matchedUser.id,
-    email: matchedUser.email,
-    name: matchedUser.name,
-    createdAt: matchedUser.createdAt,
-  };
-  writeSession({ user, signedInAt: new Date().toISOString() });
-  return { ok: true, user };
+  return parseAuthResponse(response);
 }
 
-export function signOutLocalAuth() {
-  writeSession(null);
+export async function signOutLocalAuth() {
+  await fetch("/api/auth/logout", {
+    method: "POST",
+    credentials: "include",
+  }).catch(() => null);
+
+  writeSessionUser(null);
 }

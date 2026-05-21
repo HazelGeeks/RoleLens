@@ -482,7 +482,7 @@ describe("feed sync observability", () => {
               title: "Senior Software Engineer",
               location: "Seoul",
               sourceUrl: "https://www.linkedin.com/jobs/view/123",
-              status: "NEW",
+              status: "NONE",
               tags: payload.tags ?? [],
               notes: [],
               createdAt: now,

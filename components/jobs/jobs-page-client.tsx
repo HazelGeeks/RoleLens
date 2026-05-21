@@ -477,20 +477,6 @@ export function JobsPageClient() {
         onOpenSaveModal={openSaveModal}
       />
 
-      <JobsFiltersCard
-        filters={filters}
-        actions={filterActions}
-        rowsCount={rows.length}
-        totalJobs={jobs.length}
-        lastSyncAt={lastSyncAt}
-        syncMessage={syncMessage}
-        syncError={syncError}
-        syncDiagnostics={syncDiagnostics}
-        syncRecoveryGuide={syncRecoveryGuide}
-        syncSourceResults={syncSourceResults}
-        sourceCounts={sourceCounts}
-      />
-
       {jobs.length === 0 ? (
         <JobsEmptyStateCard
           isSyncing={isSyncing}
@@ -501,22 +487,39 @@ export function JobsPageClient() {
         />
       ) : null}
 
-      {jobs.length > 0 && dueFollowUps.length > 0 ? (
-        <DueFollowUpsCard dueFollowUps={dueFollowUps} />
-      ) : null}
-
       {jobs.length > 0 ? (
-        <CompareShortlistCard compareRows={compareRows} />
-      ) : null}
-
-      {jobs.length > 0 ? (
-        <Card>
+        <Card className="space-y-4">
+          <JobsFiltersCard
+            filters={filters}
+            actions={filterActions}
+            rowsCount={rows.length}
+            totalJobs={jobs.length}
+            lastSyncAt={lastSyncAt}
+            syncMessage={syncMessage}
+            syncError={syncError}
+            syncDiagnostics={syncDiagnostics}
+            syncRecoveryGuide={syncRecoveryGuide}
+            syncSourceResults={syncSourceResults}
+            sourceCounts={sourceCounts}
+          />
           <JobsTable
             data={rows}
             selectedIds={compareIds}
             onToggleSelect={toggleCompare}
           />
         </Card>
+      ) : null}
+
+      {jobs.length > 0 && dueFollowUps.length > 0 ? (
+        <DueFollowUpsCard dueFollowUps={dueFollowUps} />
+      ) : null}
+
+      {jobs.length > 0 ? (
+        <CompareShortlistCard
+          compareRows={compareRows}
+          onRemoveRow={(id) => toggleCompare(id, false)}
+          onClear={() => setCompareIds([])}
+        />
       ) : null}
 
       {isSaveModalOpen ? (

@@ -11,6 +11,7 @@ export const employmentTypeOptions = [
 ] as const;
 
 export const statusOptions = [
+  "NONE",
   "NEW",
   "SAVE",
   "INTEREST",
@@ -19,6 +20,7 @@ export const statusOptions = [
 ] as const;
 
 export const statusLabels: Record<(typeof statusOptions)[number], string> = {
+  NONE: "-",
   NEW: "New",
   SAVE: "Save",
   INTEREST: "Interest",

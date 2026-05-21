@@ -40,7 +40,9 @@ export function SidebarAuthSection() {
             variant="secondary"
             size="sm"
             className="w-full"
-            onClick={signOut}
+            onClick={() => {
+              void signOut();
+            }}
           >
             <LogOut className="mr-2 h-4 w-4" />
             Sign out

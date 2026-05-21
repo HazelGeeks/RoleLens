@@ -20,13 +20,14 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isLogin = mode === "login";
   const submitLabel = isLogin ? "Login" : "Create account";
   const pageTitle = isLogin ? "Login" : "Sign up";
   const pageDescription = isLogin
     ? "Sign in to keep dashboard analytics tied to your own account context."
-    : "Create an account seed now so the app can evolve toward real personalization.";
+    : "Create your account. RoleLens stores account credentials securely on the server.";
 
   const alternateCta = useMemo(
     () =>
@@ -48,7 +49,7 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
     }
   }, [router, status, user]);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
 
@@ -62,23 +63,28 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
       return;
     }
 
-    const result = isLogin
-      ? signIn({
-          email,
-          password,
-        })
-      : signUp({
-          name,
-          email,
-          password,
-        });
+    setIsSubmitting(true);
+    try {
+      const result = isLogin
+        ? await signIn({
+            email,
+            password,
+          })
+        : await signUp({
+            name,
+            email,
+            password,
+          });
 
-    if (!result.ok) {
-      setError(result.message);
-      return;
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      router.replace("/dashboard");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.replace("/dashboard");
   };
 
   return (
@@ -91,8 +97,7 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
       <Card>
         <CardTitle>{submitLabel}</CardTitle>
         <CardDescription className="mb-4">
-          This is a local auth scaffold for product direction. Replace with secure
-          server-side auth before production launch.
+          Security note: sessions use HttpOnly cookies. For deployment, configure AUTH_PASSWORD_PEPPER as an environment secret.
         </CardDescription>
 
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
@@ -149,8 +154,12 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
             </p>
           ) : null}
 
-          <Button type="submit" className="w-full" disabled={status === "loading"}>
-            {submitLabel}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={status === "loading" || isSubmitting}
+          >
+            {isSubmitting ? "Submitting..." : submitLabel}
           </Button>
         </form>
       </Card>

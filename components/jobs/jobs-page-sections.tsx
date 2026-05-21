@@ -155,7 +155,7 @@ export function JobsFiltersCard({
       : DEFAULT_OPERATIONAL_CHECKLIST;
 
   return (
-    <Card>
+    <section className="space-y-3" aria-label="Jobs filters">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_repeat(6,minmax(0,1fr))]">
         <Input
           value={filters.q}
@@ -238,21 +238,14 @@ export function JobsFiltersCard({
         <p>
           Showing {rowsCount} of {totalJobs} postings
         </p>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={actions.resetFilters}
-          >
-            Reset Filters
-          </Button>
-          <span>
-            {lastSyncAt
-              ? `Last sync: ${new Date(lastSyncAt).toLocaleString()}`
-              : "No sync yet"}
-          </span>
-        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={actions.resetFilters}
+        >
+          Reset Filters
+        </Button>
       </div>
 
       {syncMessage ? (
@@ -297,55 +290,69 @@ export function JobsFiltersCard({
         </div>
       ) : null}
 
-      <div className="mt-2 rounded-lg border border-slate-200 p-2 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
-        <p className="font-medium">Sync Diagnostics</p>
-        <p className="mt-1">
-          Python scraped feed:{" "}
-          {syncDiagnostics.python.scrapedFeedConfigured ? "yes" : "no"}{" "}
-          (configured total {syncDiagnostics.python.configuredSourceCount})
-        </p>
-        <p>Final sourceCount: {syncDiagnostics.sourceCount}</p>
-      </div>
+      {(lastSyncAt || syncSourceResults.length > 0) ? (
+        <details className="mt-1 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-800">
+          <summary className="cursor-pointer font-medium text-slate-600 dark:text-slate-300">
+            Sync details (optional)
+          </summary>
+          <div className="mt-2 space-y-2">
+            <p className="text-xs text-slate-500">
+              {lastSyncAt
+                ? `Last sync: ${new Date(lastSyncAt).toLocaleString()}`
+                : "No sync yet"}
+            </p>
+            <div className="rounded-lg border border-slate-200 p-2 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
+              <p className="font-medium">Sync Diagnostics</p>
+              <p className="mt-1">
+                Python scraped feed:{" "}
+                {syncDiagnostics.python.scrapedFeedConfigured ? "yes" : "no"}{" "}
+                (configured total {syncDiagnostics.python.configuredSourceCount})
+              </p>
+              <p>Final sourceCount: {syncDiagnostics.sourceCount}</p>
+            </div>
 
-      {syncSourceResults.length > 0 ? (
-        <div
-          className="mt-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800"
-          role="status"
-          aria-live="polite"
-        >
-          <h3 className="text-sm font-semibold">Latest Sync Results</h3>
-          <p className="mt-1 text-xs text-slate-500">
-            Source-level success and failure details.
-          </p>
-          <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-2">
-            {syncSourceResults.map((result) => (
+            {syncSourceResults.length > 0 ? (
               <div
-                key={result.source}
-                className="rounded-lg bg-slate-100 p-2 text-sm dark:bg-slate-900"
+                className="rounded-xl border border-slate-200 p-3 dark:border-slate-800"
+                role="status"
+                aria-live="polite"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{result.source}</span>
-                  <span
-                    className={
-                      result.ok
-                        ? "text-emerald-700 dark:text-emerald-300"
-                        : "text-rose-700 dark:text-rose-300"
-                    }
-                  >
-                    {result.ok ? `Success (${result.importedJobs})` : "Failed"}
-                  </span>
+                <h3 className="text-sm font-semibold">Latest Sync Results</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Source-level success and failure details.
+                </p>
+                <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-2">
+                  {syncSourceResults.map((result) => (
+                    <div
+                      key={result.source}
+                      className="rounded-lg bg-slate-100 p-2 text-sm dark:bg-slate-900"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{result.source}</span>
+                        <span
+                          className={
+                            result.ok
+                              ? "text-emerald-700 dark:text-emerald-300"
+                              : "text-rose-700 dark:text-rose-300"
+                          }
+                        >
+                          {result.ok ? `Success (${result.importedJobs})` : "Failed"}
+                        </span>
+                      </div>
+                      {result.message ? (
+                        <p className="mt-1 break-words text-xs text-slate-600 dark:text-slate-300">
+                          {result.message}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
                 </div>
-                {result.message ? (
-                  <p className="mt-1 break-words text-xs text-slate-600 dark:text-slate-300">
-                    {result.message}
-                  </p>
-                ) : null}
               </div>
-            ))}
+            ) : null}
           </div>
-        </div>
+        </details>
       ) : null}
-    </Card>
+    </section>
   );
 }
 
@@ -442,25 +449,61 @@ export function DueFollowUpsCard({ dueFollowUps }: DueFollowUpsCardProps) {
 
 type CompareShortlistCardProps = {
   compareRows: JobRow[];
+  onRemoveRow: (id: string) => void;
+  onClear: () => void;
 };
 
 export function CompareShortlistCard({
   compareRows,
+  onRemoveRow,
+  onClear,
 }: CompareShortlistCardProps) {
   return (
     <Card className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-semibold">Compare Shortlist</h3>
-        <p className="text-xs text-slate-500">Select up to 3 rows to compare</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-slate-500">Selected {compareRows.length} / 3</p>
+          {compareRows.length > 0 ? (
+            <Button type="button" variant="secondary" size="sm" onClick={onClear}>
+              Clear all
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {compareRows.length < 2 ? (
-        <p className="text-sm text-slate-500">
-          Choose at least 2 postings in the table to compare key fields.
-        </p>
+        <div className="space-y-2">
+          <p className="text-sm text-slate-500">
+            Choose at least 2 postings in the table to compare key fields.
+          </p>
+          {compareRows.length > 0 ? (
+            <ul className="space-y-2">
+              {compareRows.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
+                >
+                  <span>
+                    {row.title} <span className="text-slate-500">· {row.company}</span>
+                  </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onRemoveRow(row.id)}
+                    aria-label={`Remove ${row.title} at ${row.company} from compare shortlist`}
+                  >
+                    Remove
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-          <table className="w-full min-w-[860px] text-left text-sm">
+          <table className="w-full min-w-[980px] text-left text-sm">
             <thead className="bg-slate-100/80 dark:bg-slate-900">
               <tr>
                 <th className="px-3 py-2 font-medium">Role</th>
@@ -468,6 +511,7 @@ export function CompareShortlistCard({
                 <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Salary</th>
                 <th className="px-3 py-2 font-medium">Follow-up</th>
+                <th className="px-3 py-2 font-medium">Remove</th>
                 <th className="px-3 py-2 font-medium">Next Action</th>
               </tr>
             </thead>
@@ -496,8 +540,17 @@ export function CompareShortlistCard({
                     {row.followUpDate || "-"}
                   </td>
                   <td className="px-3 py-2 align-top">
-                    {row.nextAction || "-"}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onRemoveRow(row.id)}
+                      aria-label={`Remove ${row.title} at ${row.company} from compare shortlist`}
+                    >
+                      Remove
+                    </Button>
                   </td>
+                  <td className="px-3 py-2 align-top">{row.nextAction || "-"}</td>
                 </tr>
               ))}
             </tbody>
