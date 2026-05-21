@@ -41,9 +41,48 @@ function formatUpdatedAt(value: string) {
 
 type SourceFilterValue = "ALL" | (typeof sourceOptions)[number];
 
+function DashboardAuthRequiredModal() {
+  return (
+    <div className="relative min-h-[65vh]">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 rounded-2xl bg-slate-900/20 backdrop-blur-[1px] dark:bg-slate-950/40"
+      />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dashboard-auth-required-title"
+        aria-describedby="dashboard-auth-required-description"
+        className="relative mx-auto mt-16 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950"
+      >
+        <h2 id="dashboard-auth-required-title" className="text-xl font-semibold">
+          Dashboard access requires login
+        </h2>
+        <p
+          id="dashboard-auth-required-description"
+          className="mt-2 text-sm text-slate-600 dark:text-slate-300"
+        >
+          This dashboard is available only to signed-in members. Please login or
+          create an account to continue.
+        </p>
+        <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Link href="/login" className="w-full">
+            <Button className="w-full">Login</Button>
+          </Link>
+          <Link href="/signup" className="w-full">
+            <Button variant="secondary" className="w-full">
+              Sign up
+            </Button>
+          </Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function DashboardClient() {
   const { jobs, refreshJobs } = useLiveLocalJobs();
-  const { user } = useAuth();
+  const { status, user } = useAuth();
 
   const savedJobs = useMemo(
     () => jobs.filter((job) => job.status === "SAVE"),
@@ -285,35 +324,30 @@ export function DashboardClient() {
     setIsApplyingBulk(false);
   };
 
+  if (status === "loading") {
+    return (
+      <Card role="status" aria-live="polite" className="mx-auto mt-16 max-w-md">
+        <CardTitle>Checking session...</CardTitle>
+        <CardDescription>
+          We are verifying your account session before opening the dashboard.
+        </CardDescription>
+      </Card>
+    );
+  }
+
+  if (!user) {
+    return <DashboardAuthRequiredModal />;
+  }
+
   if (savedJobs.length === 0) {
     return (
       <div className="space-y-4">
         <header>
           <h2 className="text-2xl font-semibold">Analytics Dashboard</h2>
           <p className="text-sm text-slate-500">
-            {user
-              ? `${user.name}, your personalized metrics are ready once postings are synced.`
-              : "Sign in to make this dashboard personal to your account across devices."}
+            {user.name}, your personalized metrics are ready once postings are synced.
           </p>
         </header>
-
-        {!user ? (
-          <Card className="space-y-3" role="status" aria-live="polite">
-            <CardTitle>Login and sign-up is active</CardTitle>
-            <CardDescription>
-              Account onboarding routes are now available. You can continue in
-              guest mode, then migrate to authenticated flows later.
-            </CardDescription>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/login">
-                <Button>Login</Button>
-              </Link>
-              <Link href="/signup">
-                <Button variant="secondary">Sign up</Button>
-              </Link>
-            </div>
-          </Card>
-        ) : null}
 
         <Card className="space-y-3" role="status" aria-live="polite">
           <CardTitle>No data to analyze yet</CardTitle>
@@ -337,35 +371,11 @@ export function DashboardClient() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-semibold">
-          {user ? `${user.name}'s Analytics Dashboard` : "Analytics Dashboard"}
-        </h2>
+        <h2 className="text-2xl font-semibold">Analytics Dashboard for {user.name}</h2>
         <p className="text-sm text-slate-500">
-          {user
-            ? "Monitor your application momentum and demand signals from tracked postings."
-            : "Sign in to keep this dashboard tied to one account across devices."}
+          Monitor your application momentum and demand signals from tracked postings.
         </p>
       </div>
-
-      {!user ? (
-        <Card className="space-y-3" role="status" aria-live="polite">
-          <CardTitle>Use account mode for true personalization</CardTitle>
-          <CardDescription>
-            Guest mode is still available, but login/signup is now scaffolded so
-            you can evolve into per-user dashboards safely.
-          </CardDescription>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/login">
-              <Button size="sm">Login</Button>
-            </Link>
-            <Link href="/signup">
-              <Button variant="secondary" size="sm">
-                Sign up
-              </Button>
-            </Link>
-          </div>
-        </Card>
-      ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <Card>

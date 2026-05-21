@@ -22,7 +22,7 @@ Why this mode exists:
 2. Stable source sync (Python crawler JSON feed)
 3. List page with search/filter/sort
 4. Detail page with notes and status updates
-5. Dashboard analytics (skills/source/remote/seniority)
+5. Dashboard analytics (skills/source/remote/seniority, authenticated users only)
 6. Status tracking pipeline:
    - `NONE` (`-`, default)
    - `NEW`
@@ -71,6 +71,7 @@ Auth security:
 - `AUTH_PASSWORD_PEPPER` (required in production; added to password hashing material before DB storage)
   - Set as `AUTH_PASSWORD_PEPPER=<long-random-value>` (example generation: `openssl rand -base64 48`)
   - In non-production local dev, if omitted, RoleLens uses a development fallback pepper and logs a warning.
+- `AUTH_BACKEND` (optional override: `memory`/`d1`; if unset, RoleLens auto-uses D1 when the binding is available)
 
 ### Daily Cron Trigger (GitHub Actions)
 

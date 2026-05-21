@@ -245,29 +245,39 @@ async function getD1DatabaseFromRequestContext(): Promise<D1DatabaseLike | undef
 
 async function resolveAuthBackend(): Promise<AuthBackend> {
   const configured = process.env.AUTH_BACKEND?.trim().toLowerCase();
-  const inferredFromPersistence =
-    process.env.PERSISTENCE_BACKEND?.trim().toLowerCase() === "d1" ? "d1" : "memory";
-  const target = configured || inferredFromPersistence;
+  const persistenceBackend = process.env.PERSISTENCE_BACKEND?.trim().toLowerCase();
 
-  if (target !== "memory" && target !== "d1") {
-    throw new Error("Invalid AUTH_BACKEND value: " + target + ". Expected memory or d1.");
+  if (configured && configured !== "memory" && configured !== "d1") {
+    throw new Error(
+      "Invalid AUTH_BACKEND value: " + configured + ". Expected memory or d1.",
+    );
   }
 
-  if (target !== "d1") {
+  if (configured === "memory") {
     return { kind: "memory" };
   }
 
+  const shouldUseD1 = configured === "d1" || persistenceBackend === "d1";
   const db = await getD1DatabaseFromRequestContext();
+
+  if (!shouldUseD1 && db) {
+    return { kind: "d1", db };
+  }
+
+  if (!shouldUseD1) {
+    return { kind: "memory" };
+  }
+
   if (!db) {
     if (process.env.NODE_ENV !== "production") {
       console.warn(
-        "AUTH_BACKEND=d1 is configured but D1 binding is unavailable in this runtime; falling back to memory backend.",
+        "Auth backend is configured for d1 but D1 binding is unavailable in this runtime; falling back to memory backend.",
       );
       return { kind: "memory" };
     }
 
     throw new Error(
-      "AUTH_BACKEND=d1 is set, but no D1 binding is available in request context.",
+      "Auth backend is configured for d1, but no D1 binding is available in request context.",
     );
   }
 
