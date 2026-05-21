@@ -291,11 +291,6 @@ async function getD1DatabaseFromRequestContext(): Promise<D1DatabaseLike | undef
     // Ignore context lookup errors; global binding fallback is checked below.
   }
 
-  const processCandidate = (process.env as Record<string, unknown>)[bindingName];
-  if (isD1DatabaseLike(processCandidate)) {
-    return processCandidate;
-  }
-
   return getD1FromGlobalScope(bindingName);
 }
 
