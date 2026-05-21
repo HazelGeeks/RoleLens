@@ -35,7 +35,7 @@ async function getRouteJobId(context: RouteContext) {
 }
 
 export async function GET(request: Request, context: RouteContext) {
-  const auth = authorizePersistenceRequest(request);
+  const auth = await authorizePersistenceRequest(request);
   if (!auth.ok) return auth.response;
 
   const jobId = await getRouteJobId(context);
@@ -60,7 +60,7 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const auth = authorizePersistenceRequest(request);
+  const auth = await authorizePersistenceRequest(request);
   if (!auth.ok) return auth.response;
 
   const jobId = await getRouteJobId(context);

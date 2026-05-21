@@ -1,6 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { GET as GET_BY_ID, PATCH } from "@/app/api/persistence/jobs/[id]/route";
 import { GET as LIST, POST } from "@/app/api/persistence/jobs/route";
+import { POST as SIGNUP } from "@/app/api/auth/signup/route";
+import { resetAuthStoreForTests } from "@/lib/auth-server";
 import { resetPersistentStoreForTests } from "@/lib/persistence/store";
 
 const ORIGINAL_POC_TOKEN = process.env.PERSISTENCE_POC_TOKEN;
@@ -21,6 +23,7 @@ function buildHeaders(userId: string, deviceId: string, token?: string) {
 
 describe("/api/persistence/jobs PoC sync", () => {
   beforeEach(() => {
+    resetAuthStoreForTests();
     resetPersistentStoreForTests();
     delete process.env.PERSISTENCE_POC_TOKEN;
   });
@@ -258,5 +261,43 @@ describe("/api/persistence/jobs PoC sync", () => {
     );
 
     expect(authorizedResponse.status).toBe(200);
+  });
+
+  it("accepts authenticated session when PERSISTENCE_POC_TOKEN is configured", async () => {
+    process.env.PERSISTENCE_POC_TOKEN = "required-token";
+
+    const signupResponse = await SIGNUP(
+      new Request("https://rolelens.pages.dev/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Session User",
+          email: "session-user@example.com",
+          password: "password123",
+        }),
+      }),
+    );
+
+    const signupPayload = (await signupResponse.json()) as {
+      user: { id: string };
+    };
+    const sessionCookie = signupResponse.headers.get("set-cookie")?.split(";")[0] || "";
+
+    const sessionHeaders = new Headers({
+      "x-rolelens-user": "account-" + signupPayload.user.id,
+      "x-rolelens-device": "device-a",
+      cookie: sessionCookie,
+    });
+
+    const sessionAuthorizedResponse = await LIST(
+      new Request("https://rolelens.pages.dev/api/persistence/jobs", {
+        method: "GET",
+        headers: sessionHeaders,
+      }),
+    );
+
+    expect(sessionAuthorizedResponse.status).toBe(200);
   });
 });

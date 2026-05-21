@@ -29,7 +29,7 @@ function formatValidation(error: z.ZodError) {
 }
 
 export async function GET(request: Request) {
-  const auth = authorizePersistenceRequest(request);
+  const auth = await authorizePersistenceRequest(request);
   if (!auth.ok) return auth.response;
 
   const jobs = await listPersistentJobs(auth.identity.userId);
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = authorizePersistenceRequest(request);
+  const auth = await authorizePersistenceRequest(request);
   if (!auth.ok) return auth.response;
 
   let payload: unknown;

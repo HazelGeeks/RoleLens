@@ -1,3 +1,5 @@
+import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
+
 const USER_HEADER = "x-rolelens-user";
 const DEVICE_HEADER = "x-rolelens-device";
 
@@ -40,18 +42,9 @@ function getBearerToken(request: Request) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export function authorizePersistenceRequest(request: Request): AuthResult {
-  const expectedToken = process.env.PERSISTENCE_POC_TOKEN?.trim();
-  if (expectedToken) {
-    const providedToken = getBearerToken(request);
-    if (!providedToken || providedToken !== expectedToken) {
-      return {
-        ok: false,
-        response: unauthorized("Unauthorized"),
-      };
-    }
-  }
-
+export async function authorizePersistenceRequest(
+  request: Request,
+): Promise<AuthResult> {
   const userId = request.headers.get(USER_HEADER)?.trim();
   if (!userId) {
     return {
@@ -62,6 +55,22 @@ export function authorizePersistenceRequest(request: Request): AuthResult {
 
   const deviceId =
     request.headers.get(DEVICE_HEADER)?.trim() || "web-client-default";
+
+  const expectedToken = process.env.PERSISTENCE_POC_TOKEN?.trim();
+  if (expectedToken) {
+    const providedToken = getBearerToken(request);
+    if (providedToken !== expectedToken) {
+      const authUser = await getAuthSessionUserFromRequest(request);
+      const expectedUserId = authUser ? `account-${authUser.id}` : null;
+
+      if (!expectedUserId || expectedUserId !== userId) {
+        return {
+          ok: false,
+          response: unauthorized("Unauthorized"),
+        };
+      }
+    }
+  }
 
   return {
     ok: true,
