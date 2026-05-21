@@ -228,35 +228,6 @@ async function verifyPassword(password: string, storedHash: string) {
   return safeEqualBytes(actualBytes, expectedBytes);
 }
 
-function findD1InEnv(
-  env: Record<string, unknown> | undefined,
-  preferredName: string,
-): D1DatabaseLike | undefined {
-  if (!env) return undefined;
-
-  const preferred = env[preferredName];
-  if (isD1DatabaseLike(preferred)) return preferred;
-
-  try {
-    const hinted = Object.entries(env).find(
-      ([key, value]) =>
-        key.toLowerCase().includes("db") && isD1DatabaseLike(value),
-    )?.[1];
-    if (isD1DatabaseLike(hinted)) return hinted;
-  } catch {
-    // Ignore enumeration failures from runtime-provided env proxies.
-  }
-
-  try {
-    const first = Object.values(env).find((value) => isD1DatabaseLike(value));
-    if (isD1DatabaseLike(first)) return first;
-  } catch {
-    // Ignore enumeration failures from runtime-provided env proxies.
-  }
-
-  return undefined;
-}
-
 function getD1FromGlobalScope(bindingName: string): D1DatabaseLike | undefined {
   const scope = globalThis as Record<string, unknown> & {
     __env__?: Record<string, unknown>;
@@ -266,11 +237,11 @@ function getD1FromGlobalScope(bindingName: string): D1DatabaseLike | undefined {
   const direct = scope[bindingName];
   if (isD1DatabaseLike(direct)) return direct;
 
-  const lowerEnvCandidate = findD1InEnv(scope.__env__, bindingName);
-  if (lowerEnvCandidate) return lowerEnvCandidate;
+  const lowerEnvCandidate = scope.__env__?.[bindingName];
+  if (isD1DatabaseLike(lowerEnvCandidate)) return lowerEnvCandidate;
 
-  const upperEnvCandidate = findD1InEnv(scope.__ENV__, bindingName);
-  if (upperEnvCandidate) return upperEnvCandidate;
+  const upperEnvCandidate = scope.__ENV__?.[bindingName];
+  if (isD1DatabaseLike(upperEnvCandidate)) return upperEnvCandidate;
 
   return undefined;
 }
@@ -283,8 +254,8 @@ async function getD1DatabaseFromRequestContext(): Promise<D1DatabaseLike | undef
     const { getRequestContext } = await import("@cloudflare/next-on-pages");
     const context = getRequestContext();
     const env = context.env as Record<string, unknown> | undefined;
-    const candidate = findD1InEnv(env, bindingName);
-    if (candidate) {
+    const candidate = env?.[bindingName];
+    if (isD1DatabaseLike(candidate)) {
       return candidate;
     }
   } catch {
