@@ -163,20 +163,24 @@ describe("auth API routes", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("AUTH_PASSWORD_PEPPER", "");
 
-    await expect(
-      SIGNUP(
-        new Request("https://rolelens.pages.dev/api/auth/signup", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            name: "Prod",
-            email: "prod@example.com",
-            password: "password123",
-          }),
+    const response = await SIGNUP(
+      new Request("https://rolelens.pages.dev/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Prod",
+          email: "prod@example.com",
+          password: "password123",
         }),
-      ),
-    ).rejects.toThrow("AUTH_PASSWORD_PEPPER is required in production");
+      }),
+    );
+
+    const payload = (await response.json()) as { message: string };
+    expect(response.status).toBe(500);
+    expect(payload.message).toBe(
+      "Server auth configuration is incomplete. Set AUTH_PASSWORD_PEPPER for Production.",
+    );
   });
 });
