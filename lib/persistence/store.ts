@@ -147,13 +147,24 @@ function findD1InEnv(
   const preferred = env[preferredName];
   if (isD1DatabaseLike(preferred)) return preferred;
 
-  const hinted = Object.entries(env).find(
-    ([key, value]) => key.toLowerCase().includes("db") && isD1DatabaseLike(value),
-  )?.[1];
-  if (isD1DatabaseLike(hinted)) return hinted;
+  try {
+    const hinted = Object.entries(env).find(
+      ([key, value]) =>
+        key.toLowerCase().includes("db") && isD1DatabaseLike(value),
+    )?.[1];
+    if (isD1DatabaseLike(hinted)) return hinted;
+  } catch {
+    // Ignore enumeration failures from runtime-provided env proxies.
+  }
 
-  const first = Object.values(env).find((value) => isD1DatabaseLike(value));
-  return isD1DatabaseLike(first) ? first : undefined;
+  try {
+    const first = Object.values(env).find((value) => isD1DatabaseLike(value));
+    if (isD1DatabaseLike(first)) return first;
+  } catch {
+    // Ignore enumeration failures from runtime-provided env proxies.
+  }
+
+  return undefined;
 }
 
 function getD1FromGlobalScope(bindingName: string): D1DatabaseLike | undefined {
