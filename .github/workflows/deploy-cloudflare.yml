@@ -55,4 +55,4 @@ jobs:
         run: npm run d1:migrate:prod
 
       - name: Deploy to Cloudflare Pages
-        run: npm run cf:deploy
+        run: npm run cf:deploy -- --branch=main
