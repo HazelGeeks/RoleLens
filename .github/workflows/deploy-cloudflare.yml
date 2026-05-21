@@ -48,6 +48,46 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing CLOUDFLARE_ACCOUNT_ID" && exit 1)
           test -n "$CLOUDFLARE_PROJECT_NAME" || (echo "Missing CLOUDFLARE_PROJECT_NAME" && exit 1)
 
+      - name: Sync Pages deployment config
+        run: |
+          set -euo pipefail
+
+          D1_DATABASE_ID=$(awk -F'"' '/^database_id = "/ { print $2; exit }' wrangler.toml)
+          test -n "$D1_DATABASE_ID" || (echo "Missing database_id in wrangler.toml" && exit 1)
+
+          for ENVIRONMENT in production preview; do
+            CURRENT_CONFIG=$(curl --silent --show-error --fail \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CLOUDFLARE_PROJECT_NAME/deployment_configs/$ENVIRONMENT" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json")
+
+            PAYLOAD=$(echo "$CURRENT_CONFIG" | jq --compact-output --arg d1_database_id "$D1_DATABASE_ID" '
+              {
+                d1_databases: (
+                  (((.result.d1_databases // []) | if type == "array" then . else [] end)
+                    | map(select(.binding != "DB")))
+                  + [{ binding: "DB", database_id: $d1_database_id }]
+                ),
+                env_vars: (
+                  ((.result.env_vars // {}) | if type == "object" then . else {} end)
+                  + {
+                    PERSISTENCE_BACKEND: { type: "plain_text", value: "d1" },
+                    AUTH_BACKEND: { type: "plain_text", value: "d1" },
+                    PERSISTENCE_D1_BINDING: { type: "plain_text", value: "DB" }
+                  }
+                )
+              }
+            ')
+
+            PATCH_RESULT=$(curl --silent --show-error --fail -X PATCH \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CLOUDFLARE_PROJECT_NAME/deployment_configs/$ENVIRONMENT" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "$PAYLOAD")
+
+            echo "$PATCH_RESULT" | jq --exit-status '.success == true' >/dev/null
+          done
+
       - name: Build Pages output
         run: npm run cf:build
 
