@@ -93,6 +93,11 @@ async function ensureOkResponse(response: Response) {
   throw new Error(`Persistence request failed (${response.status})${details}`);
 }
 
+export function isPersistenceNotFoundError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  return error.message.includes("Persistence request failed (404)");
+}
+
 export function toLocalJobFromPersistent(
   job: PersistentJob,
   existing?: LocalJobPosting,
@@ -207,7 +212,30 @@ export async function listPersistentJobsClient() {
   return payload.jobs;
 }
 
-function toPersistentCreateInput(job: LocalJobPosting): CreatePersistentJobInput {
+export async function getPersistentJobClient(jobId: string) {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
+    method: "GET",
+    cache: "no-store",
+    headers: buildPersistenceHeaders(),
+  });
+
+  if (response.status === 404) return null;
+
+  await ensureOkResponse(response);
+  const payload = (await response.json()) as {
+    ok: boolean;
+    job: PersistentJob;
+  };
+
+  return payload.job;
+}
+
+function toPersistentCreateInput(
+  job: LocalJobPosting,
+  options?: {
+    clientRequestId?: string;
+  },
+): CreatePersistentJobInput {
   return {
     company: job.company,
     title: job.title,
@@ -217,7 +245,7 @@ function toPersistentCreateInput(job: LocalJobPosting): CreatePersistentJobInput
     nextAction: job.nextAction,
     followUpDate: job.followUpDate,
     tags: job.tags,
-    clientRequestId: `local-job:${job.id}`,
+    clientRequestId: options?.clientRequestId ?? `local-job:${job.id}`,
   };
 }
 
@@ -281,7 +309,12 @@ function buildUpdatePatch(
   return Object.keys(patch.changes).length > 0 ? patch : null;
 }
 
-export async function mirrorLocalJobToPersistence(job: LocalJobPosting) {
+export async function mirrorLocalJobToPersistence(
+  job: LocalJobPosting,
+  options?: {
+    clientRequestId?: string;
+  },
+) {
   if (job.persistentId) {
     const patch = buildUpdatePatch(job, null);
     if (!patch) {
@@ -298,7 +331,9 @@ export async function mirrorLocalJobToPersistence(job: LocalJobPosting) {
     });
   }
 
-  const created = await createPersistentJobClient(toPersistentCreateInput(job));
+  const created = await createPersistentJobClient(
+    toPersistentCreateInput(job, options),
+  );
   const patch = buildUpdatePatch(job, created);
 
   let latest = created;

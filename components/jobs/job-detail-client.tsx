@@ -6,6 +6,7 @@ import { statusOptions } from "@/lib/constants";
 import { upsertJob } from "@/lib/local-jobs";
 import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
 import {
+  isPersistenceNotFoundError,
   mirrorLocalJobToPersistence,
   patchPersistentJobClient,
   toLocalJobFromPersistent,
@@ -54,16 +55,17 @@ export function JobDetailClient() {
     setFollowUpDateInput(date.toISOString().slice(0, 10));
   };
 
-  const ensurePersistentJob = async () => {
-    if (job.persistentId) {
-      return {
-        id: job.persistentId,
-        version: job.persistentVersion,
-      };
-    }
+  const recreatePersistentJob = async () => {
+    const detachedJob = {
+      ...job,
+      persistentId: undefined,
+      persistentVersion: undefined,
+    };
 
-    const persisted = await mirrorLocalJobToPersistence(job);
-    const merged = toLocalJobFromPersistent(persisted, job);
+    const persisted = await mirrorLocalJobToPersistence(detachedJob, {
+      clientRequestId: `recovery:${job.id}:${crypto.randomUUID()}`,
+    });
+    const merged = toLocalJobFromPersistent(persisted, detachedJob);
     upsertJob(merged);
 
     return {
@@ -72,14 +74,47 @@ export function JobDetailClient() {
     };
   };
 
+  const ensurePersistentJob = async () => {
+    if (job.persistentId) {
+      return {
+        id: job.persistentId,
+        version: job.persistentVersion,
+      };
+    }
+
+    return recreatePersistentJob();
+  };
+
+  const patchPersistentJobWithRecovery = async (
+    buildPatch: (expectedVersion: number | undefined) => Parameters<typeof patchPersistentJobClient>[1],
+  ) => {
+    const persistent = await ensurePersistentJob();
+
+    try {
+      return await patchPersistentJobClient(
+        persistent.id,
+        buildPatch(persistent.version),
+      );
+    } catch (error) {
+      if (!isPersistenceNotFoundError(error)) {
+        throw error;
+      }
+
+      const recovered = await recreatePersistentJob();
+      return patchPersistentJobClient(
+        recovered.id,
+        buildPatch(recovered.version),
+      );
+    }
+  };
+
   const saveStatus = async () => {
     setActionError(null);
-    const persistent = await ensurePersistentJob();
-    const updated = await patchPersistentJobClient(persistent.id, {
+    const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
       op: "status",
-      expectedVersion: persistent.version,
+      expectedVersion,
       status: status || job.status,
-    });
+    }));
 
     upsertJob(toLocalJobFromPersistent(updated, job));
     setStatus("");
@@ -88,15 +123,14 @@ export function JobDetailClient() {
 
   const saveFollowUp = async () => {
     setActionError(null);
-    const persistent = await ensurePersistentJob();
-    const updated = await patchPersistentJobClient(persistent.id, {
+    const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
       op: "update",
-      expectedVersion: persistent.version,
+      expectedVersion,
       changes: {
         nextAction: nextActionInput.trim() || undefined,
         followUpDate: followUpDateInput.trim() || undefined,
       },
-    });
+    }));
 
     upsertJob(toLocalJobFromPersistent(updated, job));
     await refreshJobs();
@@ -106,12 +140,11 @@ export function JobDetailClient() {
     if (!newNote.trim()) return;
     setActionError(null);
 
-    const persistent = await ensurePersistentJob();
-    const updated = await patchPersistentJobClient(persistent.id, {
+    const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
       op: "note",
-      expectedVersion: persistent.version,
+      expectedVersion,
       content: newNote.trim(),
-    });
+    }));
 
     upsertJob(toLocalJobFromPersistent(updated, job));
     setNewNote("");

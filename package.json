@@ -15,7 +15,11 @@
     "d1:migrate:local": "wrangler d1 migrations apply rolelens-db --local",
     "d1:migrate:preview": "wrangler d1 migrations apply rolelens-db --preview",
     "d1:migrate:prod": "wrangler d1 migrations apply rolelens-db --remote",
-    "dev:d1": "npm run d1:migrate:local && npm run cf:build && wrangler pages dev .vercel/output/static --persist-to .wrangler/state --port 3000 --env-file .env.local"
+    "dev:d1": "npm run d1:migrate:local && npm run cf:build && wrangler pages dev .vercel/output/static --persist-to .wrangler/state --port 3000 --env-file .env.local",
+    "d1:tables:local": "wrangler d1 execute rolelens-db --local --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;\"",
+    "d1:tables:remote": "wrangler d1 execute rolelens-db --remote --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;\"",
+    "d1:auth-users:local": "wrangler d1 execute rolelens-db --local --command \"SELECT id, email, name, created_at FROM auth_users ORDER BY created_at DESC LIMIT 20;\"",
+    "d1:auth-sessions:local": "wrangler d1 execute rolelens-db --local --command \"SELECT COUNT(*) AS session_count FROM auth_sessions;\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
