@@ -89,6 +89,24 @@ type SyncToast = {
   message: string;
 };
 
+type JobsViewFilter = "ALL" | "RESUME" | "INTERVIEW";
+
+const viewStatusMap: Record<Exclude<JobsViewFilter, "ALL">, JobStatus[]> = {
+  RESUME: ["NONE", "NEW", "SAVE", "INTEREST"],
+  INTERVIEW: ["SUBMITTED"],
+};
+
+function parseJobsViewFilter(value: string | null): JobsViewFilter {
+  if (value === "resume") return "RESUME";
+  if (value === "interview") return "INTERVIEW";
+  return "ALL";
+}
+
+function isJobInView(jobStatus: JobStatus, view: JobsViewFilter) {
+  if (view === "ALL") return true;
+  return viewStatusMap[view].includes(jobStatus);
+}
+
 export function JobsPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -116,6 +134,10 @@ export function JobsPageClient() {
   const [activeSyncPlatform, setActiveSyncPlatform] =
     useState<FeedPlatform | null>(null);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const jobsView = useMemo(
+    () => parseJobsViewFilter(searchParams.get("view")),
+    [searchParams],
+  );
 
   const showSyncToast = useCallback((message: string) => {
     setSyncToast({
@@ -239,7 +261,12 @@ export function JobsPageClient() {
   useEffect(() => {
     if (searchParams.get("save") !== "1") return;
     setIsSaveModalOpen(true);
-    router.replace("/", { scroll: false });
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("save");
+    const nextHref = nextParams.toString() ? "/?" + nextParams.toString() : "/";
+
+    router.replace(nextHref, { scroll: false });
   }, [router, searchParams]);
 
   useEffect(() => {
@@ -296,11 +323,21 @@ export function JobsPageClient() {
     void runFeedSync({ silent: true });
   }, [runFeedSync, showSyncToast]);
 
+  useEffect(() => {
+    setStatus("ALL");
+    setCompareIds([]);
+  }, [jobsView]);
+
+  const viewFilteredJobs = useMemo(
+    () => jobs.filter((job) => isJobInView(job.status, jobsView)),
+    [jobs, jobsView],
+  );
+
   const rows = useMemo(() => {
     const normalizedSkill = requiredSkill.trim().toLowerCase();
     const minFitValue = minFit ? Number(minFit) : null;
 
-    return jobs
+    return viewFilteredJobs
       .filter((job) => (status === "ALL" ? true : job.status === status))
       .filter((job) => (source === "ALL" ? true : job.source === source))
       .filter((job) =>
@@ -370,27 +407,27 @@ export function JobsPageClient() {
 
         return compareByLocationFitAndCreated(left, right);
       });
-  }, [jobs, minFit, q, remoteType, requiredSkill, source, sortBy, status]);
+  }, [minFit, q, remoteType, requiredSkill, source, sortBy, status, viewFilteredJobs]);
 
   const sourceCounts = useMemo(
     () =>
-      jobs.reduce<Record<JobSource, number>>(
+      viewFilteredJobs.reduce<Record<JobSource, number>>(
         (counts, job) => ({ ...counts, [job.source]: counts[job.source] + 1 }),
         { LINKEDIN: 0, INDEED: 0, SARAMIN: 0, JOBKOREA: 0, MANUAL: 0 },
       ),
-    [jobs],
+    [viewFilteredJobs],
   );
 
   const dueFollowUps = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    return jobs
+    return viewFilteredJobs
       .filter((job) => !!job.followUpDate && job.followUpDate <= today)
       .filter((job) => job.status !== "ARCHIVE")
       .sort((a, b) =>
         (a.followUpDate || "").localeCompare(b.followUpDate || ""),
       )
       .slice(0, 6);
-  }, [jobs]);
+  }, [viewFilteredJobs]);
 
   const compareRows = useMemo(
     () => rows.filter((row) => compareIds.includes(row.id)),
@@ -493,7 +530,7 @@ export function JobsPageClient() {
             filters={filters}
             actions={filterActions}
             rowsCount={rows.length}
-            totalJobs={jobs.length}
+            totalJobs={viewFilteredJobs.length}
             lastSyncAt={lastSyncAt}
             syncMessage={syncMessage}
             syncError={syncError}

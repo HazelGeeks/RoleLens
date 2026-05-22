@@ -271,6 +271,84 @@ describe("feed sync observability", () => {
     expect(savedIds).toContain("manual-1");
     expect(savedIds).not.toContain("legacy-greenhouse-1");
   });
+
+  it("resets legacy imported SAVE default to NONE when syncing", async () => {
+    const now = "2026-05-10T00:00:00.000Z";
+    const legacyImported: LocalJobPosting = {
+      id: "legacy-import-1",
+      source: "MANUAL",
+      sourceUrl: "https://example.com/jobs/legacy-import-1",
+      company: "Sample Co",
+      title: "Frontend Engineer",
+      remoteType: "REMOTE",
+      descriptionRaw: "Legacy imported posting",
+      extractedSkills: ["React"],
+      fitScore: 70,
+      status: "SAVE",
+      statusHistory: [
+        {
+          id: "h-legacy-import-1",
+          status: "SAVE",
+          changedAt: now,
+          note: "Imported from external feed",
+        },
+      ],
+      tags: ["python-scraper"],
+      notes: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    mockedGetJobsFromStorage.mockReturnValue([legacyImported]);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              generatedAt: "2026-05-13T00:00:00.000Z",
+              sourceCount: 1,
+              jobs: [
+                {
+                  externalId: "py:sample:legacy-import-1",
+                  source: "MANUAL",
+                  sourceLabel: "PythonScraper:sample",
+                  sourceUrl: "https://example.com/jobs/legacy-import-1",
+                  company: "Sample Co",
+                  title: "Frontend Engineer",
+                  descriptionRaw: "React TypeScript role",
+                  extractedSkills: ["React", "TypeScript"],
+                  tags: ["python-scraper"],
+                },
+              ],
+              errors: [],
+              sourceResults: [
+                {
+                  source: "PythonScraper:sample",
+                  ok: true,
+                  importedJobs: 1,
+                },
+              ],
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          ),
+      ),
+    );
+
+    await syncJobsFromFeeds({ refresh: true, persistToDb: false });
+
+    const saved = mockedSaveJobsToStorage.mock.calls[0]?.[0] ?? [];
+    const migrated = saved.find((job) => job.id === "legacy-import-1");
+    expect(migrated?.status).toBe("NONE");
+    expect(migrated?.statusHistory[0]?.status).toBe("NONE");
+    expect(migrated?.statusHistory[0]?.note).toBe("Imported from external feed");
+  });
+
   it("supports platform-scoped sync without deleting other platform jobs", async () => {
     const now = "2026-05-10T00:00:00.000Z";
     const indeedJob: LocalJobPosting = {

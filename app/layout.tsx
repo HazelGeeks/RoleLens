@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { JetBrains_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { BarChart3, ClipboardList } from "lucide-react";
+import { BarChart3, ClipboardList, FileText, MessageSquare } from "lucide-react";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthProvider } from "@/components/providers/auth-provider";
@@ -64,6 +64,20 @@ export default function RootLayout({
                     >
                       <ClipboardList className="h-4 w-4" />
                       Jobs
+                    </Link>
+                    <Link
+                      href="/resume"
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Resume
+                    </Link>
+                    <Link
+                      href="/?view=interview"
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Interview
                     </Link>
                     <Link
                       href="/dashboard"

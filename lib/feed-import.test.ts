@@ -104,6 +104,69 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
     expect(result.jobs[0]?.location).toBe("Vancouver, British Columbia, Canada");
   });
 
+  it("hydrates placeholder descriptions from source job pages", async () => {
+    const mockedFetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+
+      if (url === "https://example.com/scraped-jobs.json") {
+        return new Response(
+          JSON.stringify({
+            jobs: [
+              {
+                externalId: "py:sample:backend-1",
+                source: "LINKEDIN",
+                sourceLabel: "PythonScraper:LinkedIn Backend Search",
+                sourceUrl:
+                  "https://ca.linkedin.com/jobs/view/backend-engineer-at-acme-123",
+                company: "Acme",
+                location: "Vancouver, British Columbia, Canada",
+                title: "Backend Engineer",
+                descriptionRaw:
+                  "Scraped link from https://www.linkedin.com/jobs/search/?keywords=backend%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada",
+                tags: ["python-scraper"],
+                publishedAt: "2026-05-11T00:00:00.000Z",
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      if (url === "https://ca.linkedin.com/jobs/view/backend-engineer-at-acme-123") {
+        return new Response(
+          "<html><body><main><p>Backend Engineer role focused on building distributed APIs, event-driven systems, TypeScript services, and cloud infrastructure for high-traffic products.</p></main></body></html>",
+          {
+            status: 200,
+            headers: {
+              "content-type": "text/html; charset=utf-8",
+            },
+          },
+        );
+      }
+
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+    vi.stubGlobal("fetch", mockedFetch);
+
+    const result = await collectFeedJobs({
+      PYTHON_SCRAPED_FEED_URL: "https://example.com/scraped-jobs.json",
+    });
+
+    expect(result.jobs[0]?.descriptionRaw).not.toContain("Scraped link from");
+    expect(result.jobs[0]?.descriptionRaw).toContain("Backend Engineer role focused");
+    expect(mockedFetch).toHaveBeenCalledTimes(2);
+  });
+
   it("uses local fallback feed route in local development", async () => {
     const mockedFetch = vi.fn(
       async () =>

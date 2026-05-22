@@ -114,6 +114,22 @@ const ASHBY_JOB_BOARD_QUERY =
   "query ApiJobBoard($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { teams { id name } jobPostings { id title locationName teamId workplaceType employmentType } } }";
 const SMARTRECRUITERS_PAGE_LIMIT = 100;
 const LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH = "/api/jobs/local-python-scraped-feed";
+const PYTHON_PLACEHOLDER_DESCRIPTION_PREFIX = "scraped link from ";
+const PYTHON_DESCRIPTION_FETCH_TIMEOUT_MS = 6000;
+const PYTHON_DESCRIPTION_MAX_CHARS = 5000;
+const PYTHON_DESCRIPTION_HYDRATION_LIMIT = 20;
+const LOW_SIGNAL_DESCRIPTION_MARKERS = [
+  "we use cookies",
+  "linkedin and 3rd parties use essential and non-essential cookies",
+  "join now",
+  "sign in",
+  "create your account",
+  "accept cookies",
+  "log in",
+  "captcha",
+  "access denied",
+  "are you a human",
+] as const;
 
 function splitCsv(value: string | undefined) {
   if (!value) return [];
@@ -328,6 +344,70 @@ function decodeXmlEntities(value: string) {
     .replace(/&#([0-9]+);/g, (_, dec: string) =>
       String.fromCodePoint(parseInt(dec, 10)),
     );
+}
+
+function isScrapedLinkPlaceholderDescription(value: string) {
+  return value
+    .toLowerCase()
+    .startsWith(PYTHON_PLACEHOLDER_DESCRIPTION_PREFIX);
+}
+
+function clipDescription(value: string) {
+  return value.slice(0, PYTHON_DESCRIPTION_MAX_CHARS).trim();
+}
+
+function isHighSignalDescription(value: string, title: string) {
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) return false;
+  if (normalized.length < 80) return false;
+  if (normalized.split(/\s+/).length < 18) return false;
+  if (/^https?:\/\//i.test(normalized)) return false;
+  if (isScrapedLinkPlaceholderDescription(normalized)) return false;
+
+  const lower = normalized.toLowerCase();
+  const hasLowSignalMarker = LOW_SIGNAL_DESCRIPTION_MARKERS.some((marker) =>
+    lower.includes(marker),
+  );
+  if (!hasLowSignalMarker) return true;
+
+  const titleTokens = title
+    .toLowerCase()
+    .split(/[^a-z0-9가-힣]+/)
+    .filter((token) => token.length >= 4);
+  if (titleTokens.length === 0) return false;
+
+  return titleTokens.some((token) => lower.includes(token));
+}
+
+async function fetchDescriptionFromSource(sourceUrl: string, title: string) {
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    controller.abort();
+  }, PYTHON_DESCRIPTION_FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(sourceUrl, {
+      headers: {
+        "user-agent": "RoleLensDescriptionHydrator/1.0 (+https://rolelens.pages.dev)",
+        accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
+      },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) return undefined;
+    const html = await response.text();
+    const cleanedHtml = html
+      .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+      .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ");
+    const text = htmlToReadableText(cleanedHtml);
+    if (!isHighSignalDescription(text, title)) return undefined;
+    return clipDescription(text);
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
 }
 
 function readFirstTag(block: string, tags: string[]) {
@@ -738,11 +818,16 @@ function mapAtsDraftToImported(input: {
   };
 }
 
-function normalizePythonScrapedItem(
+type NormalizePythonScrapedItemOptions = {
+  hydrateDescriptionFromSource: boolean;
+};
+
+async function normalizePythonScrapedItem(
   value: unknown,
   source: PythonScrapedSourceConfig,
   index: number,
-): ImportedFeedJob | null {
+  options: NormalizePythonScrapedItemOptions,
+): Promise<ImportedFeedJob | null> {
   const raw = asRecord(value);
   if (!raw) return null;
 
@@ -757,12 +842,19 @@ function normalizePythonScrapedItem(
     asString(raw.description) ||
     asString(raw.summary) ||
     title;
-  const rawDescription = htmlToReadableText(rawDescriptionCandidate) || title;
+  const sourceDescription = htmlToReadableText(rawDescriptionCandidate) || title;
+  const hydratedDescription =
+    options.hydrateDescriptionFromSource &&
+    sourceUrl &&
+    isScrapedLinkPlaceholderDescription(sourceDescription)
+      ? await fetchDescriptionFromSource(sourceUrl, title)
+      : undefined;
+  const descriptionRaw = hydratedDescription || sourceDescription;
 
   const draft = extractJobDraft({
     sourceUrl,
     existingTitle: title,
-    descriptionRaw: rawDescription,
+    descriptionRaw,
   });
 
   const companyCandidates = [
@@ -814,7 +906,7 @@ function normalizePythonScrapedItem(
     seniority: draft.seniority || asString(raw.seniority),
     workAuthorizationNote:
       draft.workAuthorizationNote || asString(raw.workAuthorizationNote),
-    descriptionRaw: rawDescription,
+    descriptionRaw,
     extractedSkills: Array.from(
       new Set([...draft.extractedSkills, ...asStringArray(raw.extractedSkills)]),
     ),
@@ -841,10 +933,30 @@ async function fetchPythonScrapedSource(
   const payload = (await response.json()) as unknown;
   const root = asRecord(payload);
   const jobs = Array.isArray(root?.jobs) ? root.jobs : [];
+  let hydrationBudget = PYTHON_DESCRIPTION_HYDRATION_LIMIT;
 
-  return jobs
-    .map((item, index) => normalizePythonScrapedItem(item, source, index))
-    .filter((item): item is ImportedFeedJob => item !== null);
+  const normalizedJobs = await Promise.all(
+    jobs.map((item, index) => {
+      const raw = asRecord(item);
+      const descriptionCandidate =
+        asString(raw?.descriptionRaw) ||
+        asString(raw?.description) ||
+        asString(raw?.summary) ||
+        "";
+      const itemSourceUrl = asString(raw?.sourceUrl) || asString(raw?.url);
+      const hydrateDescriptionFromSource =
+        hydrationBudget > 0 &&
+        !!itemSourceUrl &&
+        isScrapedLinkPlaceholderDescription(descriptionCandidate);
+      if (hydrateDescriptionFromSource) hydrationBudget -= 1;
+
+      return normalizePythonScrapedItem(item, source, index, {
+        hydrateDescriptionFromSource,
+      });
+    }),
+  );
+
+  return normalizedJobs.filter((item): item is ImportedFeedJob => item !== null);
 }
 
 async function fetchGreenhouseSource(

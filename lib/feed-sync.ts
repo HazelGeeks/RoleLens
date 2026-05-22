@@ -236,6 +236,53 @@ function findExistingJob(
   );
 }
 
+function shouldResetLegacyImportedSaveStatus(existing: LocalJobPosting | undefined) {
+  if (!existing) return false;
+  if (existing.status !== "SAVE") return false;
+  if (existing.statusHistory.length !== 1) return false;
+
+  const [initialHistory] = existing.statusHistory;
+  if (!initialHistory) return false;
+  if (initialHistory.status !== "SAVE") return false;
+
+  return (initialHistory.note || "")
+    .toLowerCase()
+    .includes("imported from external feed");
+}
+
+function buildImportedDefaultStatusState(
+  existing: LocalJobPosting | undefined,
+  now: string,
+) {
+  if (!shouldResetLegacyImportedSaveStatus(existing)) {
+    return {
+      status: existing?.status || "NONE",
+      lastStatusChangedAt: existing?.lastStatusChangedAt || now,
+      statusHistory: existing?.statusHistory || [
+        {
+          id: crypto.randomUUID(),
+          status: "NONE",
+          changedAt: now,
+          note: "Imported from external feed",
+        },
+      ],
+    };
+  }
+
+  return {
+    status: "NONE" as const,
+    lastStatusChangedAt: now,
+    statusHistory: [
+      {
+        id: crypto.randomUUID(),
+        status: "NONE" as const,
+        changedAt: now,
+        note: "Imported from external feed",
+      },
+    ],
+  };
+}
+
 function mergeImportedJob(
   imported: ImportedFeedJob,
   existing: LocalJobPosting | undefined,
@@ -258,6 +305,10 @@ function mergeImportedJob(
   const tags = Array.from(
     new Set([...(existing?.tags || []), ...imported.tags]),
   );
+  const importedDefaultStatusState = buildImportedDefaultStatusState(
+    existing,
+    now,
+  );
 
   return {
     id: existing?.id || resolveStableId(imported),
@@ -279,18 +330,11 @@ function mergeImportedJob(
     extractedSkills: skills,
     fitScore: fitBreakdown.overall,
     fitBreakdown,
-    status: existing?.status || "NONE",
+    status: importedDefaultStatusState.status,
     nextAction: existing?.nextAction,
     followUpDate: existing?.followUpDate,
-    lastStatusChangedAt: existing?.lastStatusChangedAt || now,
-    statusHistory: existing?.statusHistory || [
-      {
-        id: crypto.randomUUID(),
-        status: "NONE",
-        changedAt: now,
-        note: "Imported from external feed",
-      },
-    ],
+    lastStatusChangedAt: importedDefaultStatusState.lastStatusChangedAt,
+    statusHistory: importedDefaultStatusState.statusHistory,
     tags: normalizeTagsForPersistence(tags),
     notes: existing?.notes || [],
     createdAt: existing?.createdAt || now,
