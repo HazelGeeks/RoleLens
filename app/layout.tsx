@@ -73,7 +73,7 @@ export default function RootLayout({
                       Resume
                     </Link>
                     <Link
-                      href="/?view=interview"
+                      href="/interview"
                       className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800"
                     >
                       <MessageSquare className="h-4 w-4" />
