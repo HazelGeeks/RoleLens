@@ -64,9 +64,8 @@ jobs:
             PAYLOAD=$(echo "$CURRENT_CONFIG" | jq --compact-output --arg d1_database_id "$D1_DATABASE_ID" '
               {
                 d1_databases: (
-                  (((.result.d1_databases // []) | if type == "array" then . else [] end)
-                    | map(select(.binding != "DB")))
-                  + [{ binding: "DB", database_id: $d1_database_id }]
+                  ((.result.d1_databases // {}) | if type == "object" then . else {} end)
+                  + { DB: { id: $d1_database_id } }
                 ),
                 env_vars: (
                   ((.result.env_vars // {}) | if type == "object" then . else {} end)
@@ -94,7 +93,7 @@ jobs:
 
             echo "$VERIFIED_CONFIG" | jq --compact-output --arg environment "$ENVIRONMENT" '{
               environment: $environment,
-              d1_databases: (.result.d1_databases // []),
+              d1_databases: (.result.d1_databases // {}),
               auth_backend: (.result.env_vars.AUTH_BACKEND.value // null),
               persistence_backend: (.result.env_vars.PERSISTENCE_BACKEND.value // null),
               persistence_d1_binding: (.result.env_vars.PERSISTENCE_D1_BINDING.value // null)
