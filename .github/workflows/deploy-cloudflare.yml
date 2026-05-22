@@ -55,50 +55,66 @@ jobs:
           D1_DATABASE_ID=$(awk -F'"' '/^database_id = "/ { print $2; exit }' wrangler.toml)
           test -n "$D1_DATABASE_ID" || (echo "Missing database_id in wrangler.toml" && exit 1)
 
-          for ENVIRONMENT in production preview; do
-            CURRENT_CONFIG=$(curl --silent --show-error --fail \
-              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CLOUDFLARE_PROJECT_NAME/deployment_configs/$ENVIRONMENT" \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              -H "Content-Type: application/json")
+          CURRENT_PROJECT=$(curl --silent --show-error --fail \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CLOUDFLARE_PROJECT_NAME" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json")
 
-            PAYLOAD=$(echo "$CURRENT_CONFIG" | jq --compact-output --arg d1_database_id "$D1_DATABASE_ID" '
+          PAYLOAD=$(echo "$CURRENT_PROJECT" | jq --compact-output --arg d1_database_id "$D1_DATABASE_ID" '
+            def required_vars:
               {
-                d1_databases: (
-                  ((.result.d1_databases // {}) | if type == "object" then . else {} end)
-                  + { DB: { id: $d1_database_id } }
-                ),
-                env_vars: (
-                  ((.result.env_vars // {}) | if type == "object" then . else {} end)
-                  + {
-                    PERSISTENCE_BACKEND: { type: "plain_text", value: "d1" },
-                    AUTH_BACKEND: { type: "plain_text", value: "d1" },
-                    PERSISTENCE_D1_BINDING: { type: "plain_text", value: "DB" }
-                  }
-                )
+                PERSISTENCE_BACKEND: { type: "plain_text", value: "d1" },
+                AUTH_BACKEND: { type: "plain_text", value: "d1" },
+                PERSISTENCE_D1_BINDING: { type: "plain_text", value: "DB" }
+              };
+
+            def as_object:
+              if type == "object" then . else {} end;
+
+            def merge_env:
+              . as $env
+              | ($env | as_object) as $base
+              | $base
+              + {
+                  d1_databases: (((($base.d1_databases // {}) | as_object) + { DB: { id: $d1_database_id } })),
+                  env_vars: (((($base.env_vars // {}) | as_object) + required_vars))
+                };
+
+            {
+              deployment_configs: {
+                production: ((.result.deployment_configs.production // {}) | merge_env),
+                preview: ((.result.deployment_configs.preview // {}) | merge_env)
               }
-            ')
+            }
+          ')
 
-            PATCH_RESULT=$(curl --silent --show-error --fail -X PATCH \
-              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CLOUDFLARE_PROJECT_NAME/deployment_configs/$ENVIRONMENT" \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              -H "Content-Type: application/json" \
-              --data "$PAYLOAD")
+          PATCH_RESULT=$(curl --silent --show-error --fail -X PATCH \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CLOUDFLARE_PROJECT_NAME" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD")
 
-            echo "$PATCH_RESULT" | jq --exit-status '.success == true' >/dev/null
+          echo "$PATCH_RESULT" | jq --exit-status '.success == true' >/dev/null
 
-            VERIFIED_CONFIG=$(curl --silent --show-error --fail \
-              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CLOUDFLARE_PROJECT_NAME/deployment_configs/$ENVIRONMENT" \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              -H "Content-Type: application/json")
+          VERIFIED_PROJECT=$(curl --silent --show-error --fail \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CLOUDFLARE_PROJECT_NAME" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json")
 
-            echo "$VERIFIED_CONFIG" | jq --compact-output --arg environment "$ENVIRONMENT" '{
-              environment: $environment,
-              d1_databases: (.result.d1_databases // {}),
-              auth_backend: (.result.env_vars.AUTH_BACKEND.value // null),
-              persistence_backend: (.result.env_vars.PERSISTENCE_BACKEND.value // null),
-              persistence_d1_binding: (.result.env_vars.PERSISTENCE_D1_BINDING.value // null)
-            }'
-          done
+          echo "$VERIFIED_PROJECT" | jq --compact-output '{
+            production: {
+              d1_databases: (.result.deployment_configs.production.d1_databases // {}),
+              auth_backend: (.result.deployment_configs.production.env_vars.AUTH_BACKEND.value // null),
+              persistence_backend: (.result.deployment_configs.production.env_vars.PERSISTENCE_BACKEND.value // null),
+              persistence_d1_binding: (.result.deployment_configs.production.env_vars.PERSISTENCE_D1_BINDING.value // null)
+            },
+            preview: {
+              d1_databases: (.result.deployment_configs.preview.d1_databases // {}),
+              auth_backend: (.result.deployment_configs.preview.env_vars.AUTH_BACKEND.value // null),
+              persistence_backend: (.result.deployment_configs.preview.env_vars.PERSISTENCE_BACKEND.value // null),
+              persistence_d1_binding: (.result.deployment_configs.preview.env_vars.PERSISTENCE_D1_BINDING.value // null)
+            }
+          }'
 
       - name: Build Pages output
         run: npm run cf:build
