@@ -229,10 +229,18 @@ export function JobsPageClient() {
           setSyncMessage("Local cache was reset because DB write failed. Retry Sync All Feeds.");
         }
 
-        if (message.includes("Manual feed refresh is disabled")) {
+        const manualSyncDisabled =
+          message.includes("Manual feed refresh is disabled") ||
+          (message.includes("status 403") &&
+            message.toLowerCase().includes("public deployment"));
+
+        if (manualSyncDisabled) {
           setSyncError(null);
           showSyncToast(
-            "Manual sync is disabled on this public deployment to prevent abuse. Showing cached results only; scheduled server sync via /api/jobs/cron will keep data updated.",
+            "Manual sync is disabled on this production deployment. Cached results are shown instead, and scheduled /api/jobs/cron keeps feed data updated.",
+          );
+          setSyncMessage(
+            "Manual sync is unavailable on this production deployment. Showing cached feed results.",
           );
           if (options?.silent) {
             setSyncMessage("Loaded the latest cached feed snapshot.");
@@ -464,10 +472,18 @@ export function JobsPageClient() {
   };
 
   const runManualSyncAll = () => {
+    showSyncToast(
+      "Sync request received for all feeds. Checking if manual sync is available on this deployment...",
+    );
     void runFeedSync({ refresh: true, platform: "all" });
   };
 
   const runManualSyncPlatform = (platform: Exclude<FeedPlatform, "all">) => {
+    showSyncToast(
+      "Sync request received for " +
+        feedPlatformLabels[platform] +
+        ". Checking if manual sync is available on this deployment...",
+    );
     void runFeedSync({ refresh: true, platform });
   };
 
