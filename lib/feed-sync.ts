@@ -333,6 +333,7 @@ function mergeImportedJob(
     status: importedDefaultStatusState.status,
     nextAction: existing?.nextAction,
     followUpDate: existing?.followUpDate,
+    publishedAt: imported.publishedAt || existing?.publishedAt,
     lastStatusChangedAt: importedDefaultStatusState.lastStatusChangedAt,
     statusHistory: importedDefaultStatusState.statusHistory,
     tags: normalizeTagsForPersistence(tags),

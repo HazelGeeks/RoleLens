@@ -56,6 +56,21 @@ type AuthMutationFailure = {
 
 export type AuthMutationResult = AuthMutationSuccess | AuthMutationFailure;
 
+type AuthPasswordResetSuccess = {
+  ok: true;
+  message: string;
+};
+
+type AuthPasswordResetFailure = {
+  ok: false;
+  status: number;
+  message: string;
+};
+
+export type AuthPasswordResetResult =
+  | AuthPasswordResetSuccess
+  | AuthPasswordResetFailure;
+
 const AUTH_COOKIE_NAME = "rolelens_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const PASSWORD_HASH_ALGORITHM = "sha256";
@@ -387,6 +402,21 @@ async function insertAuthSessionD1(db: D1DatabaseLike, session: AuthSessionRecor
     .run();
 }
 
+async function clearAuthSessionsForUserD1(db: D1DatabaseLike, userId: string) {
+  await db
+    .prepare("DELETE FROM auth_sessions WHERE user_id = ?")
+    .bind(userId)
+    .run();
+}
+
+function clearAuthSessionsForUserMemory(userId: string) {
+  for (const [tokenHash, session] of memorySessionsByTokenHash.entries()) {
+    if (session.userId === userId) {
+      memorySessionsByTokenHash.delete(tokenHash);
+    }
+  }
+}
+
 export async function signUpAuth(input: {
   name: string;
   email: string;
@@ -466,6 +496,70 @@ export async function signInAuth(input: {
   }
 
   return { ok: true, user: toSessionUser(user), sessionToken: session.sessionToken };
+}
+
+export async function resetPasswordAuth(input: {
+  email: string;
+  password: string;
+}): Promise<AuthPasswordResetResult> {
+  const validated = validateCredentials(input);
+  if (!validated.ok) return { ok: false, status: 400, message: validated.message };
+
+  const backend = await resolveAuthBackend();
+  const now = new Date().toISOString();
+  const nextPasswordHash = await hashPassword(validated.password);
+
+  if (backend.kind === "memory") {
+    const userId = memoryUserIdsByEmail.get(validated.email);
+    if (!userId) {
+      return {
+        ok: true,
+        message:
+          "If an account exists for this email, the password has been reset. Please log in again.",
+      };
+    }
+
+    const existingUser = memoryUsersById.get(userId);
+    if (!existingUser) {
+      return {
+        ok: true,
+        message:
+          "If an account exists for this email, the password has been reset. Please log in again.",
+      };
+    }
+
+    memoryUsersById.set(userId, {
+      ...existingUser,
+      passwordHash: nextPasswordHash,
+      updatedAt: now,
+    });
+    clearAuthSessionsForUserMemory(userId);
+
+    return {
+      ok: true,
+      message: "Password reset successful. Please log in with your new password.",
+    };
+  }
+
+  const user = await getAuthUserByEmailD1(backend.db, validated.email);
+  if (!user) {
+    return {
+      ok: true,
+      message:
+        "If an account exists for this email, the password has been reset. Please log in again.",
+    };
+  }
+
+  await backend.db
+    .prepare("UPDATE auth_users SET password_hash = ?, updated_at = ? WHERE id = ?")
+    .bind(nextPasswordHash, now, user.id)
+    .run();
+  await clearAuthSessionsForUserD1(backend.db, user.id);
+
+  return {
+    ok: true,
+    message: "Password reset successful. Please log in with your new password.",
+  };
 }
 
 export function getAuthSessionTokenFromRequest(request: Request) {

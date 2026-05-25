@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AUTH_SESSION_STORAGE_KEY,
   getActiveAuthSessionUser,
+  resetPasswordLocalAuth,
   signInLocalAuth,
   signOutLocalAuth,
   signUpLocalAuth,
@@ -145,5 +146,32 @@ describe("auth client API session cache", () => {
     await signOutLocalAuth();
 
     expect(getActiveAuthSessionUser()).toBeNull();
+  });
+
+  it("returns success message for password reset", async () => {
+    setupWindow();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            message: "Password reset successful. Please log in with your new password.",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+
+    const result = await resetPasswordLocalAuth({
+      email: "sungjun@example.com",
+      password: "new-password123",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message).toContain("Password reset successful");
+    }
   });
 });

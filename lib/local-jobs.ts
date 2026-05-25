@@ -47,6 +47,7 @@ export type LocalJobPosting = {
   status: JobStatus;
   nextAction?: string;
   followUpDate?: string;
+  publishedAt?: string;
   lastStatusChangedAt?: string;
   statusHistory: JobStatusHistoryItem[];
   tags: string[];
@@ -128,6 +129,15 @@ function normalizeJobStatus(value: unknown): JobStatus | undefined {
 function sanitizeDateOnly(value: string | undefined) {
   if (!value) return undefined;
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+}
+
+function sanitizeIsoDateTime(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toISOString();
 }
 
 function sanitizeLocation(value: unknown) {
@@ -258,6 +268,7 @@ function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
         ? raw.nextAction
         : undefined,
     followUpDate: sanitizeDateOnly(raw.followUpDate),
+    publishedAt: sanitizeIsoDateTime(raw.publishedAt),
     lastStatusChangedAt:
       typeof raw.lastStatusChangedAt === "string"
         ? raw.lastStatusChangedAt
