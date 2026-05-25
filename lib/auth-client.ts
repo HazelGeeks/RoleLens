@@ -21,6 +21,16 @@ type AuthSuccessResult = {
 
 export type AuthOperationResult = AuthFailureResult | AuthSuccessResult;
 
+export type AuthMessageResult =
+  | {
+      ok: true;
+      message: string;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
 export const AUTH_SESSION_STORAGE_KEY = "rolelens.auth.session.v1";
 export const AUTH_SESSION_UPDATED_EVENT = "rolelens:auth-session-updated";
 
@@ -185,4 +195,37 @@ export async function signOutLocalAuth() {
   }).catch(() => null);
 
   writeSessionUser(null);
+}
+
+export async function resetPasswordLocalAuth(input: {
+  email: string;
+  password: string;
+}): Promise<AuthMessageResult> {
+  const response = await fetch("/api/auth/reset-password", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      email: input.email,
+      password: input.password,
+    }),
+  });
+
+  const payload = (await response.json().catch(() => null)) as unknown;
+  const messageFromApi = getApiErrorMessage(payload);
+  if (!response.ok) {
+    return {
+      ok: false,
+      message:
+        messageFromApi || "Password reset failed (" + response.status + ")",
+    };
+  }
+
+  return {
+    ok: true,
+    message:
+      messageFromApi || "Password reset successful. Please log in again.",
+  };
 }

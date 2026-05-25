@@ -131,6 +131,7 @@ export function toLocalJobFromPersistent(
     status: job.status,
     nextAction: job.nextAction,
     followUpDate: job.followUpDate,
+    publishedAt: existing?.publishedAt,
     lastStatusChangedAt: existing?.lastStatusChangedAt || job.updatedAt,
     statusHistory:
       existing?.statusHistory && existing.statusHistory.length > 0

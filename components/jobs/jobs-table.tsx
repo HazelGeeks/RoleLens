@@ -34,6 +34,7 @@ export type JobRow = {
   extractedSkills: string[];
   nextAction: string | null;
   followUpDate: string | null;
+  publishedAt: string | null;
   createdAt: string;
 };
 
@@ -44,6 +45,15 @@ type JobsTableProps = {
 };
 
 const ROWS_PER_PAGE = 30;
+
+function formatPostedDate(value: string | null) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value.length >= 10 ? value.slice(0, 10) : value;
+  }
+  return parsed.toISOString().slice(0, 10);
+}
 
 export function JobsTable({
   data,
@@ -113,6 +123,15 @@ export function JobsTable({
           <Badge className={statusBadgeClass(row.original.status)}>
             {statusLabels[row.original.status]}
           </Badge>
+        ),
+      },
+      {
+        accessorKey: "publishedAt",
+        header: "Posted",
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-600 dark:text-slate-300">
+            {formatPostedDate(row.original.publishedAt)}
+          </span>
         ),
       },
       {
@@ -241,7 +260,7 @@ export function JobsTable({
   return (
     <div className="space-y-3">
       <div className="w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-        <table className="w-full min-w-[1260px] text-left text-sm">
+        <table className="w-full min-w-[1360px] text-left text-sm">
           <thead className="bg-slate-100/80 dark:bg-slate-900">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>

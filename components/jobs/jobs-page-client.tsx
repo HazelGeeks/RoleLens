@@ -385,6 +385,7 @@ export function JobsPageClient() {
           extractedSkills: job.extractedSkills,
           nextAction: job.nextAction || null,
           followUpDate: job.followUpDate || null,
+          publishedAt: job.publishedAt || job.createdAt,
           createdAt: job.createdAt,
         }),
       )

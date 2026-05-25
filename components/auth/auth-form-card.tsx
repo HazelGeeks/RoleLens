@@ -146,6 +146,16 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
               required
               minLength={8}
             />
+            {isLogin ? (
+              <p className="text-right text-xs">
+                <Link
+                  href="/forgot-password"
+                  className="font-medium text-blue-600 hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </p>
+            ) : null}
           </div>
 
           {error ? (
