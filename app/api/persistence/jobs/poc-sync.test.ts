@@ -1,5 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { GET as GET_BY_ID, PATCH } from "@/app/api/persistence/jobs/[id]/route";
+import {
+  DELETE,
+  GET as GET_BY_ID,
+  PATCH,
+} from "@/app/api/persistence/jobs/[id]/route";
 import { GET as LIST, POST } from "@/app/api/persistence/jobs/route";
 import { POST as SIGNUP } from "@/app/api/auth/signup/route";
 import { resetAuthStoreForTests } from "@/lib/auth-server";
@@ -239,6 +243,47 @@ describe("/api/persistence/jobs PoC sync", () => {
       count: number;
     };
     expect(listPayload.count).toBe(1);
+  });
+
+  it("supports delete for a single persistent job", async () => {
+    const headers = buildHeaders("user-delete", "device-a");
+
+    const createResponse = await POST(
+      new Request("https://rolelens.pages.dev/api/persistence/jobs", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          company: "Delete Co",
+          title: "Frontend Engineer",
+        }),
+      }),
+    );
+    const createdPayload = (await createResponse.json()) as {
+      job: { id: string };
+    };
+
+    const deleteResponse = await DELETE(
+      new Request(
+        `https://rolelens.pages.dev/api/persistence/jobs/${createdPayload.job.id}`,
+        {
+          method: "DELETE",
+          headers,
+        },
+      ),
+      { params: Promise.resolve({ id: createdPayload.job.id }) },
+    );
+    expect(deleteResponse.status).toBe(200);
+
+    const listResponse = await LIST(
+      new Request("https://rolelens.pages.dev/api/persistence/jobs", {
+        method: "GET",
+        headers,
+      }),
+    );
+    const listPayload = (await listResponse.json()) as {
+      count: number;
+    };
+    expect(listPayload.count).toBe(0);
   });
 
   it("requires auth token when PERSISTENCE_POC_TOKEN is configured", async () => {

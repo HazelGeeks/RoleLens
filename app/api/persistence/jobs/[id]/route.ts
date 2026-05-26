@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { authorizePersistenceRequest } from "@/lib/persistence/auth";
-import { getPersistentJob, patchPersistentJob } from "@/lib/persistence/store";
+import {
+  deletePersistentJob,
+  getPersistentJob,
+  patchPersistentJob,
+} from "@/lib/persistence/store";
 import { patchPersistentJobSchema } from "@/lib/persistence/validators";
 
 export const runtime = "edge";
@@ -114,5 +118,29 @@ export async function PATCH(request: Request, context: RouteContext) {
   return Response.json({
     ok: true,
     job: result.job,
+  });
+}
+
+export async function DELETE(request: Request, context: RouteContext) {
+  const auth = await authorizePersistenceRequest(request);
+  if (!auth.ok) return auth.response;
+
+  const jobId = await getRouteJobId(context);
+  const result = await deletePersistentJob(auth.identity.userId, jobId);
+
+  if (!result.ok) {
+    return Response.json(
+      {
+        ok: false,
+        message: "Job not found",
+      },
+      {
+        status: 404,
+      },
+    );
+  }
+
+  return Response.json({
+    ok: true,
   });
 }

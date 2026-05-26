@@ -77,6 +77,14 @@ function compareByFitAndCreated(left: JobRow, right: JobRow) {
   return right.createdAt.localeCompare(left.createdAt);
 }
 
+function compareByPostedAndCreated(left: JobRow, right: JobRow) {
+  const leftPostedAt = left.publishedAt || left.createdAt;
+  const rightPostedAt = right.publishedAt || right.createdAt;
+  const postedDiff = rightPostedAt.localeCompare(leftPostedAt);
+  if (postedDiff !== 0) return postedDiff;
+  return right.createdAt.localeCompare(left.createdAt);
+}
+
 function compareByLocationFitAndCreated(left: JobRow, right: JobRow) {
   const locationPriorityDiff =
     getLocationPriority(right.location) - getLocationPriority(left.location);
@@ -117,7 +125,7 @@ export function JobsPageClient() {
   const [remoteType, setRemoteType] = useState<RemoteType | "ALL">("ALL");
   const [minFit, setMinFit] = useState("");
   const [requiredSkill, setRequiredSkill] = useState("");
-  const [sortBy, setSortBy] = useState<JobsSortOption>("SMART");
+  const [sortBy, setSortBy] = useState<JobsSortOption>("CREATED_DESC");
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -189,21 +197,6 @@ export function JobsPageClient() {
         const platformLabel = feedPlatformLabels[platform];
         const targetLabel =
           platform === "all" ? "all feeds" : platformLabel + " feed";
-        setSyncMessage(
-          "Synced " +
-            result.totalImported +
-            " postings (" +
-            result.added +
-            " new, " +
-            result.updated +
-            " updated) from " +
-            targetLabel +
-            " using " +
-            result.sourceCount +
-            " source(s) at " +
-            new Date(result.syncedAt).toLocaleString() +
-            ".",
-        );
 
         const alert = buildFeedSyncAlert({
           sourceCount: result.sourceCount,
@@ -317,9 +310,6 @@ export function JobsPageClient() {
       setSyncSourceResults(lastSummary.sourceResults);
       setSyncDiagnostics(lastSummary.diagnostics);
       setSyncRecoveryGuide(lastSummary.recoveryGuide);
-      setSyncMessage(
-        `Last sync imported ${lastSummary.totalImported} postings from ${lastSummary.sourceCount} source(s).`,
-      );
 
       const alert = buildFeedSyncAlert({
         sourceCount: lastSummary.sourceCount,
@@ -411,7 +401,7 @@ export function JobsPageClient() {
       )
       .sort((left, right) => {
         if (sortBy === "CREATED_DESC") {
-          return right.createdAt.localeCompare(left.createdAt);
+          return compareByPostedAndCreated(left, right);
         }
 
         if (sortBy === "FIT_DESC") {
@@ -480,7 +470,7 @@ export function JobsPageClient() {
     setRemoteType("ALL");
     setMinFit("");
     setRequiredSkill("");
-    setSortBy("SMART");
+    setSortBy("CREATED_DESC");
   };
 
   const runManualSyncAll = () => {

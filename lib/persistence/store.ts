@@ -1,5 +1,6 @@
 import type {
   CreatePersistentJobInput,
+  DeletePersistentJobResult,
   PatchPersistentJobResult,
   PersistentJob,
   PersistentJobNote,
@@ -90,6 +91,16 @@ function getCreateRequestBucket(userId: string) {
   const created = new Map<string, string>();
   createRequestIndex.set(userId, created);
   return created;
+}
+
+function removeCreateRequestMappingsForJob(
+  requestBucket: Map<string, string>,
+  jobId: string,
+) {
+  for (const [requestId, mappedJobId] of requestBucket.entries()) {
+    if (mappedJobId !== jobId) continue;
+    requestBucket.delete(requestId);
+  }
 }
 
 function normalizeTags(tags: string[] | undefined) {
@@ -398,6 +409,25 @@ async function patchPersistentJobInMemory(
   return {
     ok: true,
     job: clone(versioned),
+  };
+}
+
+async function deletePersistentJobInMemory(
+  userId: string,
+  jobId: string,
+): Promise<DeletePersistentJobResult> {
+  const bucket = getUserBucket(userId);
+  const deleted = bucket.delete(jobId);
+  if (!deleted) {
+    return {
+      ok: false,
+      reason: "NOT_FOUND",
+    };
+  }
+
+  removeCreateRequestMappingsForJob(getCreateRequestBucket(userId), jobId);
+  return {
+    ok: true,
   };
 }
 
@@ -814,6 +844,39 @@ async function patchPersistentJobInD1(
   };
 }
 
+async function deletePersistentJobInD1(
+  db: D1DatabaseLike,
+  userId: string,
+  jobId: string,
+): Promise<DeletePersistentJobResult> {
+  const current = await getPersistentJobInD1(db, userId, jobId);
+  if (!current) {
+    return {
+      ok: false,
+      reason: "NOT_FOUND",
+    };
+  }
+
+  await db
+    .prepare(`DELETE FROM persistent_job_notes WHERE user_id = ? AND job_id = ?`)
+    .bind(userId, jobId)
+    .run();
+  await db
+    .prepare(
+      `DELETE FROM persistent_job_create_requests WHERE user_id = ? AND job_id = ?`,
+    )
+    .bind(userId, jobId)
+    .run();
+  await db
+    .prepare(`DELETE FROM persistent_jobs WHERE user_id = ? AND id = ?`)
+    .bind(userId, jobId)
+    .run();
+
+  return {
+    ok: true,
+  };
+}
+
 export async function listPersistentJobs(
   userId: string,
 ): Promise<PersistentJob[]> {
@@ -866,6 +929,18 @@ export async function patchPersistentJob(
   }
 
   return patchPersistentJobInMemory(args);
+}
+
+export async function deletePersistentJob(
+  userId: string,
+  jobId: string,
+): Promise<DeletePersistentJobResult> {
+  const backend = await resolvePersistenceBackend();
+  if (backend.kind === "d1") {
+    return deletePersistentJobInD1(backend.db, userId, jobId);
+  }
+
+  return deletePersistentJobInMemory(userId, jobId);
 }
 
 export function resetPersistentStoreForTests() {

@@ -272,6 +272,186 @@ describe("feed sync observability", () => {
     expect(savedIds).not.toContain("legacy-greenhouse-1");
   });
 
+  it("prunes stale auto-imported jobs from persistence after successful full sync", async () => {
+    const now = "2026-05-10T00:00:00.000Z";
+    const staleImported: LocalJobPosting = {
+      id: "stale-linkedin-1",
+      persistentId: "p-stale-linkedin-1",
+      source: "LINKEDIN",
+      sourceUrl: "https://www.linkedin.com/jobs/view/stale-1",
+      company: "LinkedIn",
+      title: "Stale LinkedIn Posting",
+      remoteType: "REMOTE",
+      descriptionRaw: "Stale imported posting",
+      extractedSkills: ["React"],
+      fitScore: 70,
+      status: "NONE",
+      statusHistory: [
+        {
+          id: "h-stale-linkedin-1",
+          status: "NONE",
+          changedAt: now,
+          note: "Imported from external feed",
+        },
+      ],
+      tags: ["python-scraper", "linkedin-frontend-search"],
+      notes: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    mockedGetJobsFromStorage.mockReturnValue([staleImported]);
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+
+      if (url.startsWith("/api/jobs/import")) {
+        return new Response(
+          JSON.stringify({
+            generatedAt: "2026-05-13T00:00:00.000Z",
+            sourceCount: 1,
+            jobs: [
+              {
+                externalId: "py:linkedin:1",
+                source: "LINKEDIN",
+                sourceLabel: "PythonScraper:LinkedIn Frontend Search",
+                sourceUrl: "https://www.linkedin.com/jobs/view/1",
+                company: "LinkedIn",
+                title: "Frontend Engineer",
+                descriptionRaw: "React TypeScript role",
+                extractedSkills: ["React", "TypeScript"],
+                tags: ["python-scraper", "linkedin-frontend-search"],
+              },
+            ],
+            errors: [],
+            sourceResults: [
+              {
+                source: "PythonScraper",
+                ok: true,
+                importedJobs: 1,
+              },
+            ],
+            diagnostics: {
+              ats: {
+                greenhouseBoardCount: 0,
+                leverCompanyCount: 0,
+                ashbyOrganizationCount: 0,
+                smartRecruitersCompanyCount: 0,
+                configuredSourceCount: 0,
+              },
+              rss: {
+                linkedinConfigured: false,
+                indeedConfigured: false,
+                thirdConfigured: false,
+                configuredSourceCount: 0,
+              },
+              python: {
+                scrapedFeedConfigured: true,
+                configuredSourceCount: 1,
+              },
+              sourceCount: 1,
+            },
+            recoveryGuide: ["retry"],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      if (url === "/api/jobs" && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            job: {
+              id: "p-new-linkedin-1",
+              userId: "test-user",
+              company: "LinkedIn",
+              title: "Frontend Engineer",
+              location: "Seoul",
+              sourceUrl: "https://www.linkedin.com/jobs/view/1",
+              status: "NONE",
+              tags: ["python-scraper", "linkedin-frontend-search"],
+              notes: [],
+              createdAt: now,
+              updatedAt: now,
+              updatedByDevice: "test-device",
+              version: 1,
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      if (url === "/api/jobs/p-new-linkedin-1" && init?.method === "PATCH") {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            job: {
+              id: "p-new-linkedin-1",
+              userId: "test-user",
+              company: "LinkedIn",
+              title: "Frontend Engineer",
+              sourceUrl: "https://www.linkedin.com/jobs/view/1",
+              status: "NONE",
+              tags: ["python-scraper", "linkedin-frontend-search"],
+              notes: [],
+              createdAt: now,
+              updatedAt: now,
+              updatedByDevice: "test-device",
+              version: 2,
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      if (url === "/api/jobs/p-stale-linkedin-1" && init?.method === "DELETE") {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      throw new Error("Unexpected fetch call: " + url + " (" + (init?.method ?? "GET") + ")");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await syncJobsFromFeeds({ refresh: true });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/jobs/p-stale-linkedin-1",
+      expect.objectContaining({
+        method: "DELETE",
+      }),
+    );
+  });
+
   it("resets legacy imported SAVE default to NONE when syncing", async () => {
     const now = "2026-05-10T00:00:00.000Z";
     const legacyImported: LocalJobPosting = {

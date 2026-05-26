@@ -65,7 +65,13 @@ jobs:
               {
                 PERSISTENCE_BACKEND: { type: "plain_text", value: "d1" },
                 AUTH_BACKEND: { type: "plain_text", value: "d1" },
-                PERSISTENCE_D1_BINDING: { type: "plain_text", value: "DB" }
+                PERSISTENCE_D1_BINDING: { type: "plain_text", value: "DB" },
+                PYTHON_SCRAPED_FEED_BACKEND: { type: "plain_text", value: "d1" },
+                SCRAPED_FEED_D1_BINDING: { type: "plain_text", value: "DB" },
+                SCRAPED_FEED_AUTO_CRAWL: { type: "plain_text", value: "1" },
+                SCRAPED_FEED_TIMEOUT_SECONDS: { type: "plain_text", value: "20" },
+                SCRAPED_FEED_LIMIT_PER_SOURCE: { type: "plain_text", value: "120" },
+                SCRAPED_FEED_CRAWL_CONCURRENCY: { type: "plain_text", value: "4" }
               };
 
             def as_object:
@@ -106,13 +112,19 @@ jobs:
               d1_databases: (.result.deployment_configs.production.d1_databases // {}),
               auth_backend: (.result.deployment_configs.production.env_vars.AUTH_BACKEND.value // null),
               persistence_backend: (.result.deployment_configs.production.env_vars.PERSISTENCE_BACKEND.value // null),
-              persistence_d1_binding: (.result.deployment_configs.production.env_vars.PERSISTENCE_D1_BINDING.value // null)
+              persistence_d1_binding: (.result.deployment_configs.production.env_vars.PERSISTENCE_D1_BINDING.value // null),
+              python_scraped_feed_backend: (.result.deployment_configs.production.env_vars.PYTHON_SCRAPED_FEED_BACKEND.value // null),
+              scraped_feed_d1_binding: (.result.deployment_configs.production.env_vars.SCRAPED_FEED_D1_BINDING.value // null),
+              scraped_feed_auto_crawl: (.result.deployment_configs.production.env_vars.SCRAPED_FEED_AUTO_CRAWL.value // null)
             },
             preview: {
               d1_databases: (.result.deployment_configs.preview.d1_databases // {}),
               auth_backend: (.result.deployment_configs.preview.env_vars.AUTH_BACKEND.value // null),
               persistence_backend: (.result.deployment_configs.preview.env_vars.PERSISTENCE_BACKEND.value // null),
-              persistence_d1_binding: (.result.deployment_configs.preview.env_vars.PERSISTENCE_D1_BINDING.value // null)
+              persistence_d1_binding: (.result.deployment_configs.preview.env_vars.PERSISTENCE_D1_BINDING.value // null),
+              python_scraped_feed_backend: (.result.deployment_configs.preview.env_vars.PYTHON_SCRAPED_FEED_BACKEND.value // null),
+              scraped_feed_d1_binding: (.result.deployment_configs.preview.env_vars.SCRAPED_FEED_D1_BINDING.value // null),
+              scraped_feed_auto_crawl: (.result.deployment_configs.preview.env_vars.SCRAPED_FEED_AUTO_CRAWL.value // null)
             }
           }'
 

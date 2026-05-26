@@ -1,9 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/scraped-feed-store", () => ({
+  readLatestScrapedFeedSnapshot: vi.fn(),
+}));
+
 import { collectFeedJobs } from "@/lib/feed-import";
+import { readLatestScrapedFeedSnapshot } from "@/lib/scraped-feed-store";
+
+const mockedReadLatestScrapedFeedSnapshot = vi.mocked(readLatestScrapedFeedSnapshot);
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  mockedReadLatestScrapedFeedSnapshot.mockReset();
+  mockedReadLatestScrapedFeedSnapshot.mockResolvedValue(null);
 });
 
 describe("collectFeedJobs diagnostics (python-only)", () => {
@@ -261,5 +271,46 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0]?.source).toBe("configuration");
     expect(result.recoveryGuide.length).toBeGreaterThan(0);
+  });
+
+  it("imports jobs from D1 snapshot when backend is d1", async () => {
+    mockedReadLatestScrapedFeedSnapshot.mockResolvedValue({
+      snapshotId: "snapshot-1",
+      importedAt: "2026-05-26T10:00:00.000Z",
+      generatedAt: "2026-05-26T09:58:00.000Z",
+      sourceCount: 1,
+      jobs: [
+        {
+          externalId: "py:d1:1",
+          source: "MANUAL",
+          sourceLabel: "PythonScraper:D1",
+          sourceUrl: "https://example.com/jobs/1",
+          company: "D1 Co",
+          title: "Frontend Engineer",
+          location: "Vancouver, BC",
+          descriptionRaw: "React TypeScript role",
+          tags: ["python-scraper"],
+          publishedAt: "2026-05-25T00:00:00.000Z",
+        },
+      ],
+      sourceResults: [
+        {
+          source: "PythonScraper:D1",
+          ok: true,
+          importedJobs: 1,
+        },
+      ],
+      errors: [],
+    });
+
+    const result = await collectFeedJobs({
+      PYTHON_SCRAPED_FEED_BACKEND: "d1",
+      PYTHON_SCRAPED_SOURCE_TYPE: "MANUAL",
+    });
+
+    expect(result.sourceCount).toBe(1);
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0]?.company).toBe("D1 Co");
+    expect(result.jobs[0]?.sourceLabel).toContain("Python");
   });
 });

@@ -231,6 +231,14 @@ export async function getPersistentJobClient(jobId: string) {
   return payload.job;
 }
 
+export async function deletePersistentJobClient(jobId: string) {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
+    method: "DELETE",
+    headers: buildPersistenceHeaders(),
+  });
+  await ensureOkResponse(response);
+}
+
 function toPersistentCreateInput(
   job: LocalJobPosting,
   options?: {

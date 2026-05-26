@@ -31,10 +31,10 @@ import {
 } from "@/lib/jobs-sort";
 
 const DEFAULT_OPERATIONAL_CHECKLIST = [
-  "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
-  "To use a hosted crawler output locally, set PYTHON_SCRAPED_FEED_URL in .env.local.",
-  "Cloudflare Pages: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
-  "Use PYTHON_SCRAPED_FEED_URL as the ingestion source in deployed environments.",
+  "Run /api/jobs/scraped-feed/sync (stored in D1) or /api/jobs/cron.",
+  "Set PYTHON_SCRAPED_FEED_BACKEND=d1 and verify SCRAPED_FEED_D1_BINDING.",
+  "Optional compatibility mode: use PYTHON_SCRAPED_FEED_BACKEND=url with PYTHON_SCRAPED_FEED_URL.",
+  "Local dev fallback: /api/jobs/import can read /api/jobs/local-python-scraped-feed on localhost.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
   "Call /api/jobs/import?refresh=1, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
 ];

@@ -4,6 +4,7 @@ import {
   writeFeedSnapshotToCache,
 } from "@/lib/feed-import";
 import { parseFeedPlatform } from "@/lib/feed-platform";
+import { crawlAndSaveScrapedFeedSnapshot } from "@/lib/scraped-feed-crawler";
 
 export const runtime = "edge";
 
@@ -118,6 +119,20 @@ function buildGuardedResponse(payload: Record<string, unknown>, status: number) 
   });
 }
 
+function isD1ScrapedFeedBackend() {
+  return process.env.PYTHON_SCRAPED_FEED_BACKEND?.trim().toLowerCase() === "d1";
+}
+
+function hasD1BootstrapError(snapshot: Awaited<ReturnType<typeof collectFeedJobs>>) {
+  return snapshot.errors.some((entry) => {
+    const message = entry.message.toLowerCase();
+    return (
+      message.includes("d1 scraped feed snapshot is missing") ||
+      message.includes("d1 scraped feed schema is missing")
+    );
+  });
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const refresh = url.searchParams.get("refresh") === "1";
@@ -181,10 +196,46 @@ export async function GET(request: Request) {
     }
   }
 
-  const snapshot = await collectFeedJobs(process.env, {
+  const collectOptions = {
     requestUrl: request.url,
     platform,
-  });
+  };
+
+  let snapshot = await collectFeedJobs(process.env, collectOptions);
+  let autoBootstrapped = false;
+
+  if (
+    expensiveSyncRequest &&
+    isD1ScrapedFeedBackend() &&
+    hasD1BootstrapError(snapshot) &&
+    (localRequest || syncAuthorized)
+  ) {
+    try {
+      await crawlAndSaveScrapedFeedSnapshot(
+        {
+          platform,
+        },
+        process.env,
+      );
+      snapshot = await collectFeedJobs(process.env, collectOptions);
+      autoBootstrapped = true;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unknown crawler bootstrap error";
+      snapshot = {
+        ...snapshot,
+        errors: [
+          ...snapshot.errors,
+          {
+            source: "crawler-bootstrap",
+            message: `Auto bootstrap crawl failed: ${message}`,
+          },
+        ],
+      };
+    }
+  }
 
   if (!platformScoped) {
     await writeFeedSnapshotToCache(request, snapshot);
@@ -195,6 +246,7 @@ export async function GET(request: Request) {
       ...snapshot,
       cached: false,
       platform,
+      autoBootstrapped,
     },
     {
       headers: {

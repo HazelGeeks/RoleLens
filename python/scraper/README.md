@@ -1,6 +1,6 @@
 # Python Site Scraper
 
-This scraper is now intended for **site-centric crawling**: scrape multiple job-board pages, generate normalized JSON, and feed RoleLens through `PYTHON_SCRAPED_FEED_URL`.
+This scraper is intended for **site-centric crawling**: scrape multiple job-board pages, generate normalized JSON, and feed RoleLens through D1 snapshots (or URL compatibility mode).
 
 ## Output format
 
@@ -13,7 +13,7 @@ The script writes:
 - `sourceResults[]`
 - `errors[]`
 
-RoleLens ingests this payload from `PYTHON_SCRAPED_FEED_URL`.
+RoleLens ingests this payload from D1 (`/api/jobs/scraped-feed`) or from `PYTHON_SCRAPED_FEED_URL` in compatibility mode.
 
 ## Source catalogs
 
@@ -90,23 +90,50 @@ python3 python/scraper/scrape_jobkorea.py
 Set in `.env.local` (or Cloudflare Pages variables):
 
 ```bash
-PYTHON_SCRAPED_FEED_URL=https://raw.githubusercontent.com/<owner>/<repo>/main/data/scraped/python-scraped-jobs.json
+PYTHON_SCRAPED_FEED_BACKEND=d1
+SCRAPED_FEED_D1_BINDING=DB
 PYTHON_SCRAPED_SOURCE_LABEL=Python Scraper
 PYTHON_SCRAPED_SOURCE_TYPE=MANUAL
 ```
 
-Then refresh:
+Upload scraped JSON to D1-backed feed endpoint, then refresh:
 
 ```bash
+curl --fail --silent --show-error \
+  --request POST \
+  --header "x-cron-secret: $CRON_SECRET" \
+  --header "content-type: application/json" \
+  --data-binary @data/scraped/python-scraped-jobs.json \
+  "https://rolelens.pages.dev/api/jobs/scraped-feed"
+
+curl --fail --silent --show-error \
+  --request POST \
+  --header "x-cron-secret: $CRON_SECRET" \
+  "https://rolelens.pages.dev/api/jobs/cron"
+
 curl -s "http://localhost:3000/api/jobs/import?refresh=1" | jq '{sourceCount, diagnostics, errors, sourceResults}'
 ```
 
-## GitHub Actions
+## Cloudflare-native trigger
 
-Use `.github/workflows/python-scrape-now.yml` (`workflow_dispatch`):
+Trigger scraping directly on Cloudflare:
 
-- `sources_file` defaults to `python/scraper/sources.sites.json`
-- `source_urls` is optional and merged with the file
-- `timeout_seconds` / `limit_per_source` tune run behavior
-- `platform` can scope runs to `all`, `indeed`, `linkedin`, `saramin`, or `jobkorea`
-- `commit_changes=true` commits updated JSON snapshot
+```bash
+curl --fail --silent --show-error \
+  --request POST \
+  --header "x-cron-secret: $CRON_SECRET" \
+  --header "content-type: application/json" \
+  --data '{"platform":"all"}' \
+  "https://rolelens.pages.dev/api/jobs/scraped-feed/sync"
+```
+
+Optional scoped run:
+
+```bash
+curl --fail --silent --show-error \
+  --request POST \
+  --header "x-cron-secret: $CRON_SECRET" \
+  --header "content-type: application/json" \
+  --data '{"platform":"linkedin","limitPerSource":100}' \
+  "https://rolelens.pages.dev/api/jobs/scraped-feed/sync"
+```

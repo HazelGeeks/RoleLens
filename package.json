@@ -10,7 +10,7 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "cf:build": "next build && npx @cloudflare/next-on-pages@1",
+    "cf:build": "NODE_OPTIONS=--max-old-space-size=4096 next build && NODE_OPTIONS=--max-old-space-size=4096 npx @cloudflare/next-on-pages@1",
     "cf:deploy": "wrangler pages deploy .vercel/output/static --project-name=$CLOUDFLARE_PROJECT_NAME",
     "d1:migrate:local": "wrangler d1 migrations apply rolelens-db --local",
     "d1:migrate:preview": "wrangler d1 migrations apply rolelens-db --preview",

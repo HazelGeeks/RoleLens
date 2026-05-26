@@ -9,7 +9,7 @@ export type JobsSortOption = (typeof jobsSortOptions)[number];
 
 export const jobsSortLabels: Record<JobsSortOption, string> = {
   SMART: "Default",
-  CREATED_DESC: "Newest first",
+  CREATED_DESC: "Posted newest first",
   FIT_DESC: "Highest fit first",
   LOCATION_PRIORITY: "Location priority",
 };

@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { GET as GET_BY_ID, PATCH } from "@/app/api/jobs/[id]/route";
+import { DELETE, GET as GET_BY_ID, PATCH } from "@/app/api/jobs/[id]/route";
 import { GET as LIST, POST } from "@/app/api/jobs/route";
 import { resetPersistentStoreForTests } from "@/lib/persistence/store";
 
@@ -140,5 +140,42 @@ describe("/api/jobs DB persistence API", () => {
     expect(fetchResponse.status).toBe(200);
     expect(fetched.ok).toBe(true);
     expect(fetched.job.nextAction).toBe("Prepare interview notes");
+  });
+
+  it("supports DELETE by id through /api/jobs/:id", async () => {
+    const headers = buildHeaders("user-db-api", "device-a");
+
+    const createResponse = await POST(
+      new Request("https://rolelens.pages.dev/api/jobs", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          company: "Delete Co",
+          title: "Frontend Engineer",
+        }),
+      }),
+    );
+    const created = (await createResponse.json()) as {
+      job: { id: string };
+    };
+
+    const deleteResponse = await DELETE(
+      new Request(`https://rolelens.pages.dev/api/jobs/${created.job.id}`, {
+        method: "DELETE",
+        headers,
+      }),
+      { params: Promise.resolve({ id: created.job.id }) },
+    );
+    expect(deleteResponse.status).toBe(200);
+
+    const fetchResponse = await GET_BY_ID(
+      new Request(`https://rolelens.pages.dev/api/jobs/${created.job.id}`, {
+        method: "GET",
+        headers,
+      }),
+      { params: Promise.resolve({ id: created.job.id }) },
+    );
+
+    expect(fetchResponse.status).toBe(404);
   });
 });

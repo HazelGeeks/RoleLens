@@ -1,4 +1,5 @@
 import {
+  DELETE as deletePersistentJobById,
   GET as getPersistentJobById,
   PATCH as patchPersistentJobById,
 } from "@/app/api/persistence/jobs/[id]/route";
@@ -15,4 +16,8 @@ export async function GET(request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   return patchPersistentJobById(request, context);
+}
+
+export async function DELETE(request: Request, context: RouteContext) {
+  return deletePersistentJobById(request, context);
 }

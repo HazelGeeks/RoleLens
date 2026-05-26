@@ -10,6 +10,7 @@ import {
   matchesFeedPlatform,
   parseFeedPlatform,
 } from "@/lib/feed-platform";
+import { readLatestScrapedFeedSnapshot } from "@/lib/scraped-feed-store";
 
 type FeedSourceConfig = {
   key: string;
@@ -53,7 +54,8 @@ type PythonScrapedSourceConfig = {
   key: string;
   source: JobSource;
   label: string;
-  url: string;
+  backend: "d1" | "url";
+  url?: string;
   defaultCompany?: string;
 };
 
@@ -100,10 +102,10 @@ const DEFAULT_LOCATION_KEYWORDS = [
 ];
 
 const DEFAULT_RECOVERY_GUIDE = [
-  "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
-  "To use a hosted crawler output locally, set PYTHON_SCRAPED_FEED_URL in .env.local.",
-  "Cloudflare Pages: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
-  "Use PYTHON_SCRAPED_FEED_URL as the ingestion source in deployed environments.",
+  "Primary mode: trigger /api/jobs/scraped-feed/sync (D1) or /api/jobs/cron, then call /api/jobs/import?refresh=1.",
+  "Set SCRAPED_FEED_D1_BINDING if your D1 binding name is not DB.",
+  "Optional compatibility mode: set PYTHON_SCRAPED_FEED_BACKEND=url and PYTHON_SCRAPED_FEED_URL for hosted JSON ingestion.",
+  "Local dev fallback: /api/jobs/import can read /api/jobs/local-python-scraped-feed on localhost.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
   "Call /api/jobs/import?refresh=1, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
 ];
@@ -154,6 +156,12 @@ function normalizeHttpUrl(value: string | undefined) {
   } catch {
     return undefined;
   }
+}
+
+function parsePythonScrapedFeedBackend(value: string | undefined) {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "d1") return "d1" as const;
+  return "url" as const;
 }
 
 export function buildFeedImportDiagnostics(
@@ -724,11 +732,19 @@ function toPythonScrapedSourceConfig(
   env: NodeJS.ProcessEnv,
   options: CollectFeedJobsOptions,
 ): PythonScrapedSourceConfig | null {
+  const backend = parsePythonScrapedFeedBackend(env.PYTHON_SCRAPED_FEED_BACKEND);
   const configuredUrl = normalizeHttpUrl(env.PYTHON_SCRAPED_FEED_URL);
   const isProduction = env.NODE_ENV === "production";
 
-  let url = configuredUrl;
-  if (!url && options.requestUrl) {
+  const baseConfig = {
+    key: "python-scraped",
+    source: parseSource(env.PYTHON_SCRAPED_SOURCE_TYPE) ?? "MANUAL",
+    label: env.PYTHON_SCRAPED_SOURCE_LABEL || "Python Scraper",
+    defaultCompany: env.PYTHON_SCRAPED_DEFAULT_COMPANY,
+  };
+
+  let localFallbackUrl: string | undefined;
+  if (options.requestUrl) {
     try {
       const requestBaseUrl = new URL(options.requestUrl);
       const isLocalRequest =
@@ -736,24 +752,29 @@ function toPythonScrapedSourceConfig(
         requestBaseUrl.hostname === "127.0.0.1";
 
       if (!isProduction || isLocalRequest) {
-        url = new URL(
+        localFallbackUrl = new URL(
           LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH,
           requestBaseUrl,
         ).toString();
       }
     } catch {
-      url = undefined;
+      localFallbackUrl = undefined;
     }
   }
 
-  if (!url) return null;
+  if (backend === "url") {
+    const resolvedUrl = configuredUrl || localFallbackUrl;
+    if (!resolvedUrl) return null;
+    return {
+      ...baseConfig,
+      backend: "url",
+      url: resolvedUrl,
+    };
+  }
 
   return {
-    key: "python-scraped",
-    source: parseSource(env.PYTHON_SCRAPED_SOURCE_TYPE) ?? "MANUAL",
-    label: env.PYTHON_SCRAPED_SOURCE_LABEL || "Python Scraper",
-    url,
-    defaultCompany: env.PYTHON_SCRAPED_DEFAULT_COMPANY,
+    ...baseConfig,
+    backend: "d1",
   };
 }
 
@@ -918,19 +939,53 @@ async function normalizePythonScrapedItem(
 async function fetchPythonScrapedSource(
   source: PythonScrapedSourceConfig,
 ): Promise<ImportedFeedJob[]> {
-  const response = await fetch(source.url, {
-    headers: {
-      "user-agent": "RoleLensPythonScraper/1.0 (+https://rolelens.pages.dev)",
-      accept: "application/json",
-    },
-    cache: "no-store",
-  });
+  let payload: unknown;
+  if (source.backend === "url") {
+    if (!source.url) {
+      throw new Error("Python scraped feed URL is not configured");
+    }
 
-  if (!response.ok) {
-    throw new Error(`Python scraped feed request failed (${response.status})`);
+    const response = await fetch(source.url, {
+      headers: {
+        "user-agent": "RoleLensPythonScraper/1.0 (+https://rolelens.pages.dev)",
+        accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Python scraped feed request failed (${response.status})`);
+    }
+    payload = (await response.json()) as unknown;
+  } else {
+    let snapshot;
+    try {
+      snapshot = await readLatestScrapedFeedSnapshot(process.env);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      if (message.includes("no such table")) {
+        throw new Error(
+          "D1 scraped feed schema is missing. Run D1 migrations (or trigger /api/jobs/scraped-feed/sync once in this build), then retry.",
+        );
+      }
+
+      throw error;
+    }
+    if (!snapshot) {
+      throw new Error(
+        "D1 scraped feed snapshot is missing. Trigger /api/jobs/scraped-feed/sync or /api/jobs/cron first.",
+      );
+    }
+
+    payload = {
+      generatedAt: snapshot.generatedAt,
+      sourceCount: snapshot.sourceCount,
+      sourceResults: snapshot.sourceResults,
+      errors: snapshot.errors,
+      jobs: snapshot.jobs,
+    };
   }
 
-  const payload = (await response.json()) as unknown;
   const root = asRecord(payload);
   const jobs = Array.isArray(root?.jobs) ? root.jobs : [];
   let hydrationBudget = PYTHON_DESCRIPTION_HYDRATION_LIMIT;
@@ -1334,7 +1389,7 @@ export async function collectFeedJobs(
         {
           source: "configuration",
           message:
-            "No sources configured. Local dev: call via /api/jobs/import (uses local fallback) or set PYTHON_SCRAPED_FEED_URL in .env.local. Cloudflare: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
+            "No sources configured. Enable D1 mode and run /api/jobs/scraped-feed/sync (or /api/jobs/cron), or explicitly configure URL mode with PYTHON_SCRAPED_FEED_BACKEND=url and PYTHON_SCRAPED_FEED_URL.",
         },
       ],
       sourceResults: [],

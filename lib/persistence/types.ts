@@ -105,3 +105,12 @@ export type PatchPersistentJobResult =
       reason: "VERSION_CONFLICT";
       current: PersistentJob;
     };
+
+export type DeletePersistentJobResult =
+  | {
+      ok: true;
+    }
+  | {
+      ok: false;
+      reason: "NOT_FOUND";
+    };

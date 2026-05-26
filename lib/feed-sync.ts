@@ -12,6 +12,8 @@ import {
 } from "@/lib/local-jobs";
 import {
   buildPersistenceHeaders,
+  deletePersistentJobClient,
+  isPersistenceNotFoundError,
   mirrorLocalJobToPersistence,
   toLocalJobFromPersistent,
 } from "@/lib/persistence-client";
@@ -47,10 +49,10 @@ const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
 };
 
 const DEFAULT_RECOVERY_GUIDE = [
-  "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
-  "To use a hosted crawler output locally, set PYTHON_SCRAPED_FEED_URL in .env.local.",
-  "Cloudflare Pages: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
-  "Use PYTHON_SCRAPED_FEED_URL as the ingestion source in deployed environments.",
+  "Trigger /api/jobs/scraped-feed/sync (D1) or /api/jobs/cron, then call /api/jobs/import?refresh=1.",
+  "Set PYTHON_SCRAPED_FEED_BACKEND=d1 and ensure SCRAPED_FEED_D1_BINDING matches your D1 binding name.",
+  "Optional compatibility mode: use PYTHON_SCRAPED_FEED_BACKEND=url with PYTHON_SCRAPED_FEED_URL.",
+  "Local dev fallback: /api/jobs/import can read /api/jobs/local-python-scraped-feed on localhost.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
   "Call /api/jobs/import?refresh=1, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
 ];
@@ -425,7 +427,38 @@ export async function syncJobsFromFeeds(options?: {
   );
   const existingJobs = getJobsFromStorage();
   const shouldPruneStale = payload.errors.length === 0;
+  const staleImportedJobIds = new Set(
+    existingJobs
+      .filter((job) => {
+        if (!isAutoImportedJob(job)) return false;
+        if (!shouldPruneStale) return false;
+        if (platform !== "all" && !matchesFeedPlatform(job, platform)) return false;
+
+        return !incomingIdentities.has(
+          toImportIdentity({
+            source: job.source,
+            company: job.company,
+            title: job.title,
+            sourceUrl: job.sourceUrl,
+          }),
+        );
+      })
+      .map((job) => job.id),
+  );
+  const stalePersistentIds = Array.from(
+    new Set(
+      existingJobs
+        .filter(
+          (job) =>
+            staleImportedJobIds.has(job.id) &&
+            typeof job.persistentId === "string" &&
+            job.persistentId.length > 0,
+        )
+        .map((job) => job.persistentId as string),
+    ),
+  );
   const retainedJobs = existingJobs.filter((job) => {
+    if (staleImportedJobIds.has(job.id)) return false;
     if (!isAutoImportedJob(job)) return true;
     if (!shouldPruneStale) return true;
     if (platform !== "all" && !matchesFeedPlatform(job, platform)) return true;
@@ -469,6 +502,18 @@ export async function syncJobsFromFeeds(options?: {
         const detail = error instanceof Error ? error.message : "unknown error";
         throw new Error(
           `Feed sync persisted locally but failed to write DB (${job.company} - ${job.title}): ${detail}`,
+        );
+      }
+    }
+
+    for (const stalePersistentId of stalePersistentIds) {
+      try {
+        await deletePersistentJobClient(stalePersistentId);
+      } catch (error) {
+        if (isPersistenceNotFoundError(error)) continue;
+        const detail = error instanceof Error ? error.message : "unknown error";
+        throw new Error(
+          `Feed sync persisted locally but failed to prune stale DB job (${stalePersistentId}): ${detail}`,
         );
       }
     }
