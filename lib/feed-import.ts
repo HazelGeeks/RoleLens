@@ -1329,6 +1329,7 @@ export async function collectFeedJobs(
     return {
       generatedAt: new Date().toISOString(),
       sourceCount: 0,
+      importedSourceCount: 0,
       jobs: [],
       errors: [
         {
@@ -1401,11 +1402,16 @@ export async function collectFeedJobs(
   const filteredJobs = jobs.filter((job) =>
     isRelevantImportedJob(job, roleKeywords, locationKeywords),
   );
+  const dedupedJobs = dedupeImportedJobs(filteredJobs);
+  const importedSourceCount = new Set(
+    dedupedJobs.map((job) => job.sourceLabel || job.source),
+  ).size;
 
   return {
     generatedAt: new Date().toISOString(),
     sourceCount: tasks.length,
-    jobs: dedupeImportedJobs(filteredJobs),
+    importedSourceCount,
+    jobs: dedupedJobs,
     errors,
     sourceResults,
     diagnostics,

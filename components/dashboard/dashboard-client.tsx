@@ -22,22 +22,14 @@ import {
   patchPersistentJobClient,
   toLocalJobFromPersistent,
 } from "@/lib/persistence-client";
-import { prettifyEnum } from "@/lib/presentation";
 import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
 import { useAuth } from "@/components/providers/auth-provider";
-
-function countMapToArray(input: Record<string, number>) {
-  return Object.entries(input).map(([name, value]) => ({
-    name: prettifyEnum(name),
-    value,
-  }));
-}
-
-function formatUpdatedAt(value: string) {
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) return "Unknown";
-  return new Date(timestamp).toLocaleDateString();
-}
+import {
+  calculateDashboardStats,
+  countMapToArray,
+  filterSavedJobs,
+  formatUpdatedAt,
+} from "@/components/dashboard/dashboard-utils";
 
 type SourceFilterValue = "ALL" | (typeof sourceOptions)[number];
 
@@ -104,92 +96,17 @@ export function DashboardClient() {
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
   const [bulkFailures, setBulkFailures] = useState<string[]>([]);
 
-  const filteredSavedJobs = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase();
-
-    return sortedSavedJobs.filter((job) => {
-      const sourceMatched = sourceFilter === "ALL" || job.source === sourceFilter;
-      if (!sourceMatched) return false;
-
-      if (!keyword) return true;
-      const target = `${job.title} ${job.company} ${job.location ?? ""}`.toLowerCase();
-      return target.includes(keyword);
-    });
-  }, [searchTerm, sourceFilter, sortedSavedJobs]);
+  const filteredSavedJobs = useMemo(
+    () => filterSavedJobs(sortedSavedJobs, searchTerm, sourceFilter),
+    [searchTerm, sourceFilter, sortedSavedJobs],
+  );
 
   useEffect(() => {
     const visibleIdSet = new Set(filteredSavedJobs.map((job) => job.id));
     setSelectedIds((prev) => prev.filter((id) => visibleIdSet.has(id)));
   }, [filteredSavedJobs]);
 
-  const stats = useMemo(() => {
-    const statusCounts: Record<string, number> = {};
-    const sourceCounts: Record<string, number> = {};
-    const remoteCounts: Record<string, number> = {};
-    const seniorityCounts: Record<string, number> = {};
-    const skillCounts: Record<string, number> = {};
-
-    let fitScoreTotal = 0;
-    let fitScoreCount = 0;
-    let dueFollowUps = 0;
-    const today = new Date().toISOString().slice(0, 10);
-
-    for (const job of savedJobs) {
-      statusCounts[job.status] = (statusCounts[job.status] ?? 0) + 1;
-      sourceCounts[job.source] = (sourceCounts[job.source] ?? 0) + 1;
-      remoteCounts[job.remoteType] = (remoteCounts[job.remoteType] ?? 0) + 1;
-
-      const seniorityKey = job.seniority || "Unknown";
-      seniorityCounts[seniorityKey] = (seniorityCounts[seniorityKey] ?? 0) + 1;
-
-      for (const skill of job.extractedSkills) {
-        const key = skill.toLowerCase();
-        skillCounts[key] = (skillCounts[key] ?? 0) + 1;
-      }
-
-      if (typeof job.fitScore === "number") {
-        fitScoreTotal += job.fitScore;
-        fitScoreCount += 1;
-      }
-
-      if (
-        job.followUpDate &&
-        job.followUpDate <= today &&
-        job.status !== "ARCHIVE"
-      ) {
-        dueFollowUps += 1;
-      }
-    }
-
-    const topSkills = Object.entries(skillCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([name, count]) => ({ name, count }));
-
-    const focusSkills = ["react", "typescript", "next.js"].map((skill) => ({
-      name: skill,
-      count: skillCounts[skill] ?? 0,
-    }));
-
-    const avgFitScore = fitScoreCount > 0 ? fitScoreTotal / fitScoreCount : 0;
-    const activePipeline =
-      (statusCounts.INTEREST ?? 0) + (statusCounts.SUBMITTED ?? 0);
-    const sourceVariety = Object.keys(sourceCounts).length;
-
-    return {
-      totalJobs: savedJobs.length,
-      avgFitScore: Math.round(avgFitScore),
-      dueFollowUps,
-      activePipeline,
-      sourceVariety,
-      statusCounts,
-      sourceCounts,
-      remoteCounts,
-      seniorityCounts,
-      topSkills,
-      focusSkills,
-    };
-  }, [savedJobs]);
+  const stats = useMemo(() => calculateDashboardStats(savedJobs), [savedJobs]);
 
   const selectedCount = selectedIds.length;
   const isAllSavedSelected =

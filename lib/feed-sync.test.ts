@@ -47,6 +47,7 @@ describe("feed sync observability", () => {
             JSON.stringify({
               generatedAt: "2026-04-13T00:00:00.000Z",
               sourceCount: 2,
+              importedSourceCount: 5,
               jobs: [
                 {
                   externalId: "gh:acme:1",
@@ -93,6 +94,7 @@ describe("feed sync observability", () => {
 
     expect(result.totalImported).toBe(1);
     expect(result.sourceCount).toBe(2);
+    expect(result.importedSourceCount).toBe(5);
     expect(result.sourceResults).toEqual([
       {
         source: "Greenhouse",
@@ -110,6 +112,7 @@ describe("feed sync observability", () => {
     const summary = getLastFeedSyncSummary();
     expect(summary).not.toBeNull();
     expect(summary?.sourceCount).toBe(2);
+    expect(summary?.importedSourceCount).toBe(5);
     expect(summary?.errors).toHaveLength(1);
     expect(summary?.sourceResults[1]?.source).toBe("Lever");
   });

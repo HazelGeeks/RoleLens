@@ -1,6 +1,8 @@
 name: Python Scrape Now
 
 on:
+  schedule:
+    - cron: "0 0 * * *"
   workflow_dispatch:
     inputs:
       source_urls:
@@ -54,6 +56,13 @@ permissions:
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    env:
+      SCRAPER_SOURCE_URLS: ${{ github.event.inputs.source_urls || '' }}
+      SCRAPER_SOURCES_FILE: ${{ github.event.inputs.sources_file || 'python/scraper/sources.sites.json' }}
+      SCRAPER_OUTPUT_PATH: ${{ github.event.inputs.output_path || 'data/scraped/python-scraped-jobs.json' }}
+      SCRAPER_TIMEOUT_SECONDS: ${{ github.event.inputs.timeout_seconds || '20' }}
+      SCRAPER_LIMIT_PER_SOURCE: ${{ github.event.inputs.limit_per_source || '120' }}
+      SCRAPER_PLATFORM: ${{ github.event.inputs.platform || 'all' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,29 +79,29 @@ jobs:
       - name: Run scraper
         run: |
           python3 python/scraper/scrape_jobs.py \
-            --sources-file "${{ inputs.sources_file }}" \
-            --source-urls "${{ inputs.source_urls }}" \
-            --timeout "${{ inputs.timeout_seconds }}" \
-            --limit-per-source "${{ inputs.limit_per_source }}" \
-            --platform "${{ inputs.platform }}" \
-            --output "${{ inputs.output_path }}"
+            --sources-file "$SCRAPER_SOURCES_FILE" \
+            --source-urls "$SCRAPER_SOURCE_URLS" \
+            --timeout "$SCRAPER_TIMEOUT_SECONDS" \
+            --limit-per-source "$SCRAPER_LIMIT_PER_SOURCE" \
+            --platform "$SCRAPER_PLATFORM" \
+            --output "$SCRAPER_OUTPUT_PATH"
 
       - name: Upload scraped JSON artifact
         uses: actions/upload-artifact@v4
         with:
           name: python-scraped-jobs
-          path: ${{ inputs.output_path }}
+          path: ${{ env.SCRAPER_OUTPUT_PATH }}
 
       - name: Commit scraped output
-        if: ${{ inputs.commit_changes == 'true' }}
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.commit_changes == 'true' }}
         run: |
-          if git diff --quiet -- "${{ inputs.output_path }}"; then
+          if git diff --quiet -- "$SCRAPER_OUTPUT_PATH"; then
             echo "No output changes to commit"
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "${{ inputs.output_path }}"
+          git add "$SCRAPER_OUTPUT_PATH"
           git commit -m "chore: refresh python scraped jobs snapshot"
           git push
