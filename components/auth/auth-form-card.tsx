@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 type AuthFormCardProps = {
@@ -96,9 +96,6 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
 
       <Card>
         <CardTitle>{submitLabel}</CardTitle>
-        <CardDescription className="mb-4">
-          Security note: sessions use HttpOnly cookies. For deployment, configure AUTH_PASSWORD_PEPPER as an environment secret.
-        </CardDescription>
 
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
           {!isLogin ? (

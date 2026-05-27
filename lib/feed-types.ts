@@ -57,6 +57,7 @@ export type FeedImportDiagnostics = {
 export type FeedImportSnapshot = {
   generatedAt: string;
   sourceCount: number;
+  importedSourceCount?: number;
   jobs: ImportedFeedJob[];
   errors: FeedImportError[];
   sourceResults: FeedSourceResult[];

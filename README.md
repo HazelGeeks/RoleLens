@@ -104,10 +104,15 @@ Workflow file: `.github/workflows/python-scrape-now.yml`
 
 Purpose:
 
-1. Manually trigger **job-site crawling** (`workflow_dispatch`)
+1. Trigger **job-site crawling** manually (`workflow_dispatch`) or daily (`schedule`, 00:00 UTC)
 2. Use a default site catalog (`python/scraper/sources.sites.json`) and optionally merge ad-hoc URLs
 3. Generate normalized JSON at `data/scraped/python-scraped-jobs.json`
 4. Optionally commit updated JSON snapshot to repository
+
+Schedule behavior:
+
+- Scheduled runs auto-commit JSON updates when output changes.
+- Manual runs keep `commit_changes` as an explicit opt-in.
 
 To consume scraper output in RoleLens:
 

@@ -80,6 +80,18 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
                   tags: ["python-scraper"],
                   publishedAt: "2026-05-11T00:00:00.000Z",
                 },
+                {
+                  externalId: "py:sample:2",
+                  source: "MANUAL",
+                  sourceLabel: "PythonScraper:sample-2",
+                  sourceUrl: "https://example.com/jobs/2",
+                  company: "Sample Co 2",
+                  title: "Frontend Developer",
+                  location: "Vancouver, BC",
+                  descriptionRaw: "React role",
+                  tags: ["python-scraper"],
+                  publishedAt: "2026-05-11T00:00:00.000Z",
+                },
               ],
             }),
             {
@@ -98,6 +110,7 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
     });
 
     expect(result.sourceCount).toBe(1);
+    expect(result.importedSourceCount).toBe(2);
     expect(result.diagnostics.python.configuredSourceCount).toBe(1);
     expect(result.jobs.length).toBeGreaterThan(0);
     expect(result.jobs[0]?.sourceLabel).toContain("Python");
