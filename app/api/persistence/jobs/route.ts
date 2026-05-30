@@ -5,6 +5,7 @@ import {
   listPersistentJobs,
 } from "@/lib/persistence/store";
 import { createPersistentJobSchema } from "@/lib/persistence/validators";
+import { toPublicServerError } from "@/lib/server-config-errors";
 
 export const runtime = "edge";
 
@@ -29,47 +30,73 @@ function formatValidation(error: z.ZodError) {
 }
 
 export async function GET(request: Request) {
-  const auth = await authorizePersistenceRequest(request);
-  if (!auth.ok) return auth.response;
+  try {
+    const auth = await authorizePersistenceRequest(request);
+    if (!auth.ok) return auth.response;
 
-  const jobs = await listPersistentJobs(auth.identity.userId);
-  return Response.json({
-    ok: true,
-    count: jobs.length,
-    jobs,
-  });
+    const jobs = await listPersistentJobs(auth.identity.userId);
+    return Response.json({
+      ok: true,
+      count: jobs.length,
+      jobs,
+    });
+  } catch (error) {
+    const publicError = toPublicServerError(error);
+    return Response.json(
+      {
+        ok: false,
+        message: publicError.message,
+      },
+      {
+        status: publicError.status,
+      },
+    );
+  }
 }
 
 export async function POST(request: Request) {
-  const auth = await authorizePersistenceRequest(request);
-  if (!auth.ok) return auth.response;
-
-  let payload: unknown;
   try {
-    payload = await request.json();
-  } catch {
-    return badRequest("Invalid JSON payload");
+    const auth = await authorizePersistenceRequest(request);
+    if (!auth.ok) return auth.response;
+
+    let payload: unknown;
+    try {
+      payload = await request.json();
+    } catch {
+      return badRequest("Invalid JSON payload");
+    }
+
+    const parsed = createPersistentJobSchema.safeParse(payload);
+    if (!parsed.success) {
+      return badRequest("Validation failed", formatValidation(parsed.error));
+    }
+
+    const job = await createPersistentJob({
+      userId: auth.identity.userId,
+      deviceId: auth.identity.deviceId,
+      actor: auth.identity.userId,
+      input: parsed.data,
+    });
+
+    return Response.json(
+      {
+        ok: true,
+        job,
+      },
+      {
+        status: 201,
+      },
+    );
+  } catch (error) {
+    const publicError = toPublicServerError(error);
+    return Response.json(
+      {
+        ok: false,
+        message: publicError.message,
+      },
+      {
+        status: publicError.status,
+      },
+    );
   }
-
-  const parsed = createPersistentJobSchema.safeParse(payload);
-  if (!parsed.success) {
-    return badRequest("Validation failed", formatValidation(parsed.error));
-  }
-
-  const job = await createPersistentJob({
-    userId: auth.identity.userId,
-    deviceId: auth.identity.deviceId,
-    actor: auth.identity.userId,
-    input: parsed.data,
-  });
-
-  return Response.json(
-    {
-      ok: true,
-      job,
-    },
-    {
-      status: 201,
-    },
-  );
 }

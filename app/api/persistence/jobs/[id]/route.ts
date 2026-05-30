@@ -2,6 +2,7 @@ import { z } from "zod";
 import { authorizePersistenceRequest } from "@/lib/persistence/auth";
 import { getPersistentJob, patchPersistentJob } from "@/lib/persistence/store";
 import { patchPersistentJobSchema } from "@/lib/persistence/validators";
+import { toPublicServerError } from "@/lib/server-config-errors";
 
 export const runtime = "edge";
 
@@ -35,84 +36,111 @@ async function getRouteJobId(context: RouteContext) {
 }
 
 export async function GET(request: Request, context: RouteContext) {
-  const auth = await authorizePersistenceRequest(request);
-  if (!auth.ok) return auth.response;
+  try {
+    const auth = await authorizePersistenceRequest(request);
+    if (!auth.ok) return auth.response;
 
-  const jobId = await getRouteJobId(context);
-  const job = await getPersistentJob(auth.identity.userId, jobId);
+    const jobId = await getRouteJobId(context);
+    const job = await getPersistentJob(auth.identity.userId, jobId);
 
-  if (!job) {
+    if (!job) {
+      return Response.json(
+        {
+          ok: false,
+          message: "Job not found",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    return Response.json(
+      {
+        ok: true,
+        job,
+      },
+      {
+        status: 200,
+      },
+    );
+  } catch (error) {
+    const publicError = toPublicServerError(error);
     return Response.json(
       {
         ok: false,
-        message: "Job not found",
+        message: publicError.message,
       },
-      {
-        status: 404,
-      },
+      { status: publicError.status },
     );
   }
-
-  return Response.json({
-    ok: true,
-    job,
-  });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const auth = await authorizePersistenceRequest(request);
-  if (!auth.ok) return auth.response;
-
-  const jobId = await getRouteJobId(context);
-
-  let payload: unknown;
   try {
-    payload = await request.json();
-  } catch {
-    return badRequest("Invalid JSON payload");
-  }
+    const auth = await authorizePersistenceRequest(request);
+    if (!auth.ok) return auth.response;
 
-  const parsed = patchPersistentJobSchema.safeParse(payload);
-  if (!parsed.success) {
-    return badRequest("Validation failed", formatValidation(parsed.error));
-  }
+    const jobId = await getRouteJobId(context);
 
-  const result = await patchPersistentJob({
-    userId: auth.identity.userId,
-    jobId,
-    operation: parsed.data,
-    actor: auth.identity.userId,
-    deviceId: auth.identity.deviceId,
-  });
+    let payload: unknown;
+    try {
+      payload = await request.json();
+    } catch {
+      return badRequest("Invalid JSON payload");
+    }
 
-  if (!result.ok && result.reason === "NOT_FOUND") {
+    const parsed = patchPersistentJobSchema.safeParse(payload);
+    if (!parsed.success) {
+      return badRequest("Validation failed", formatValidation(parsed.error));
+    }
+
+    const result = await patchPersistentJob({
+      userId: auth.identity.userId,
+      jobId,
+      operation: parsed.data,
+      actor: auth.identity.userId,
+      deviceId: auth.identity.deviceId,
+    });
+
+    if (!result.ok && result.reason === "NOT_FOUND") {
+      return Response.json(
+        {
+          ok: false,
+          message: "Job not found",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    if (!result.ok && result.reason === "VERSION_CONFLICT") {
+      return Response.json(
+        {
+          ok: false,
+          message: "Version conflict",
+          retryable: true,
+          current: result.current,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+    return Response.json({
+      ok: true,
+      job: result.job,
+    });
+  } catch (error) {
+    const publicError = toPublicServerError(error);
     return Response.json(
       {
         ok: false,
-        message: "Job not found",
+        message: publicError.message,
       },
-      {
-        status: 404,
-      },
+      { status: publicError.status },
     );
   }
-
-  if (!result.ok && result.reason === "VERSION_CONFLICT") {
-    return Response.json(
-      {
-        ok: false,
-        message: "Version conflict",
-        retryable: true,
-        current: result.current,
-      },
-      {
-        status: 409,
-      },
-    );
-  }
-
-  return Response.json({
-    ok: true,
-    job: result.job,
-  });
 }

@@ -10,7 +10,6 @@ import {
 import { buildFeedSyncAlert } from "@/lib/feed-sync-alert";
 import type { FeedImportDiagnostics, FeedSourceResult } from "@/lib/feed-types";
 import { feedPlatformLabels, type FeedPlatform } from "@/lib/feed-platform";
-import { resetJobsStorage } from "@/lib/local-jobs";
 import { EMPTY_DIAGNOSTICS } from "@/components/jobs/jobs-page-utils";
 
 type SyncToast = {
@@ -111,9 +110,25 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
           error instanceof Error ? error.message : "Failed to sync crawled feed";
 
         if (message.includes("failed to write DB")) {
-          resetJobsStorage();
-          await refreshJobs();
-          setSyncMessage("Local cache was reset because DB write failed. Retry Sync All Feeds.");
+          const marker = "failed to write DB";
+          const markerIndex = message.toLowerCase().indexOf(marker.toLowerCase());
+          const detail =
+            markerIndex >= 0
+              ? message.slice(markerIndex + marker.length).replace(/^[:\s]+/, "")
+              : "";
+
+          setSyncMessage(
+            "Feed data was imported locally, but server persistence sync is currently unavailable.",
+          );
+          showSyncToast(
+            "Local import succeeded. Cross-device persistence sync failed; check D1 binding, migrations, and auth.",
+          );
+          setSyncError(
+            detail
+              ? "Persistence sync failed: " + detail
+              : "Persistence sync failed while writing to the server database.",
+          );
+          return;
         }
 
         const manualSyncDisabled =
