@@ -115,6 +115,56 @@ describe("/api/jobs/import route", () => {
     });
   });
 
+  it("serves cached snapshot with shorter stale window", async () => {
+    mockedReadFeedSnapshotFromCache.mockResolvedValue({
+      generatedAt: "2026-04-13T00:00:00.000Z",
+      sourceCount: 1,
+      importedSourceCount: 1,
+      jobs: [],
+      errors: [],
+      sourceResults: [],
+      diagnostics: {
+        ats: {
+          greenhouseBoardCount: 0,
+          leverCompanyCount: 0,
+          ashbyOrganizationCount: 0,
+          smartRecruitersCompanyCount: 0,
+          configuredSourceCount: 0,
+        },
+        rss: {
+          linkedinConfigured: false,
+          indeedConfigured: false,
+          thirdConfigured: false,
+          configuredSourceCount: 0,
+        },
+        python: {
+          scrapedFeedConfigured: false,
+          configuredSourceCount: 0,
+        },
+        sourceCount: 1,
+      },
+      recoveryGuide: ["retry"],
+    });
+
+    const request = new Request("https://rolelens.pages.dev/api/jobs/import", {
+      method: "GET",
+    });
+
+    const response = await GET(request);
+    const payload = (await response.json()) as {
+      cached: boolean;
+      platform: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.cached).toBe(true);
+    expect(payload.platform).toBe("all");
+    expect(response.headers.get("cache-control")).toBe(
+      "public, max-age=15, s-maxage=60, stale-while-revalidate=60",
+    );
+    expect(mockedCollectFeedJobs).not.toHaveBeenCalled();
+  });
+
   it("supports platform-scoped imports without using snapshot cache", async () => {
     const request = new Request(
       "https://rolelens.pages.dev/api/jobs/import?platform=indeed",

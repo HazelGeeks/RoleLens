@@ -39,56 +39,54 @@ afterEach(() => {
 
 describe("feed sync observability", () => {
   it("returns source-level results and persists last sync summary", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              generatedAt: "2026-04-13T00:00:00.000Z",
-              sourceCount: 2,
-              importedSourceCount: 5,
-              jobs: [
-                {
-                  externalId: "gh:acme:1",
-                  source: "MANUAL",
-                  sourceLabel: "Greenhouse",
-                  company: "Acme",
-                  title: "Frontend Engineer",
-                  descriptionRaw: "React TypeScript",
-                  extractedSkills: ["React", "TypeScript"],
-                  tags: ["greenhouse"],
-                },
-              ],
-              errors: [
-                {
-                  source: "Lever",
-                  message: "Timed out",
-                },
-              ],
-              sourceResults: [
-                {
-                  source: "Greenhouse",
-                  ok: true,
-                  importedJobs: 1,
-                },
-                {
-                  source: "Lever",
-                  ok: false,
-                  importedJobs: 0,
-                  message: "Timed out",
-                },
-              ],
-            }),
-            {
-              status: 200,
-              headers: {
-                "content-type": "application/json",
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            generatedAt: "2026-04-13T00:00:00.000Z",
+            sourceCount: 2,
+            importedSourceCount: 5,
+            jobs: [
+              {
+                externalId: "gh:acme:1",
+                source: "MANUAL",
+                sourceLabel: "Greenhouse",
+                company: "Acme",
+                title: "Frontend Engineer",
+                descriptionRaw: "React TypeScript",
+                extractedSkills: ["React", "TypeScript"],
+                tags: ["greenhouse"],
               },
+            ],
+            errors: [
+              {
+                source: "Lever",
+                message: "Timed out",
+              },
+            ],
+            sourceResults: [
+              {
+                source: "Greenhouse",
+                ok: true,
+                importedJobs: 1,
+              },
+              {
+                source: "Lever",
+                ok: false,
+                importedJobs: 0,
+                message: "Timed out",
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
             },
-          ),
-      ),
+          },
+        ),
     );
+    vi.stubGlobal("fetch", fetchMock);
 
     const result = await syncJobsFromFeeds({ refresh: true, persistToDb: false });
 
@@ -115,6 +113,15 @@ describe("feed sync observability", () => {
     expect(summary?.importedSourceCount).toBe(5);
     expect(summary?.errors).toHaveLength(1);
     expect(summary?.sourceResults[1]?.source).toBe("Lever");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/jobs/sync",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          platform: "all",
+        }),
+      }),
+    );
   });
 
   it("normalizes legacy diagnostics that are missing python fields", () => {
@@ -466,9 +473,12 @@ describe("feed sync observability", () => {
     await syncJobsFromFeeds({ refresh: true, platform: "indeed", persistToDb: false });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/jobs/import?refresh=1&platform=indeed",
+      "/api/jobs/sync",
       expect.objectContaining({
-        method: "GET",
+        method: "POST",
+        body: JSON.stringify({
+          platform: "indeed",
+        }),
       }),
     );
     expect(mockedSaveJobsToStorage).toHaveBeenCalledTimes(1);
@@ -489,7 +499,7 @@ describe("feed sync observability", () => {
             ? input.toString()
             : input.url;
 
-      if (url.startsWith("/api/jobs/import")) {
+      if (url.startsWith("/api/jobs/sync")) {
         return new Response(
           JSON.stringify({
             generatedAt: now,
