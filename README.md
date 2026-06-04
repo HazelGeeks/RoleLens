@@ -240,7 +240,7 @@ cp .env.example .env.local
 npm run dev
 
 # 로컬에서 D1까지 함께 쓰는 모드 (Cloudflare runtime)
-npm run dev:d1
+npm run dev:cloudflare
 ```
 
 Open `http://localhost:3000`.
@@ -251,7 +251,7 @@ Optional hosted feed setup in `.env.local`:
 PYTHON_SCRAPED_FEED_URL=https://raw.githubusercontent.com/<owner>/<repo>/main/data/scraped/python-scraped-jobs.json
 ```
 
-If `PYTHON_SCRAPED_FEED_URL` is empty in local development, RoleLens falls back to `/api/jobs/local-python-scraped-feed` automatically (including `npm run dev:d1` on localhost).
+If `PYTHON_SCRAPED_FEED_URL` is empty in local development, RoleLens falls back to `/api/jobs/local-python-scraped-feed` automatically (including `npm run dev:cloudflare` on localhost).
 
 If `3000` is already in use, Next.js may start on `3001` (or another port). Use the URL shown in the terminal.
 
@@ -273,15 +273,15 @@ npm run dev
 ## Scripts
 
 - `npm run dev` - local dev (memory fallback)
-- `npm run dev:d1` - local Cloudflare runtime + D1 binding (loads `.env.local` via `--env-file`)
+- `npm run dev:cloudflare` - local Cloudflare Pages runtime + D1 binding (loads `.env.local` via `--env-file`)
 - `npm run build` - production build
 - `npm run lint` - lint
 - `npm run test` - unit tests (cron security, persistence PoC, local data reliability)
-- `npm run cf:build` - Cloudflare Pages output build
-- `npm run cf:deploy` - deploy to Cloudflare Pages
-- `npm run d1:migrate:local` - apply D1 migrations locally
-- `npm run d1:migrate:preview` - apply D1 migrations to preview database
-- `npm run d1:migrate:prod` - apply D1 migrations to production database
+- `npm run pages:build` - Cloudflare Pages output build
+- `npm run pages:deploy` - deploy `.vercel/output/static` to Cloudflare Pages
+- `npm run db:schema:local` - apply database schema changes locally
+- `npm run db:schema:preview` - apply database schema changes to preview D1
+- `npm run db:schema:prod` - apply database schema changes to production D1
 
 ## Cloudflare Pages Deployment
 
@@ -303,7 +303,7 @@ Important:
 ## D1 Persistence Setup
 
 1. Create/update D1 binding in `wrangler.toml` (`binding = "DB"`).
-2. Run `npm run d1:migrate:prod` before first production deploy (or when schema changes).
+2. Run `npm run db:schema:prod` before first production deploy (or when schema changes).
 
 ## Project Structure
 
