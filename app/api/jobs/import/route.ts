@@ -157,7 +157,7 @@ export async function GET(request: Request) {
       {
         ok: false,
         message:
-          "Manual feed refresh is disabled on public deployments. Use cached /api/jobs/import responses, or trigger /api/jobs/cron with x-cron-secret.",
+          "Manual feed refresh is disabled on this public import endpoint. Use authenticated POST /api/jobs/sync from the app, cached /api/jobs/import responses, or trigger /api/jobs/cron with x-cron-secret.",
       },
       403,
     );
@@ -174,7 +174,7 @@ export async function GET(request: Request) {
         },
         {
           headers: {
-            "cache-control": "public, max-age=30, s-maxage=120, stale-while-revalidate=300",
+            "cache-control": "public, max-age=15, s-maxage=60, stale-while-revalidate=60",
           },
         },
       );

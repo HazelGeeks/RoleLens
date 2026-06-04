@@ -117,10 +117,10 @@ jobs:
           }'
 
       - name: Build Pages output
-        run: npm run cf:build
+        run: npm run pages:build
 
       - name: Apply D1 migrations
-        run: npm run d1:migrate:prod
+        run: npm run db:schema:prod
 
       - name: Deploy to Cloudflare Pages
-        run: npm run cf:deploy -- --branch=main
+        run: npm run pages:deploy -- --project-name="$CLOUDFLARE_PROJECT_NAME" --branch=main

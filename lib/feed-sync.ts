@@ -59,20 +59,23 @@ export async function syncJobsFromFeeds(options?: {
   platform?: FeedPlatform;
   persistToDb?: boolean;
 }): Promise<SyncJobsFromFeedsResult> {
-  const params = new URLSearchParams();
-  if (options?.refresh) params.set("refresh", "1");
-
   const platform = parseFeedPlatform(options?.platform);
-  if (platform !== "all") {
-    params.set("platform", platform);
-  }
-
-  const query = params.toString();
-  const response = await fetch(`/api/jobs/import${query ? `?${query}` : ""}`, {
-    method: "GET",
-    cache: "no-store",
-    headers: buildPersistenceHeaders(),
-  });
+  const runActiveSync = options?.refresh === true || platform !== "all";
+  const headers = buildPersistenceHeaders();
+  const response = runActiveSync
+    ? await fetch("/api/jobs/sync", {
+        method: "POST",
+        cache: "no-store",
+        headers,
+        body: JSON.stringify({
+          platform,
+        }),
+      })
+    : await fetch("/api/jobs/import", {
+        method: "GET",
+        cache: "no-store",
+        headers,
+      });
 
   if (!response.ok) {
     let details = "";

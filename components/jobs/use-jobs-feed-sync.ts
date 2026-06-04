@@ -131,28 +131,28 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
           return;
         }
 
-        const manualSyncDisabled =
-          message.includes("Manual feed refresh is disabled") ||
-          (message.includes("status 403") &&
-            message.toLowerCase().includes("public deployment"));
-
-        if (manualSyncDisabled) {
-          setSyncError(null);
-          showSyncToast(
-            "Manual sync is disabled on this production deployment. Cached results are shown instead, and scheduled /api/jobs/cron keeps feed data updated.",
-          );
-          setSyncMessage(
-            "Manual sync is unavailable on this production deployment. Showing cached feed results.",
-          );
-          if (options?.silent) {
-            setSyncMessage("Loaded the latest cached feed snapshot.");
-          }
-          return;
-        }
-
         if (message.includes("Rate limit exceeded")) {
           setSyncError(null);
           showSyncToast("Sync is temporarily rate-limited. Please wait and retry.");
+          return;
+        }
+
+        if (message.includes("status 401") || message.includes("Login required")) {
+          setSyncError(null);
+          showSyncToast("Login required. Please sign in and retry sync.");
+          return;
+        }
+
+        if (
+          message.includes("status 403") &&
+          (message.includes("Admin access required") ||
+            message.includes("Sync admin emails are not configured"))
+        ) {
+          setSyncError(null);
+          showSyncToast("Admin access is required to sync feeds.");
+          setSyncMessage(
+            "Manual sync is restricted to configured admin accounts on this deployment.",
+          );
           return;
         }
 
@@ -166,18 +166,14 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
   );
 
   const runManualSyncAll = useCallback(() => {
-    showSyncToast(
-      "Sync request received for all feeds. Checking if manual sync is available on this deployment...",
-    );
+    showSyncToast("Sync request received for all feeds.");
     void runFeedSync({ refresh: true, platform: "all" });
   }, [runFeedSync, showSyncToast]);
 
   const runManualSyncPlatform = useCallback(
     (platform: Exclude<FeedPlatform, "all">) => {
       showSyncToast(
-        "Sync request received for " +
-          feedPlatformLabels[platform] +
-          ". Checking if manual sync is available on this deployment...",
+        "Sync request received for " + feedPlatformLabels[platform] + ".",
       );
       void runFeedSync({ refresh: true, platform });
     },
