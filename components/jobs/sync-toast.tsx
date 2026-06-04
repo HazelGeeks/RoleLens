@@ -7,7 +7,7 @@ type SyncToastProps = {
 
 export function SyncToast({ message, onDismiss }: SyncToastProps) {
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-50 w-full max-w-sm px-3 sm:px-0">
+    <div className="pointer-events-none fixed left-1/2 top-4 z-50 w-[calc(100%-1.5rem)] max-w-sm -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0">
       <div
         className="pointer-events-auto rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 shadow-lg dark:border-amber-900 dark:bg-amber-950/80 dark:text-amber-200"
         role="status"

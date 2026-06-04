@@ -147,6 +147,7 @@ export async function syncJobsFromFeeds(options?: {
   let mergedJobs = Array.from(nextMap.values()).sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt),
   );
+  const persistenceErrors: FeedImportSnapshot["errors"] = [];
 
   if (options?.persistToDb !== false) {
     for (const job of mergedJobs.filter((entry) => importedJobIds.has(entry.id))) {
@@ -155,9 +156,10 @@ export async function syncJobsFromFeeds(options?: {
         nextMap.set(job.id, toLocalJobFromPersistent(persistent, job));
       } catch (error) {
         const detail = error instanceof Error ? error.message : "unknown error";
-        throw new Error(
-          `Feed sync persisted locally but failed to write DB (${job.company} - ${job.title}): ${detail}`,
-        );
+        persistenceErrors.push({
+          source: "persistence",
+          message: `Failed to write DB (${job.company} - ${job.title}): ${detail}`,
+        });
       }
     }
 
@@ -170,6 +172,7 @@ export async function syncJobsFromFeeds(options?: {
 
   const today = new Date().toISOString().slice(0, 10);
   const syncedAt = new Date().toISOString();
+  const errors = [...payload.errors, ...persistenceErrors];
 
   const summary: FeedSyncSummary = {
     syncedAt,
@@ -178,7 +181,7 @@ export async function syncJobsFromFeeds(options?: {
     totalImported: payload.jobs.length,
     added,
     updated,
-    errors: payload.errors,
+    errors,
     sourceResults,
     diagnostics,
     recoveryGuide,
@@ -195,7 +198,7 @@ export async function syncJobsFromFeeds(options?: {
     sourceCount: payload.sourceCount,
     importedSourceCount,
     cached: payload.cached === true,
-    errors: payload.errors,
+    errors,
     sourceResults,
     diagnostics,
     recoveryGuide,

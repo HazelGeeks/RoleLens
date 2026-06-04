@@ -63,7 +63,7 @@ Legacy source variables (`GREENHOUSE_*`, `LEVER_*`, RSS fallback URLs) are not u
 
 - `CRON_SECRET` (required; `/api/jobs/cron` rejects all calls without `x-cron-secret`)
 - `SYNC_ADMIN_SECRET` (optional; protects manual import refresh via `x-rolelens-sync-secret`, falls back to `CRON_SECRET` when unset)
-- `SYNC_ADMIN_EMAILS` (required for browser-triggered manual sync in production; comma-separated admin account emails)
+- `SYNC_ADMIN_EMAILS` (required for browser-triggered manual sync in production; comma-separated admin account emails; `SYNC_ADMIN_EMAIL` is also accepted for one admin)
 - `ALLOW_PUBLIC_FEED_REFRESH` (optional; default recommended `0` in production to block public expensive refresh calls)
 - `IMPORT_PUBLIC_RATE_LIMIT_PER_MIN` (optional; default `60`, anonymous import-route request budget per IP)
 
