@@ -18,12 +18,14 @@ const mockedWriteFeedSnapshotToCache = vi.mocked(writeFeedSnapshotToCache);
 const mockedGetAuthSessionUserFromRequest = vi.mocked(getAuthSessionUserFromRequest);
 
 const ORIGINAL_CRON_SECRET = process.env.CRON_SECRET;
+const ORIGINAL_SYNC_ADMIN_EMAIL = process.env.SYNC_ADMIN_EMAIL;
 const ORIGINAL_SYNC_ADMIN_EMAILS = process.env.SYNC_ADMIN_EMAILS;
 
 describe("/api/jobs/sync route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.CRON_SECRET = "test-cron-secret";
+    delete process.env.SYNC_ADMIN_EMAIL;
     process.env.SYNC_ADMIN_EMAILS = "admin@example.com";
     mockedGetAuthSessionUserFromRequest.mockResolvedValue(null);
     mockedCollectFeedJobs.mockResolvedValue({
@@ -69,6 +71,12 @@ describe("/api/jobs/sync route", () => {
       delete process.env.SYNC_ADMIN_EMAILS;
     } else {
       process.env.SYNC_ADMIN_EMAILS = ORIGINAL_SYNC_ADMIN_EMAILS;
+    }
+
+    if (ORIGINAL_SYNC_ADMIN_EMAIL == null) {
+      delete process.env.SYNC_ADMIN_EMAIL;
+    } else {
+      process.env.SYNC_ADMIN_EMAIL = ORIGINAL_SYNC_ADMIN_EMAIL;
     }
   });
 
@@ -176,6 +184,30 @@ describe("/api/jobs/sync route", () => {
       platform: "all",
     });
     expect(mockedWriteFeedSnapshotToCache).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts singular sync admin email env for deployed configuration compatibility", async () => {
+    delete process.env.SYNC_ADMIN_EMAILS;
+    process.env.SYNC_ADMIN_EMAIL = '"admin@example.com"';
+    mockedGetAuthSessionUserFromRequest.mockResolvedValue({
+      id: "user-1",
+      email: "admin@example.com",
+      name: "Admin User",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const request = new Request("https://rolelens.pages.dev/api/jobs/sync", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ platform: "all" }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(mockedCollectFeedJobs).toHaveBeenCalledTimes(1);
   });
 
   it("supports platform-scoped sync without cache writes", async () => {

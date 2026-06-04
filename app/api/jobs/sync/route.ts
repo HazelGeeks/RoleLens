@@ -21,10 +21,15 @@ function getExpectedSyncSecret() {
 }
 
 function getSyncAdminEmails() {
+  const configuredEmails = [
+    process.env.SYNC_ADMIN_EMAILS || "",
+    process.env.SYNC_ADMIN_EMAIL || "",
+  ].join(",");
+
   return new Set(
-    (process.env.SYNC_ADMIN_EMAILS || "")
+    configuredEmails
       .split(",")
-      .map((email) => email.trim().toLowerCase())
+      .map((email) => email.trim().replace(/^["']|["']$/g, "").toLowerCase())
       .filter(Boolean),
   );
 }
