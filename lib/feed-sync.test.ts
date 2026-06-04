@@ -124,6 +124,78 @@ describe("feed sync observability", () => {
     );
   });
 
+  it("keeps imported feed data locally when DB persistence fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+
+        if (url === "/api/jobs/sync") {
+          return new Response(
+            JSON.stringify({
+              generatedAt: "2026-06-04T00:00:00.000Z",
+              sourceCount: 1,
+              importedSourceCount: 1,
+              jobs: [
+                {
+                  externalId: "python:acme:1",
+                  source: "MANUAL",
+                  sourceLabel: "Python Scraper",
+                  company: "Acme",
+                  title: "Frontend Engineer",
+                  descriptionRaw: "React TypeScript role",
+                  extractedSkills: ["React", "TypeScript"],
+                  tags: ["python"],
+                },
+              ],
+              errors: [],
+              sourceResults: [
+                {
+                  source: "Python Scraper",
+                  ok: true,
+                  importedJobs: 1,
+                },
+              ],
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          );
+        }
+
+        if (url === "/api/jobs") {
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              message: "Unauthorized",
+            }),
+            {
+              status: 401,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          );
+        }
+
+        throw new Error("Unexpected fetch URL: " + url);
+      }),
+    );
+
+    const result = await syncJobsFromFeeds({ refresh: true });
+    const firstSave = mockedSaveJobsToStorage.mock.calls[0]?.[0] || [];
+    const summary = getLastFeedSyncSummary();
+
+    expect(result.totalImported).toBe(1);
+    expect(result.errors[0]?.source).toBe("persistence");
+    expect(firstSave).toHaveLength(1);
+    expect(firstSave[0]?.company).toBe("Acme");
+    expect(summary?.errors[0]?.source).toBe("persistence");
+  });
+
   it("normalizes legacy diagnostics that are missing python fields", () => {
     window.localStorage.setItem(
       "rolelens.feed.lastSyncResult",
