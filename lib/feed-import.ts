@@ -72,6 +72,7 @@ type ParsedFeedItem = {
 
 const SNAPSHOT_CACHE_PATH = "/api/jobs/import/snapshot-cache";
 const FEED_CACHE_NAME = "rolelens-feed-snapshot";
+const SNAPSHOT_CACHE_MAX_AGE_MS = 15 * 60 * 1000;
 const DEFAULT_ROLE_KEYWORDS = [
   "frontend",
   "front-end",
@@ -1435,6 +1436,12 @@ async function getFeedCache() {
   }
 }
 
+function isFreshFeedSnapshot(snapshot: FeedImportSnapshot) {
+  const generatedAt = new Date(snapshot.generatedAt).getTime();
+  if (!Number.isFinite(generatedAt)) return false;
+  return Date.now() - generatedAt <= SNAPSHOT_CACHE_MAX_AGE_MS;
+}
+
 export async function readFeedSnapshotFromCache(
   request: Request,
 ): Promise<FeedImportSnapshot | null> {
@@ -1444,7 +1451,8 @@ export async function readFeedSnapshotFromCache(
   try {
     const cached = await cache.match(cacheKeyFromRequest(request));
     if (!cached) return null;
-    return (await cached.json()) as FeedImportSnapshot;
+    const snapshot = (await cached.json()) as FeedImportSnapshot;
+    return isFreshFeedSnapshot(snapshot) ? snapshot : null;
   } catch {
     return null;
   }

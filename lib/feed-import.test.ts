@@ -1,12 +1,62 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { collectFeedJobs } from "@/lib/feed-import";
+import { collectFeedJobs, readFeedSnapshotFromCache } from "@/lib/feed-import";
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("collectFeedJobs diagnostics (python-only)", () => {
+  it("ignores stale feed snapshots from edge cache", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-05T05:55:00.000Z"));
+    vi.stubGlobal("caches", {
+      open: vi.fn(async () => ({
+        match: vi.fn(
+          async () =>
+            new Response(
+              JSON.stringify({
+                generatedAt: "2026-06-05T04:49:50.278Z",
+                sourceCount: 1,
+                importedSourceCount: 1,
+                jobs: [],
+                errors: [],
+                sourceResults: [],
+                diagnostics: {
+                  ats: {
+                    greenhouseBoardCount: 0,
+                    leverCompanyCount: 0,
+                    ashbyOrganizationCount: 0,
+                    smartRecruitersCompanyCount: 0,
+                    configuredSourceCount: 0,
+                  },
+                  rss: {
+                    linkedinConfigured: false,
+                    indeedConfigured: false,
+                    thirdConfigured: false,
+                    configuredSourceCount: 0,
+                  },
+                  python: {
+                    scrapedFeedConfigured: true,
+                    configuredSourceCount: 1,
+                  },
+                  sourceCount: 1,
+                },
+                recoveryGuide: [],
+              }),
+            ),
+        ),
+      })),
+    });
+
+    await expect(
+      readFeedSnapshotFromCache(
+        new Request("https://rolelens.pages.dev/api/jobs/import"),
+      ),
+    ).resolves.toBeNull();
+  });
+
   it("does not treat blank or comma-only source variables as configured", async () => {
     const result = await collectFeedJobs({
       GREENHOUSE_BOARD_TOKENS: " , , ",
