@@ -62,7 +62,7 @@ export async function syncJobsFromFeeds(options?: {
   const platform = parseFeedPlatform(options?.platform);
   const runActiveSync = options?.refresh === true || platform !== "all";
   const headers = buildPersistenceHeaders();
-  const response = runActiveSync
+  let response = runActiveSync
     ? await fetch("/api/jobs/sync", {
         method: "POST",
         cache: "no-store",
@@ -76,6 +76,14 @@ export async function syncJobsFromFeeds(options?: {
         cache: "no-store",
         headers,
       });
+
+  if (!response.ok && runActiveSync && platform === "all" && response.status >= 500) {
+    response = await fetch("/api/jobs/import", {
+      method: "GET",
+      cache: "no-store",
+      headers,
+    });
+  }
 
   if (!response.ok) {
     let details = "";
