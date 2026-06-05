@@ -105,3 +105,19 @@ jobs:
           git add "$SCRAPER_OUTPUT_PATH"
           git commit -m "chore: refresh python scraped jobs snapshot"
           git push
+
+      - name: Refresh deployed feed snapshot
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.commit_changes == 'true' }}
+        run: |
+          if [ -z "$ROLELENS_CRON_SECRET" ]; then
+            echo "Skipping deployed feed snapshot refresh because ROLELENS_CRON_SECRET is not configured."
+            exit 0
+          fi
+
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "x-cron-secret: $ROLELENS_CRON_SECRET" \
+            "$ROLELENS_SYNC_URL/api/jobs/cron"
+        env:
+          ROLELENS_CRON_SECRET: ${{ secrets.ROLELENS_CRON_SECRET }}
+          ROLELENS_SYNC_URL: ${{ secrets.ROLELENS_SYNC_URL || 'https://rolelens.pages.dev' }}
