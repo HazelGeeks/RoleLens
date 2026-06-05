@@ -196,6 +196,83 @@ describe("feed sync observability", () => {
     expect(summary?.errors[0]?.source).toBe("persistence");
   });
 
+  it("falls back to cached import snapshot when active all-feed sync returns 5xx", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url === "/api/jobs/sync") {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            message: "Service Unavailable",
+          }),
+          {
+            status: 503,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      if (url === "/api/jobs/import") {
+        return new Response(
+          JSON.stringify({
+            generatedAt: "2026-06-04T01:46:56.980Z",
+            sourceCount: 1,
+            importedSourceCount: 1,
+            cached: true,
+            jobs: [
+              {
+                externalId: "python:cached:1",
+                source: "MANUAL",
+                sourceLabel: "Python Scraper",
+                company: "Cached Co",
+                title: "Frontend Engineer",
+                descriptionRaw: "React TypeScript role",
+                extractedSkills: ["React", "TypeScript"],
+                tags: ["python"],
+              },
+            ],
+            errors: [],
+            sourceResults: [
+              {
+                source: "Python Scraper",
+                ok: true,
+                importedJobs: 1,
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      throw new Error("Unexpected fetch URL: " + url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await syncJobsFromFeeds({
+      refresh: true,
+      persistToDb: false,
+    });
+    const savedJobs = mockedSaveJobsToStorage.mock.calls[0]?.[0] || [];
+
+    expect(result.cached).toBe(true);
+    expect(result.totalImported).toBe(1);
+    expect(savedJobs[0]?.company).toBe("Cached Co");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/jobs/import",
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
+
   it("normalizes legacy diagnostics that are missing python fields", () => {
     window.localStorage.setItem(
       "rolelens.feed.lastSyncResult",
