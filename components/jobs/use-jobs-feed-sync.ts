@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   getLastFeedSyncAt,
   getLastFeedSyncSummary,
-  shouldAutoSyncToday,
   syncJobsFromFeeds,
 } from "@/lib/feed-sync";
 import { buildFeedSyncAlert } from "@/lib/feed-sync-alert";
@@ -21,6 +20,7 @@ type SyncOptions = {
   silent?: boolean;
   refresh?: boolean;
   platform?: FeedPlatform;
+  persistToDb?: boolean;
 };
 
 function buildRecoveryMessage(message: string) {
@@ -69,6 +69,7 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
         const result = await syncJobsFromFeeds({
           refresh: options?.refresh,
           platform,
+          persistToDb: options?.persistToDb,
         });
         await refreshJobs();
         setLastSyncAt(result.syncedAt);
@@ -222,8 +223,11 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
         lastSummary.errors.some((entry) => entry.source === "configuration");
     }
 
-    if (!shouldAutoSyncToday() && !shouldForceRefresh) return;
-    void runFeedSync({ silent: true });
+    void runFeedSync({
+      silent: true,
+      refresh: shouldForceRefresh,
+      persistToDb: false,
+    });
   }, [runFeedSync, showSyncToast]);
 
   return {
