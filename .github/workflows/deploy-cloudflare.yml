@@ -81,6 +81,7 @@ jobs:
                 };
 
             {
+              production_branch: "main",
               deployment_configs: {
                 production: ((.result.deployment_configs.production // {}) | merge_env),
                 preview: ((.result.deployment_configs.preview // {}) | merge_env)
@@ -102,6 +103,7 @@ jobs:
             -H "Content-Type: application/json")
 
           echo "$VERIFIED_PROJECT" | jq --compact-output '{
+            production_branch: .result.production_branch,
             production: {
               d1_databases: (.result.deployment_configs.production.d1_databases // {}),
               auth_backend: (.result.deployment_configs.production.env_vars.AUTH_BACKEND.value // null),
