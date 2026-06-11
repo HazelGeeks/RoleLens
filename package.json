@@ -10,7 +10,7 @@
     "lint": "eslint app components lib",
     "test": "vitest run",
     "test:watch": "vitest",
-    "pages:build": "next build && npx @cloudflare/next-on-pages@1",
+    "pages:build": "next build && npx @cloudflare/next-on-pages@1 && node scripts/patch-pages-routes.mjs",
     "pages:deploy": "wrangler pages deploy .vercel/output/static",
     "db:schema:local": "wrangler d1 migrations apply rolelens-db --local",
     "db:schema:preview": "wrangler d1 migrations apply rolelens-db --preview",
