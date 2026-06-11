@@ -1,4 +1,5 @@
 import { statusOptions } from "@/lib/constants";
+import { sanitizeJobDescription } from "@/lib/job-description";
 
 export type JobSource = "LINKEDIN" | "INDEED" | "SARAMIN" | "JOBKOREA" | "MANUAL";
 export type RemoteType = "REMOTE" | "HYBRID" | "ONSITE" | "UNKNOWN";
@@ -253,8 +254,7 @@ function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
       typeof raw.workAuthorizationNote === "string" && raw.workAuthorizationNote
         ? raw.workAuthorizationNote
         : undefined,
-    descriptionRaw:
-      typeof raw.descriptionRaw === "string" ? raw.descriptionRaw : "",
+    descriptionRaw: sanitizeJobDescription(raw.descriptionRaw),
     extractedSkills: Array.isArray(raw.extractedSkills)
       ? raw.extractedSkills.filter(
           (skill): skill is string => typeof skill === "string",

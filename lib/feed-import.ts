@@ -10,6 +10,10 @@ import {
   matchesFeedPlatform,
   parseFeedPlatform,
 } from "@/lib/feed-platform";
+import {
+  isScrapedLinkPlaceholderDescription,
+  sanitizeJobDescription,
+} from "@/lib/job-description";
 
 type FeedSourceConfig = {
   key: string;
@@ -115,7 +119,6 @@ const ASHBY_JOB_BOARD_QUERY =
   "query ApiJobBoard($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { teams { id name } jobPostings { id title locationName teamId workplaceType employmentType } } }";
 const SMARTRECRUITERS_PAGE_LIMIT = 100;
 const LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH = "/api/jobs/local-python-scraped-feed";
-const PYTHON_PLACEHOLDER_DESCRIPTION_PREFIX = "scraped link from ";
 const PYTHON_DESCRIPTION_FETCH_TIMEOUT_MS = 6000;
 const PYTHON_DESCRIPTION_MAX_CHARS = 5000;
 const PYTHON_DESCRIPTION_HYDRATION_LIMIT = 20;
@@ -345,12 +348,6 @@ function decodeXmlEntities(value: string) {
     .replace(/&#([0-9]+);/g, (_, dec: string) =>
       String.fromCodePoint(parseInt(dec, 10)),
     );
-}
-
-function isScrapedLinkPlaceholderDescription(value: string) {
-  return value
-    .toLowerCase()
-    .startsWith(PYTHON_PLACEHOLDER_DESCRIPTION_PREFIX);
 }
 
 function clipDescription(value: string) {
@@ -850,7 +847,9 @@ async function normalizePythonScrapedItem(
     isScrapedLinkPlaceholderDescription(sourceDescription)
       ? await fetchDescriptionFromSource(sourceUrl, title)
       : undefined;
-  const descriptionRaw = hydratedDescription || sourceDescription;
+  const descriptionRaw =
+    sanitizeJobDescription(hydratedDescription) ||
+    sanitizeJobDescription(sourceDescription);
 
   const draft = extractJobDraft({
     sourceUrl,

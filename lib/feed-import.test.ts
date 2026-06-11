@@ -230,6 +230,70 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
     expect(mockedFetch).toHaveBeenCalledTimes(2);
   });
 
+  it("drops scraped-link placeholder descriptions when source hydration fails", async () => {
+    const searchUrl =
+      "https://www.linkedin.com/jobs/search/?keywords=software%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada";
+    const mockedFetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+
+      if (url === "https://example.com/scraped-jobs.json") {
+        return new Response(
+          JSON.stringify({
+            jobs: [
+              {
+                externalId: "py:linkedin:search-placeholder",
+                source: "LINKEDIN",
+                sourceLabel: "PythonScraper:LinkedIn Software Search",
+                sourceUrl: searchUrl,
+                company: "LinkedIn",
+                location: "Vancouver, British Columbia, Canada",
+                title: "Software Engineer",
+                descriptionRaw: `Scraped link from ${searchUrl}`,
+                tags: ["python-scraper"],
+                publishedAt: "2026-05-11T00:00:00.000Z",
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      if (url === searchUrl) {
+        return new Response(
+          "<html><body>Join now Sign in We use cookies to improve your LinkedIn experience.</body></html>",
+          {
+            status: 200,
+            headers: {
+              "content-type": "text/html; charset=utf-8",
+            },
+          },
+        );
+      }
+
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+    vi.stubGlobal("fetch", mockedFetch);
+
+    const result = await collectFeedJobs({
+      PYTHON_SCRAPED_FEED_URL: "https://example.com/scraped-jobs.json",
+    });
+
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0]?.descriptionRaw).toBe("");
+    expect(result.jobs[0]?.descriptionRaw).not.toContain("Scraped link from");
+    expect(mockedFetch).toHaveBeenCalledTimes(2);
+  });
+
   it("uses local fallback feed route in local development", async () => {
     const mockedFetch = vi.fn(
       async () =>

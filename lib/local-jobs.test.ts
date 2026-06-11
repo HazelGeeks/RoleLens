@@ -105,6 +105,45 @@ describe("local jobs reliability", () => {
     expect(jobs[0]?.location).toBe("Vancouver, British Columbia, Canada");
   });
 
+  it("removes scraped-link placeholder descriptions when reading storage", () => {
+    const now = new Date().toISOString();
+    setupWindow({
+      [LOCAL_JOBS_STORAGE_KEY]: JSON.stringify([
+        {
+          id: "placeholder-description-1",
+          source: "LINKEDIN",
+          sourceUrl:
+            "https://www.linkedin.com/jobs/search/?keywords=software%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada",
+          company: "Sample Co",
+          title: "Software Engineer",
+          location: "Vancouver, BC",
+          remoteType: "UNKNOWN",
+          descriptionRaw:
+            "Scraped link from https://www.linkedin.com/jobs/search/?keywords=software%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada",
+          extractedSkills: [],
+          fitScore: 0,
+          status: "NONE",
+          statusHistory: [
+            {
+              id: "h-placeholder-description-1",
+              status: "NONE",
+              changedAt: now,
+            },
+          ],
+          tags: [],
+          notes: [],
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]),
+    });
+
+    const jobs = getJobsFromStorage();
+
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.descriptionRaw).toBe("");
+  });
+
   it("maps legacy statuses to the new 5-state model when reading storage", () => {
     const now = new Date().toISOString();
     setupWindow({

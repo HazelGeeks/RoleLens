@@ -12,6 +12,7 @@ import {
   statusBadgeColor,
 } from "@/lib/presentation";
 import type { LocalJobPosting } from "@/lib/local-jobs";
+import { sanitizeJobDescription } from "@/lib/job-description";
 import styles from "./job-detail-sections.module.css";
 
 function decodeHtmlEntities(value: string) {
@@ -42,7 +43,10 @@ function decodeHtmlEntities(value: string) {
 }
 
 function normalizeDescriptionForDisplay(value: string) {
-  const decoded = decodeHtmlEntities(value);
+  const cleanValue = sanitizeJobDescription(value);
+  if (!cleanValue) return "";
+
+  const decoded = decodeHtmlEntities(cleanValue);
   const withBreaks = decoded
     .replace(/<\s*br\s*\/?\s*>/gi, "\n")
     .replace(
