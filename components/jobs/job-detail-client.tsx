@@ -18,6 +18,7 @@ import {
   JobNotesCard,
   JobOverviewCard,
 } from "@/components/jobs/job-detail-sections";
+import styles from "./job-detail-sections.module.css";
 
 export function JobDetailClient() {
   const searchParams = useSearchParams();
@@ -152,7 +153,7 @@ export function JobDetailClient() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className={styles.detailStack}>
       <JobDetailHeader job={job} />
       <JobOverviewCard
         job={job}

@@ -12,6 +12,7 @@ import {
   statusBadgeColor,
 } from "@/lib/presentation";
 import type { LocalJobPosting } from "@/lib/local-jobs";
+import styles from "./job-detail-sections.module.css";
 
 function decodeHtmlEntities(value: string) {
   let next = value;
@@ -62,14 +63,31 @@ function normalizeDescriptionForDisplay(value: string) {
   return lines.join("\n");
 }
 
+function formatSalaryRange(job: LocalJobPosting) {
+  const currency = job.salaryCurrency || "CAD";
+  if (job.salaryMin && job.salaryMax) {
+    return `${formatCurrency(job.salaryMin, currency)} - ${formatCurrency(job.salaryMax, currency)}`;
+  }
+
+  if (job.salaryMin) {
+    return `From ${formatCurrency(job.salaryMin, currency)}`;
+  }
+
+  if (job.salaryMax) {
+    return `Up to ${formatCurrency(job.salaryMax, currency)}`;
+  }
+
+  return null;
+}
+
 export function JobDetailNotFound() {
   return (
-    <div className="space-y-3">
+    <div className={styles.detailStack}>
       <h2 className="text-2xl font-semibold">Job not found</h2>
-      <p className="text-sm text-slate-500">
+      <p className={styles.emptyText}>
         This item may not exist in the current local cache or persistence store.
       </p>
-      <Link href="/" className="text-blue-600 hover:underline">
+      <Link href="/" className={styles.backLink}>
         Back to list
       </Link>
     </div>
@@ -81,24 +99,33 @@ type JobDetailHeaderProps = {
 };
 
 export function JobDetailHeader({ job }: JobDetailHeaderProps) {
+  const heroMetaItems = [
+    job.location,
+    sourceLabels[job.source],
+    prettifyEnum(job.remoteType),
+  ].filter((item): item is string => Boolean(item && item !== "-"));
+
   return (
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-xs uppercase tracking-[0.14em] text-slate-500">
-          {job.company}
-        </p>
-        <h2 className="text-2xl font-semibold">{job.title}</h2>
-        <p className="text-sm text-slate-500">
-          {job.location || "Location not specified"}
-        </p>
+    <header className={styles.hero}>
+      <div className={styles.heroMain}>
+        <p className={styles.heroEyebrow}>{job.company}</p>
+        <h2 className={styles.heroTitle}>{job.title}</h2>
+        {heroMetaItems.length > 0 ? (
+          <div className={styles.heroMeta}>
+            {heroMetaItems.map((item) => (
+              <span key={item} className={styles.heroMetaItem}>
+                {item}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
-      <Link
-        href="/"
-        className="text-sm text-blue-600 hover:underline dark:text-blue-300"
-      >
-        Back to list
-      </Link>
-    </div>
+      <div className={styles.heroActions}>
+        <Link href="/" className={styles.backLink}>
+          Back to list
+        </Link>
+      </div>
+    </header>
   );
 }
 
@@ -129,119 +156,137 @@ export function JobOverviewCard({
   onSaveFollowUp,
   isFollowUpOverdue,
 }: JobOverviewCardProps) {
+  const badges = [
+    { label: statusLabels[job.status], color: statusBadgeColor(job.status) },
+    { label: sourceLabels[job.source] },
+    { label: prettifyEnum(job.remoteType) },
+    job.employmentType ? { label: prettifyEnum(job.employmentType) } : null,
+    job.seniority ? { label: job.seniority } : null,
+  ].filter((item): item is { label: string; color?: string } =>
+    Boolean(item && item.label && item.label !== "-"),
+  );
+  const hasFitScore = job.fitScore !== null && job.fitScore !== undefined;
+  const hasSourceUrl = Boolean(job.sourceUrl);
+  const hasNextAction = Boolean(nextActionInput.trim());
+  const hasFollowUpDate = Boolean(followUpDateInput.trim());
+  const hasFollowUpContent = hasNextAction || hasFollowUpDate || isFollowUpOverdue;
+  const salaryRange = formatSalaryRange(job);
+
   return (
-    <Card className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <Badge color={statusBadgeColor(job.status)}>
-          {statusLabels[job.status]}
-        </Badge>
-        <Badge>{sourceLabels[job.source]}</Badge>
-        <Badge>{prettifyEnum(job.remoteType)}</Badge>
-        {job.employmentType ? (
-          <Badge>{prettifyEnum(job.employmentType)}</Badge>
-        ) : null}
-        {job.seniority ? <Badge>{job.seniority}</Badge> : null}
-      </div>
+    <Card className={styles.overview}>
+      {badges.length > 0 ? (
+        <div className={styles.badgeRow}>
+          {badges.map((badge) => (
+            <Badge key={badge.label} color={badge.color}>
+              {badge.label}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
 
-      <div className="grid grid-cols-1 gap-3 text-sm lg:grid-cols-3">
-        <div>
-          <p className="text-slate-500">Salary Range</p>
-          <p>
-            {formatCurrency(job.salaryMin, job.salaryCurrency || "CAD")} -{" "}
-            {formatCurrency(job.salaryMax, job.salaryCurrency || "CAD")}
-          </p>
-        </div>
-        <div>
-          <p className="text-slate-500">Fit Score</p>
-          <p className="text-xl font-semibold">{job.fitScore ?? "-"}</p>
-        </div>
-        <div>
-          <p className="text-slate-500">Original URL</p>
-          {job.sourceUrl ? (
-            <a
-              href={job.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-600 hover:underline dark:text-blue-300"
-            >
-              Open source link
-            </a>
-          ) : (
-            <p>-</p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div className="w-full sm:max-w-[220px]">
-          <label className="mb-1 block text-sm font-medium">
-            Update Status
-          </label>
-          <Select
-            value={statusValue || job.status}
-            onChange={(event) =>
-              onStatusChange(
-                event.target.value as (typeof statusOptions)[number],
-              )
-            }
-          >
-            {statusOptions.map((item) => (
-              <option key={item} value={item}>
-                {statusLabels[item]}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <Button variant="secondary" onClick={onSaveStatus}>
-          Save
-        </Button>
-      </div>
-
-      <div className="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-        <h3 className="text-sm font-semibold">Follow-up Automation</h3>
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_200px]">
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Next Action</label>
-            <Textarea
-              value={nextActionInput}
-              onChange={(event) => onNextActionChange(event.target.value)}
-              className="min-h-[90px]"
-              placeholder="Example: submit application, then follow up with recruiter"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Follow-up Date</label>
-            <Input
-              type="date"
-              value={followUpDateInput}
-              onChange={(event) => onFollowUpDateChange(event.target.value)}
-            />
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => onSetFollowUpAfterDays(3)}
-              >
-                +3d
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => onSetFollowUpAfterDays(7)}
-              >
-                +7d
-              </Button>
+      {salaryRange || hasFitScore || hasSourceUrl ? (
+        <div className={styles.metricsGrid}>
+          {salaryRange ? (
+            <div className={styles.metric}>
+              <p className={styles.metricLabel}>Salary Range</p>
+              <p className={styles.metricValue}>{salaryRange}</p>
             </div>
-            <Button type="button" variant="secondary" onClick={onSaveFollowUp}>
-              Save Follow-up
-            </Button>
-            {isFollowUpOverdue ? (
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                Follow-up is due now.
+          ) : null}
+          {hasFitScore ? (
+            <div className={styles.metric}>
+              <p className={styles.metricLabel}>Fit Score</p>
+              <p className={`${styles.metricValue} ${styles.metricValueLarge}`}>
+                {job.fitScore}
               </p>
-            ) : null}
+            </div>
+          ) : null}
+          {hasSourceUrl ? (
+            <div className={styles.metric}>
+              <p className={styles.metricLabel}>Original URL</p>
+              <a
+                href={job.sourceUrl as string}
+                target="_blank"
+                rel="noreferrer"
+                className={styles.sourceLink}
+              >
+                Open source link
+              </a>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className={styles.controlGrid}>
+        <div className={styles.panel}>
+          <h3 className={styles.panelTitle}>Status</h3>
+          <div className={styles.statusControl}>
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>Update Status</label>
+              <Select
+                value={statusValue || job.status}
+                onChange={(event) =>
+                  onStatusChange(
+                    event.target.value as (typeof statusOptions)[number],
+                  )
+                }
+              >
+                {statusOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {statusLabels[item]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <Button variant="secondary" onClick={onSaveStatus}>
+              Save Status
+            </Button>
+          </div>
+        </div>
+
+        <div className={`${styles.panel} ${!hasFollowUpContent ? styles.compactPanel : ""}`}>
+          <h3 className={styles.panelTitle}>Follow-up Automation</h3>
+          <div className={styles.followUpGrid}>
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>Next Action</label>
+              <Textarea
+                value={nextActionInput}
+                onChange={(event) => onNextActionChange(event.target.value)}
+                className="min-h-[90px]"
+                placeholder="Example: submit application, then follow up with recruiter"
+              />
+            </div>
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>Follow-up Date</label>
+              <Input
+                type="date"
+                value={followUpDateInput}
+                onChange={(event) => onFollowUpDateChange(event.target.value)}
+              />
+              <div className={styles.dateActions}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onSetFollowUpAfterDays(3)}
+                >
+                  +3d
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onSetFollowUpAfterDays(7)}
+                >
+                  +7d
+                </Button>
+              </div>
+              <Button type="button" variant="secondary" onClick={onSaveFollowUp}>
+                Save Follow-up
+              </Button>
+              {isFollowUpOverdue ? (
+                <p className={styles.dueText}>Follow-up is due now.</p>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
@@ -256,60 +301,70 @@ type JobInsightCardsProps = {
 export function JobInsightCards({ job }: JobInsightCardsProps) {
   const breakdown = job.fitBreakdown ?? null;
   const description = normalizeDescriptionForDisplay(job.descriptionRaw);
+  const hasDescription = Boolean(description);
+  const hasSkills = job.extractedSkills.length > 0;
+  const hasBreakdown = Boolean(breakdown && Object.keys(breakdown).length > 0);
+  const hasStatusHistory = job.statusHistory.length > 0;
+  const hasSidePanels = hasSkills || hasBreakdown || hasStatusHistory;
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <Card className="space-y-3">
-        <CardTitle>Description</CardTitle>
-        <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200">
-          {description || "-"}
-        </p>
-      </Card>
+    <div className={hasSidePanels && hasDescription ? styles.insightGrid : styles.singleColumnGrid}>
+      {hasDescription ? (
+        <Card className={`${styles.descriptionCard} space-y-3`}>
+          <CardTitle>Description</CardTitle>
+          <p className={styles.descriptionText}>
+            {description}
+          </p>
+        </Card>
+      ) : null}
 
-      <Card className="space-y-3">
-        <CardTitle>Extracted Skills & Fit Breakdown</CardTitle>
-        <div className="flex flex-wrap gap-2">
-          {job.extractedSkills.length > 0 ? (
-            job.extractedSkills.map((skill) => (
-              <Badge key={skill}>{skill}</Badge>
-            ))
-          ) : (
-            <p>-</p>
-          )}
-        </div>
-        {breakdown ? (
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            {Object.entries(breakdown).map(([key, value]) => (
-              <div
-                key={key}
-                className="rounded-lg bg-slate-100 p-2 dark:bg-slate-800"
-              >
-                <p className="capitalize text-slate-500">{key}</p>
-                <p className="font-semibold">{value}</p>
+      {hasSidePanels ? (
+        <div className={styles.sideStack}>
+        {hasSkills || hasBreakdown ? (
+          <Card className="space-y-3">
+            <CardTitle>Skills & Fit</CardTitle>
+            {hasSkills ? (
+              <div className={styles.skillsList}>
+                {job.extractedSkills.map((skill) => (
+                  <Badge key={skill}>{skill}</Badge>
+                ))}
               </div>
-            ))}
-          </div>
+            ) : null}
+            {hasBreakdown && breakdown ? (
+              <div className={styles.fitGrid}>
+                {Object.entries(breakdown).map(([key, value]) => (
+                  <div key={key} className={styles.fitItem}>
+                    <p className={styles.fitKey}>{key}</p>
+                    <p className={styles.fitValue}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </Card>
         ) : null}
-        <div className="space-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-          <p className="text-sm font-semibold">Status Timeline</p>
-          {job.statusHistory.length === 0 ? (
-            <p className="text-sm text-slate-500">No status history.</p>
-          ) : (
-            job.statusHistory.slice(0, 8).map((item) => (
-              <div
-                key={item.id}
-                className="rounded-lg bg-slate-100 p-2 text-sm dark:bg-slate-800"
-              >
-                <p className="font-medium">{statusLabels[item.status]}</p>
-                <p className="text-xs text-slate-500">
-                  {new Date(item.changedAt).toLocaleString()}
-                </p>
-                {item.note ? <p className="text-xs">{item.note}</p> : null}
-              </div>
-            ))
-          )}
+
+        {hasStatusHistory ? (
+          <Card className="space-y-3">
+            <CardTitle>Status Timeline</CardTitle>
+            <div className={styles.timeline}>
+              {job.statusHistory.slice(0, 8).map((item) => (
+                <div key={item.id} className={styles.timelineItem}>
+                  <p className={styles.timelineStatus}>
+                    {statusLabels[item.status]}
+                  </p>
+                  <p className={styles.timelineDate}>
+                    {new Date(item.changedAt).toLocaleString()}
+                  </p>
+                  {item.note ? (
+                    <p className={styles.timelineNote}>{item.note}</p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </Card>
+        ) : null}
         </div>
-      </Card>
+      ) : null}
     </div>
   );
 }
@@ -327,14 +382,18 @@ export function JobNotesCard({
   onNewNoteChange,
   onAddNote,
 }: JobNotesCardProps) {
+  const hasNotes = notes.length > 0;
+
   return (
-    <Card className="space-y-3">
+    <Card className={`${styles.notesCard} space-y-3`}>
       <CardTitle>Notes</CardTitle>
-      <CardDescription>
-        Track application strategy, blockers, and interview prep notes.
-      </CardDescription>
-      <div className="space-y-2">
-        <label className="block text-sm font-medium">Add Note</label>
+      {hasNotes ? (
+        <CardDescription>
+          Track application strategy, blockers, and interview prep notes.
+        </CardDescription>
+      ) : null}
+      <div className={styles.fieldGroup}>
+        <label className={styles.label}>Add Note</label>
         <Textarea
           value={newNote}
           onChange={(event) => onNewNoteChange(event.target.value)}
@@ -344,23 +403,18 @@ export function JobNotesCard({
           Add Note
         </Button>
       </div>
-      <div className="space-y-2">
-        {notes.length === 0 ? (
-          <p className="text-sm text-slate-500">No notes yet.</p>
-        ) : (
-          notes.map((note) => (
-            <div
-              key={note.id}
-              className="rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-800"
-            >
-              <p>{note.content}</p>
-              <p className="mt-2 text-xs text-slate-500">
+      {hasNotes ? (
+        <div className={styles.notesList}>
+          {notes.map((note) => (
+            <div key={note.id} className={styles.noteItem}>
+              <p className={styles.noteContent}>{note.content}</p>
+              <p className={styles.noteDate}>
                 {new Date(note.createdAt).toLocaleString()}
               </p>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      ) : null}
     </Card>
   );
 }

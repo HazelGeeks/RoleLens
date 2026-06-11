@@ -1,0 +1,357 @@
+.detailStack {
+  display: grid;
+  gap: 18px;
+}
+
+.hero {
+  display: grid;
+  gap: 16px;
+  border: 1px solid color-mix(in srgb, var(--brand), var(--border) 72%);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand), transparent 92%), transparent 42%),
+    var(--surface);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+  padding: 20px;
+}
+
+.heroMain {
+  min-width: 0;
+}
+
+.heroEyebrow {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  max-width: 920px;
+  margin: 0;
+  color: var(--foreground);
+  font-size: clamp(1.7rem, 3vw, 2.55rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.heroMetaItem {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 24%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface), white 24%);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.heroActions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--brand), transparent 70%);
+  border-radius: 999px;
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 12px;
+  text-decoration: none;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.backLink:hover {
+  background: color-mix(in srgb, var(--brand), transparent 90%);
+  transform: translateY(-1px);
+}
+
+.overview {
+  display: grid;
+  gap: 18px;
+}
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.metric {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 16%);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-muted), transparent 28%);
+  padding: 14px;
+}
+
+.metricLabel {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.metricValue {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.metricValueLarge {
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.sourceLink {
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.sourceLink:hover {
+  text-decoration: underline;
+}
+
+.controlGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.panel {
+  border: 1px solid color-mix(in srgb, var(--border), transparent 10%);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface), transparent 4%);
+  padding: 14px;
+}
+
+.compactPanel {
+  padding: 12px;
+}
+
+.compactPanel .panelTitle {
+  margin-bottom: 8px;
+}
+
+.compactPanel textarea {
+  min-height: 68px;
+}
+
+.panelTitle {
+  margin: 0 0 12px;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.statusControl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.followUpGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.dateActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fieldGroup {
+  display: grid;
+  gap: 6px;
+}
+
+.label {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dueText {
+  margin: 0;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.insightGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.singleColumnGrid {
+  display: grid;
+  gap: 18px;
+}
+
+.descriptionCard {
+  min-width: 0;
+}
+
+.descriptionText {
+  max-width: 84ch;
+  margin: 0;
+  color: color-mix(in srgb, var(--foreground), var(--text-muted) 18%);
+  font-size: 15px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.sideStack {
+  display: grid;
+  gap: 18px;
+}
+
+.skillsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fitGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fitItem {
+  border-radius: 12px;
+  background: var(--surface-muted);
+  padding: 10px;
+}
+
+.fitKey {
+  margin: 0 0 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.fitValue {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.timeline {
+  display: grid;
+  gap: 8px;
+}
+
+.timelineItem {
+  border: 1px solid color-mix(in srgb, var(--border), transparent 18%);
+  border-radius: 12px;
+  background: var(--surface-muted);
+  padding: 10px;
+}
+
+.timelineStatus {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.timelineDate {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.timelineNote {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.notesList {
+  display: grid;
+  gap: 8px;
+}
+
+.noteItem {
+  border: 1px solid color-mix(in srgb, var(--border), transparent 10%);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-muted), transparent 30%);
+  padding: 12px;
+}
+
+.noteContent {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.noteDate {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.emptyText {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+@media (min-width: 720px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .heroActions {
+    justify-content: flex-end;
+  }
+
+  .statusControl {
+    grid-template-columns: minmax(0, 220px) auto;
+    align-items: end;
+  }
+
+  .followUpGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+    align-items: start;
+  }
+}
+
+@media (min-width: 1180px) {
+  .insightGrid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.85fr);
+  }
+}
