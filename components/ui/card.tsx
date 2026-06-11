@@ -1,11 +1,17 @@
 import * as React from "react";
+import { Paper, Text, Title } from "@mantine/core";
 import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
+    <Paper
+      component="section"
+      radius="lg"
+      p="lg"
+      shadow="sm"
+      withBorder
       className={cn(
-        "rounded-2xl border border-slate-200 bg-white/95 p-5 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/90",
+        "rolelens-card",
         className,
       )}
       {...props}
@@ -14,9 +20,9 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 }
 
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("text-base font-semibold text-slate-900 dark:text-slate-100", className)} {...props} />;
+  return <Title order={3} className={cn("text-base font-semibold", className)} {...props} />;
 }
 
 export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("text-sm text-slate-500 dark:text-slate-400", className)} {...props} />;
+  return <Text size="sm" c="dimmed" className={className} {...props} />;
 }

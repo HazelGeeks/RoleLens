@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { LogIn, LogOut, UserCircle2, UserPlus } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
-import { cn } from "@/lib/utils";
 
 export function SidebarAuthSection() {
   const { status, user, signOut } = useAuth();
@@ -54,19 +53,16 @@ export function SidebarAuthSection() {
         <div className="flex flex-col gap-2">
           <Link
             href="/login"
-            className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}
+            className="rolelens-link-button rolelens-link-button-primary"
           >
-            <LogIn className="mr-2 h-4 w-4" />
+            <LogIn size={16} />
             Login
           </Link>
           <Link
             href="/signup"
-            className={cn(
-              buttonVariants({ variant: "secondary", size: "sm" }),
-              "w-full",
-            )}
+            className="rolelens-link-button rolelens-link-button-secondary"
           >
-            <UserPlus className="mr-2 h-4 w-4" />
+            <UserPlus size={16} />
             Sign up
           </Link>
         </div>

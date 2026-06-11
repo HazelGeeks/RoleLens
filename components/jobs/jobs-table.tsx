@@ -12,11 +12,11 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import * as React from "react";
+import { Button, Group, ScrollArea, Table, Text } from "@mantine/core";
 import { ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { statusLabels } from "@/lib/constants";
-import { formatCurrency, statusBadgeClass } from "@/lib/presentation";
-import { buttonVariants } from "@/components/ui/button";
+import { formatCurrency, statusBadgeColor } from "@/lib/presentation";
 import { cn } from "@/lib/utils";
 
 export type JobRow = {
@@ -120,7 +120,7 @@ export function JobsTable({
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
-          <Badge className={statusBadgeClass(row.original.status)}>
+          <Badge color={statusBadgeColor(row.original.status)}>
             {statusLabels[row.original.status]}
           </Badge>
         ),
@@ -202,15 +202,14 @@ export function JobsTable({
         cell: ({ row }) => {
           const encoded = encodeURIComponent(row.original.id);
           return (
-            <Link
+            <Button
+              component={Link}
               href={`/jobs?id=${encoded}`}
-              className={cn(
-                buttonVariants({ size: "sm", variant: "secondary" }),
-                "inline-flex",
-              )}
+              variant="light"
+              size="xs"
             >
               Detail
-            </Link>
+            </Button>
           );
         },
       },
@@ -259,91 +258,90 @@ export function JobsTable({
 
   return (
     <div className="space-y-3">
-      <div className="w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-        <table className="w-full min-w-[1360px] text-left text-sm">
-          <thead className="bg-slate-100/80 dark:bg-slate-900">
+      <ScrollArea type="auto" offsetScrollbars>
+        <Table
+          striped
+          highlightOnHover
+          withTableBorder
+          withColumnBorders={false}
+          verticalSpacing="sm"
+          className="min-w-[1360px]"
+        >
+          <Table.Thead>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
+              <Table.Tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="px-4 py-3 font-medium text-slate-600 dark:text-slate-300"
-                  >
+                  <Table.Th key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
                           header.getContext(),
                         )}
-                  </th>
+                  </Table.Th>
                 ))}
-              </tr>
+              </Table.Tr>
             ))}
-          </thead>
-          <tbody>
+          </Table.Thead>
+          <Table.Tbody>
             {table.getRowModel().rows.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-4 py-10 text-center text-slate-500"
-                >
+              <Table.Tr>
+                <Table.Td colSpan={columns.length}>
+                  <Text ta="center" c="dimmed" py="xl">
                   No job postings found.
-                </td>
-              </tr>
+                  </Text>
+                </Table.Td>
+              </Table.Tr>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-t border-slate-200 dark:border-slate-800"
-                >
+                <Table.Tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3 align-top">
+                    <Table.Td key={cell.id} style={{ verticalAlign: "top" }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
+                    </Table.Td>
                   ))}
-                </tr>
+                </Table.Tr>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
+          </Table.Tbody>
+        </Table>
+      </ScrollArea>
 
       <div className="flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between">
         <p>
           Showing {startRow}-{endRow} of {totalRows} postings (30 per page)
         </p>
-        <div className="flex flex-wrap items-center gap-1">
-          <button
+        <Group gap={4}>
+          <Button
             type="button"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+            variant="light"
+            size="xs"
           >
             Prev
-          </button>
+          </Button>
           {visiblePageNumbers.map((page) => (
-            <button
+            <Button
               key={page}
               type="button"
               onClick={() => table.setPageIndex(page)}
-              className={cn(
-                buttonVariants({ variant: "secondary", size: "sm" }),
-                page === pageIndex &&
-                  "bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white",
-              )}
+              variant={page === pageIndex ? "filled" : "light"}
+              size="xs"
             >
               {page + 1}
-            </button>
+            </Button>
           ))}
-          <button
+          <Button
             type="button"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+            variant="light"
+            size="xs"
           >
             Next
-          </button>
-        </div>
+          </Button>
+        </Group>
       </div>
     </div>
   );

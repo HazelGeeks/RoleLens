@@ -9,7 +9,7 @@ import { sourceLabels, statusLabels, statusOptions } from "@/lib/constants";
 import {
   formatCurrency,
   prettifyEnum,
-  statusBadgeClass,
+  statusBadgeColor,
 } from "@/lib/presentation";
 import type { LocalJobPosting } from "@/lib/local-jobs";
 
@@ -132,7 +132,7 @@ export function JobOverviewCard({
   return (
     <Card className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        <Badge className={statusBadgeClass(job.status)}>
+        <Badge color={statusBadgeColor(job.status)}>
           {statusLabels[job.status]}
         </Badge>
         <Badge>{sourceLabels[job.source]}</Badge>
