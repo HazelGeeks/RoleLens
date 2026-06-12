@@ -84,8 +84,45 @@ const memorySessionsByTokenHash = new Map<string, AuthSessionRecord>();
 const textEncoder = new TextEncoder();
 let didWarnMissingPepperInDev = false;
 
-function resolveAuthPasswordPepper() {
-  const pepper = process.env.AUTH_PASSWORD_PEPPER?.trim();
+function getRuntimeEnvValueFromGlobalScope(name: string) {
+  const scope = globalThis as Record<string, unknown> & {
+    __env__?: Record<string, unknown>;
+    __ENV__?: Record<string, unknown>;
+  };
+
+  const direct = scope[name];
+  if (typeof direct === "string") return direct.trim();
+
+  const lowerEnvCandidate = scope.__env__?.[name];
+  if (typeof lowerEnvCandidate === "string") return lowerEnvCandidate.trim();
+
+  const upperEnvCandidate = scope.__ENV__?.[name];
+  if (typeof upperEnvCandidate === "string") return upperEnvCandidate.trim();
+
+  return undefined;
+}
+
+async function getRuntimeEnvValue(name: string) {
+  const processValue = process.env[name]?.trim();
+  if (processValue) return processValue;
+
+  try {
+    const { getRequestContext } = await import("@cloudflare/next-on-pages");
+    const context = getRequestContext();
+    const env = context.env as Record<string, unknown> | undefined;
+    const value = env?.[name];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  } catch {
+    // Ignore context lookup errors; global binding fallback is checked below.
+  }
+
+  return getRuntimeEnvValueFromGlobalScope(name);
+}
+
+async function resolveAuthPasswordPepper() {
+  const pepper = await getRuntimeEnvValue("AUTH_PASSWORD_PEPPER");
   if (pepper) return pepper;
 
   const environment = process.env.NODE_ENV?.trim().toLowerCase();
@@ -221,7 +258,7 @@ function validateCredentials(input: {
 }
 
 async function hashPassword(password: string) {
-  const pepper = resolveAuthPasswordPepper();
+  const pepper = await resolveAuthPasswordPepper();
   const salt = createRandomBytes(16);
   const digestBase64 = await createSha256Base64(
     password + ":" + bytesToBase64(salt) + ":" + pepper,
@@ -235,7 +272,7 @@ async function verifyPassword(password: string, storedHash: string) {
     return false;
   }
 
-  const pepper = resolveAuthPasswordPepper();
+  const pepper = await resolveAuthPasswordPepper();
   const actualBase64 = await createSha256Base64(password + ":" + saltBase64 + ":" + pepper);
   const actualBytes = base64ToBytes(actualBase64);
   const expectedBytes = base64ToBytes(expectedBase64);
@@ -333,7 +370,7 @@ function toSessionUser(user: AuthUserRecord): AuthSessionUser {
 async function createSessionRecord(userId: string) {
   const now = new Date().toISOString();
   const sessionToken = toBase64Url(createRandomBytes(32));
-  const pepper = resolveAuthPasswordPepper();
+  const pepper = await resolveAuthPasswordPepper();
   const tokenHash = await createSha256Base64(sessionToken + ":" + pepper);
   return {
     sessionToken,
@@ -592,7 +629,7 @@ export async function getAuthSessionUserFromRequest(request: Request) {
   const token = getAuthSessionTokenFromRequest(request);
   if (!token) return null;
 
-  const pepper = resolveAuthPasswordPepper();
+  const pepper = await resolveAuthPasswordPepper();
   const tokenHash = await createSha256Base64(token + ":" + pepper);
   const now = new Date().toISOString();
   const backend = await resolveAuthBackend();
@@ -628,7 +665,7 @@ export async function signOutAuth(request: Request) {
   const token = getAuthSessionTokenFromRequest(request);
   if (!token) return;
 
-  const pepper = resolveAuthPasswordPepper();
+  const pepper = await resolveAuthPasswordPepper();
   const tokenHash = await createSha256Base64(token + ":" + pepper);
   const backend = await resolveAuthBackend();
 

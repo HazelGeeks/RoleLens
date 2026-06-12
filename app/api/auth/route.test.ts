@@ -6,12 +6,19 @@ import { GET as SESSION } from "@/app/api/auth/session/route";
 import { POST as SIGNUP } from "@/app/api/auth/signup/route";
 import { resetAuthStoreForTests } from "@/lib/auth-server";
 
+const testGlobal = globalThis as typeof globalThis & {
+  __env__?: Record<string, unknown>;
+  __ENV__?: Record<string, unknown>;
+};
+
 describe("auth API routes", () => {
   beforeEach(() => {
     resetAuthStoreForTests();
     delete process.env.AUTH_BACKEND;
     delete process.env.PERSISTENCE_BACKEND;
     delete process.env.AUTH_PASSWORD_PEPPER;
+    delete testGlobal.__env__;
+    delete testGlobal.__ENV__;
     vi.unstubAllEnvs();
   });
 
@@ -274,5 +281,35 @@ describe("auth API routes", () => {
     expect(payload.message).toBe(
       "Server auth configuration is incomplete. Set AUTH_PASSWORD_PEPPER for Production.",
     );
+  });
+
+  it("reads AUTH_PASSWORD_PEPPER from Cloudflare runtime env in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AUTH_PASSWORD_PEPPER", "");
+    testGlobal.__env__ = {
+      AUTH_PASSWORD_PEPPER: "cloudflare-runtime-pepper",
+    };
+
+    const response = await SIGNUP(
+      new Request("https://rolelens.pages.dev/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Cloudflare",
+          email: "cloudflare@example.com",
+          password: "password123",
+        }),
+      }),
+    );
+
+    const payload = (await response.json()) as {
+      ok: boolean;
+      user?: { email: string };
+    };
+    expect(response.status).toBe(201);
+    expect(payload.ok).toBe(true);
+    expect(payload.user?.email).toBe("cloudflare@example.com");
   });
 });
