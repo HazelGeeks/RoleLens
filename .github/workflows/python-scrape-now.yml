@@ -130,6 +130,18 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing CLOUDFLARE_ACCOUNT_ID" && exit 1)
           test -n "$CLOUDFLARE_PROJECT_NAME" || (echo "Missing CLOUDFLARE_PROJECT_NAME" && exit 1)
 
+      - name: Validate Cloudflare runtime secrets
+        if: ${{ steps.commit-output.outputs.committed == 'true' }}
+        run: |
+          set -euo pipefail
+
+          npx wrangler pages secret list --project-name="$CLOUDFLARE_PROJECT_NAME" > /tmp/rolelens-pages-secrets.txt
+          grep -q "AUTH_PASSWORD_PEPPER" /tmp/rolelens-pages-secrets.txt || (
+            echo "Missing Cloudflare Pages secret: AUTH_PASSWORD_PEPPER"
+            echo "Set it with: npx wrangler pages secret put AUTH_PASSWORD_PEPPER --project-name=$CLOUDFLARE_PROJECT_NAME"
+            exit 1
+          )
+
       - name: Build Pages output after scraper commit
         if: ${{ steps.commit-output.outputs.committed == 'true' }}
         run: npm run pages:build

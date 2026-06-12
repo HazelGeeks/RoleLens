@@ -1,11 +1,20 @@
 .mobileList {
   display: grid;
   gap: 8px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .mobileCard {
   display: grid;
   gap: 7px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border), transparent 10%);
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface), transparent 2%);
@@ -14,9 +23,10 @@
 
 .mobileCardHeader {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 7px;
   align-items: start;
+  min-width: 0;
 }
 
 .mobileTitleBlock {
@@ -48,12 +58,31 @@
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobileStatusBadge {
+  grid-column: 2;
+  justify-self: start;
+  max-width: 100%;
+}
+
+.mobileStatusBadge :global(.mantine-Badge-label),
+.mobileSkillBadge :global(.mantine-Badge-label) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mobileMetaGrid {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .mobileMetaItem {
@@ -94,6 +123,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.mobileSkillBadge {
+  max-width: 100%;
 }
 
 .mobileMoreSkills {
@@ -109,15 +144,19 @@
 
 .mobileNextAction {
   margin: 0;
+  min-width: 0;
+  max-width: 100%;
   border-left: 3px solid color-mix(in srgb, var(--brand), transparent 40%);
   color: color-mix(in srgb, var(--foreground), var(--text-muted) 18%);
   font-size: 13px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
   padding-left: 8px;
 }
 
 .mobileDetailButton {
   justify-self: start;
+  max-width: 100%;
   width: auto;
   min-height: 24px;
 }

@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { ChevronDown, Menu, SlidersHorizontal, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -62,25 +66,59 @@ export function JobsPageHeader({
   onSyncPlatform,
   onOpenSaveModal,
 }: JobsPageHeaderProps) {
+  const [isMobileActionsOpen, setIsMobileActionsOpen] = useState(false);
+
+  const handleSyncAll = () => {
+    setIsMobileActionsOpen(false);
+    onSyncAll();
+  };
+
+  const handleSyncPlatform = (platform: Exclude<FeedPlatform, "all">) => {
+    setIsMobileActionsOpen(false);
+    onSyncPlatform(platform);
+  };
+
+  const handleOpenSaveModal = () => {
+    setIsMobileActionsOpen(false);
+    onOpenSaveModal();
+  };
+
   return (
     <header className={styles.pageHeader}>
-      <div>
-        <h2 className="text-xl font-semibold">Job Postings</h2>
-        <p className="text-sm text-slate-500">
-          Search, filter, sort, and track your frontend application pipeline.
-        </p>
+      <div className={styles.headerTop}>
+        <div>
+          <h2 className="text-xl font-semibold">Job Postings</h2>
+          <p className="text-sm text-slate-500">
+            Search, filter, sort, and track your frontend application pipeline.
+          </p>
+        </div>
+        <button
+          type="button"
+          className={styles.mobileActionsButton}
+          aria-label={isMobileActionsOpen ? "Close jobs actions" : "Open jobs actions"}
+          aria-expanded={isMobileActionsOpen}
+          aria-controls="jobs-actions-menu"
+          onClick={() => setIsMobileActionsOpen((isOpen) => !isOpen)}
+        >
+          {isMobileActionsOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
       </div>
-      <div className={styles.pageActions}>
+      <div
+        id="jobs-actions-menu"
+        className={`${styles.pageActions} ${
+          isMobileActionsOpen ? styles.pageActionsOpen : ""
+        }`}
+      >
         <div className={styles.primaryActions}>
           <Button
             type="button"
             variant="secondary"
-            onClick={onSyncAll}
+            onClick={handleSyncAll}
             disabled={isSyncing}
           >
             {isSyncing && activeSyncPlatform === "all" ? "Syncing..." : "Sync all"}
           </Button>
-          <Button type="button" onClick={onOpenSaveModal}>
+          <Button type="button" onClick={handleOpenSaveModal}>
             Save new
           </Button>
         </div>
@@ -91,7 +129,7 @@ export function JobsPageHeader({
               type="button"
               size="sm"
               variant="secondary"
-              onClick={() => onSyncPlatform(platform)}
+              onClick={() => handleSyncPlatform(platform)}
               disabled={isSyncing}
             >
               {isSyncing && activeSyncPlatform === platform
@@ -153,6 +191,7 @@ export function JobsFiltersCard({
   syncSourceResults,
   sourceCounts,
 }: JobsFiltersCardProps) {
+  const [areFiltersOpen, setAreFiltersOpen] = useState(false);
   const operationalChecklist =
     syncRecoveryGuide.length > 0
       ? syncRecoveryGuide
@@ -167,213 +206,239 @@ export function JobsFiltersCard({
             Showing <strong>{rowsCount}</strong> of {totalJobs} postings
           </p>
         </div>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={actions.resetFilters}
-        >
-          Reset Filters
-        </Button>
+        <div className={styles.filtersToolbarActions}>
+          <button
+            type="button"
+            className={styles.filtersToggleButton}
+            aria-expanded={areFiltersOpen}
+            aria-controls="jobs-filters-panel"
+            onClick={() => setAreFiltersOpen((isOpen) => !isOpen)}
+          >
+            <SlidersHorizontal size={14} />
+            {areFiltersOpen ? "Hide Filters" : "Show Filters"}
+            <ChevronDown
+              size={14}
+              className={areFiltersOpen ? styles.filtersToggleIconOpen : ""}
+              aria-hidden="true"
+            />
+          </button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={actions.resetFilters}
+          >
+            Reset
+          </Button>
+        </div>
       </div>
 
-      <div className={styles.filtersGrid}>
-        <label className={`${styles.filterField} ${styles.filterSearch}`}>
-          <span>Search</span>
-          <Input
-            value={filters.q}
-            onChange={(event) => actions.setQ(event.target.value)}
-            placeholder="Role, company, skills, next action"
-          />
-        </label>
-        <label className={styles.filterField}>
-          <span>Status</span>
-          <Select
-            value={filters.status}
-            onChange={(event) =>
-              actions.setStatus(event.target.value as JobStatus | "ALL")
-            }
-          >
-            <option value="ALL">All Status</option>
-            {statusOptions.map((value) => (
-              <option key={value} value={value}>
-                {statusLabels[value]}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className={styles.filterField}>
-          <span>Source</span>
-          <Select
-            value={filters.source}
-            onChange={(event) =>
-              actions.setSource(event.target.value as JobSource | "ALL")
-            }
-          >
-            <option value="ALL">All Source</option>
-            {sourceOptions.map((value) => (
-              <option key={value} value={value}>
-                {sourceLabels[value]} ({sourceCounts[value]})
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className={styles.filterField}>
-          <span>Work Type</span>
-          <Select
-            value={filters.remoteType}
-            onChange={(event) =>
-              actions.setRemoteType(event.target.value as RemoteType | "ALL")
-            }
-          >
-            <option value="ALL">All Work Type</option>
-            {remoteTypeOptions.map((value) => (
-              <option key={value} value={value}>
-                {remoteTypeLabels[value]}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className={styles.filterField}>
-          <span>Min Fit</span>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            value={filters.minFit}
-            onChange={(event) => actions.setMinFit(event.target.value)}
-            placeholder="0-100"
-          />
-        </label>
-        <label className={`${styles.filterField} ${styles.filterSkill}`}>
-          <span>Required Skill</span>
-          <Input
-            value={filters.requiredSkill}
-            onChange={(event) => actions.setRequiredSkill(event.target.value)}
-            placeholder="React, TypeScript, Next.js"
-          />
-        </label>
-        <label className={styles.filterField}>
-          <span>Sort</span>
-          <Select
-            value={filters.sortBy}
-            onChange={(event) =>
-              actions.setSortBy(event.target.value as JobsSortOption)
-            }
-          >
-            {jobsSortOptions.map((value) => (
-              <option key={value} value={value}>
-                {jobsSortLabels[value]}
-              </option>
-            ))}
-          </Select>
-        </label>
-      </div>
-
-      {syncMessage ? (
-        <p
-          className={styles.syncNotice}
-          role="status"
-          aria-live="polite"
-        >
-          {syncMessage}
-        </p>
-      ) : null}
-
-      {filters.source !== "ALL" && sourceCounts[filters.source] === 0 ? (
-        <p
-          className={styles.warningNotice}
-          role="status"
-          aria-live="polite"
-        >
-          No {sourceLabels[filters.source]} postings are available yet. Run
-          platform sync for {sourceLabels[filters.source]} or switch source
-          filter to All Source.
-        </p>
-      ) : null}
-
-      {syncError ? (
-        <div
-          className={styles.errorNotice}
-          role="alert"
-        >
-          <p>{syncError}</p>
-        </div>
-      ) : null}
-
-      {syncError ? (
-        <div className={styles.checklistPanel}>
-          <p>Operational Checklist</p>
-          <ol>
-            {operationalChecklist.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ol>
-        </div>
-      ) : null}
-
-      {(lastSyncAt || syncSourceResults.length > 0) ? (
-        <details className={styles.syncDetails}>
-          <summary>
-            Sync details (optional)
-          </summary>
-          <div className={styles.syncDetailsBody}>
-            <p className={styles.syncTimestamp}>
-              {lastSyncAt
-                ? `Last sync: ${new Date(lastSyncAt).toLocaleString()}`
-                : "No sync yet"}
-            </p>
-            <div className={styles.diagnosticsPanel}>
-              <p>Sync Diagnostics</p>
-              <p>
-                Python scraped feed:{" "}
-                {syncDiagnostics.python.scrapedFeedConfigured ? "yes" : "no"}{" "}
-                (configured total {syncDiagnostics.python.configuredSourceCount})
-              </p>
-              <p>Final sourceCount: {syncDiagnostics.sourceCount}</p>
-            </div>
-
-            {syncSourceResults.length > 0 ? (
-              <div
-                className={styles.latestSyncPanel}
-                role="status"
-                aria-live="polite"
+      <div
+        id="jobs-filters-panel"
+        className={`${styles.filtersBody} ${
+          areFiltersOpen ? styles.filtersBodyOpen : ""
+        }`}
+      >
+        <div className={styles.filtersBodyInner}>
+          <div className={styles.filtersGrid}>
+            <label className={`${styles.filterField} ${styles.filterSearch}`}>
+              <span>Search</span>
+              <Input
+                value={filters.q}
+                onChange={(event) => actions.setQ(event.target.value)}
+                placeholder="Role, company, skills, next action"
+              />
+            </label>
+            <label className={styles.filterField}>
+              <span>Status</span>
+              <Select
+                value={filters.status}
+                onChange={(event) =>
+                  actions.setStatus(event.target.value as JobStatus | "ALL")
+                }
               >
-                <h3>Latest Sync Results</h3>
-                <p>
-                  Source-level success and failure details.
-                </p>
-                <div className={styles.syncResultsGrid}>
-                  {syncSourceResults.map((result) => (
-                    <div
-                      key={result.source}
-                      className={styles.syncResultItem}
-                    >
-                      <div>
-                        <span>{result.source}</span>
-                        <span
-                          className={
-                            result.ok
-                              ? styles.syncResultSuccess
-                              : styles.syncResultFailed
-                          }
-                        >
-                          {result.ok ? `Success (${result.importedJobs})` : "Failed"}
-                        </span>
-                      </div>
-                      {result.message ? (
-                        <p>
-                          {result.message}
-                        </p>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+                <option value="ALL">All Status</option>
+                {statusOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {statusLabels[value]}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className={styles.filterField}>
+              <span>Source</span>
+              <Select
+                value={filters.source}
+                onChange={(event) =>
+                  actions.setSource(event.target.value as JobSource | "ALL")
+                }
+              >
+                <option value="ALL">All Source</option>
+                {sourceOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {sourceLabels[value]} ({sourceCounts[value]})
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className={styles.filterField}>
+              <span>Work Type</span>
+              <Select
+                value={filters.remoteType}
+                onChange={(event) =>
+                  actions.setRemoteType(event.target.value as RemoteType | "ALL")
+                }
+              >
+                <option value="ALL">All Work Type</option>
+                {remoteTypeOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {remoteTypeLabels[value]}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className={styles.filterField}>
+              <span>Min Fit</span>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={filters.minFit}
+                onChange={(event) => actions.setMinFit(event.target.value)}
+                placeholder="0-100"
+              />
+            </label>
+            <label className={`${styles.filterField} ${styles.filterSkill}`}>
+              <span>Required Skill</span>
+              <Input
+                value={filters.requiredSkill}
+                onChange={(event) => actions.setRequiredSkill(event.target.value)}
+                placeholder="React, TypeScript, Next.js"
+              />
+            </label>
+            <label className={styles.filterField}>
+              <span>Sort</span>
+              <Select
+                value={filters.sortBy}
+                onChange={(event) =>
+                  actions.setSortBy(event.target.value as JobsSortOption)
+                }
+              >
+                {jobsSortOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {jobsSortLabels[value]}
+                  </option>
+                ))}
+              </Select>
+            </label>
           </div>
-        </details>
-      ) : null}
+
+          {syncMessage ? (
+            <p
+              className={styles.syncNotice}
+              role="status"
+              aria-live="polite"
+            >
+              {syncMessage}
+            </p>
+          ) : null}
+
+          {filters.source !== "ALL" && sourceCounts[filters.source] === 0 ? (
+            <p
+              className={styles.warningNotice}
+              role="status"
+              aria-live="polite"
+            >
+              No {sourceLabels[filters.source]} postings are available yet. Run
+              platform sync for {sourceLabels[filters.source]} or switch source
+              filter to All Source.
+            </p>
+          ) : null}
+
+          {syncError ? (
+            <div
+              className={styles.errorNotice}
+              role="alert"
+            >
+              <p>{syncError}</p>
+            </div>
+          ) : null}
+
+          {syncError ? (
+            <div className={styles.checklistPanel}>
+              <p>Operational Checklist</p>
+              <ol>
+                {operationalChecklist.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+
+          {(lastSyncAt || syncSourceResults.length > 0) ? (
+            <details className={styles.syncDetails}>
+              <summary>
+                Sync details (optional)
+              </summary>
+              <div className={styles.syncDetailsBody}>
+                <p className={styles.syncTimestamp}>
+                  {lastSyncAt
+                    ? `Last sync: ${new Date(lastSyncAt).toLocaleString()}`
+                    : "No sync yet"}
+                </p>
+                <div className={styles.diagnosticsPanel}>
+                  <p>Sync Diagnostics</p>
+                  <p>
+                    Python scraped feed:{" "}
+                    {syncDiagnostics.python.scrapedFeedConfigured ? "yes" : "no"}{" "}
+                    (configured total {syncDiagnostics.python.configuredSourceCount})
+                  </p>
+                  <p>Final sourceCount: {syncDiagnostics.sourceCount}</p>
+                </div>
+
+                {syncSourceResults.length > 0 ? (
+                  <div
+                    className={styles.latestSyncPanel}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <h3>Latest Sync Results</h3>
+                    <p>
+                      Source-level success and failure details.
+                    </p>
+                    <div className={styles.syncResultsGrid}>
+                      {syncSourceResults.map((result) => (
+                        <div
+                          key={result.source}
+                          className={styles.syncResultItem}
+                        >
+                          <div>
+                            <span>{result.source}</span>
+                            <span
+                              className={
+                                result.ok
+                                  ? styles.syncResultSuccess
+                                  : styles.syncResultFailed
+                              }
+                            >
+                              {result.ok ? `Success (${result.importedJobs})` : "Failed"}
+                            </span>
+                          </div>
+                          {result.message ? (
+                            <p>
+                              {result.message}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </details>
+          ) : null}
+        </div>
+      </div>
     </section>
   );
 }

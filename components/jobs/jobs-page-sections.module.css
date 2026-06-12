@@ -3,6 +3,17 @@
   gap: 10px;
 }
 
+.headerTop {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.headerTop > div:first-child {
+  min-width: 0;
+}
+
 .pageHeader h2 {
   margin: 0;
 }
@@ -10,6 +21,49 @@
 .pageActions {
   display: grid;
   gap: 7px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px) scale(0.99);
+  transition:
+    max-height 220ms ease,
+    opacity 180ms ease,
+    transform 180ms ease,
+    visibility 180ms ease;
+  visibility: hidden;
+}
+
+.pageActionsOpen {
+  max-height: 280px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  visibility: visible;
+}
+
+.mobileActionsButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 16%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand), transparent 92%);
+  color: var(--brand);
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.mobileActionsButton:hover {
+  border-color: color-mix(in srgb, var(--brand), transparent 58%);
+  background: color-mix(in srgb, var(--brand), transparent 88%);
+  transform: translateY(-1px);
 }
 
 .primaryActions,
@@ -24,6 +78,19 @@
   padding-top: 7px;
 }
 
+@media (max-width: 759px) {
+  .primaryActions,
+  .platformActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .primaryActions > *,
+  .platformActions > * {
+    width: 100%;
+  }
+}
+
 .filtersSection {
   display: grid;
   gap: 10px;
@@ -31,9 +98,52 @@
 
 .filtersToolbar {
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.filtersToolbar > div:first-child {
+  min-width: 0;
+}
+
+.filtersToolbarActions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.filtersToggleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 18%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--brand), transparent 92%);
+  color: var(--brand);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 9px;
+  white-space: nowrap;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.filtersToggleButton:hover {
+  border-color: color-mix(in srgb, var(--brand), transparent 58%);
+  background: color-mix(in srgb, var(--brand), transparent 88%);
+  transform: translateY(-1px);
+}
+
+.filtersToggleIconOpen {
+  transform: rotate(180deg);
 }
 
 .filtersEyebrow {
@@ -54,6 +164,35 @@
 
 .filtersCount strong {
   color: var(--brand);
+}
+
+.filtersBody {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px) scale(0.995);
+  transition:
+    grid-template-rows 220ms ease,
+    opacity 180ms ease,
+    transform 180ms ease,
+    visibility 180ms ease;
+  visibility: hidden;
+}
+
+.filtersBodyOpen {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  visibility: visible;
+}
+
+.filtersBodyInner {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .filtersGrid {
@@ -234,8 +373,22 @@
     align-items: start;
   }
 
+  .headerTop {
+    display: block;
+  }
+
+  .mobileActionsButton {
+    display: none;
+  }
+
   .pageActions {
     justify-items: end;
+    max-height: none;
+    overflow: visible;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    visibility: visible;
   }
 
   .primaryActions,
@@ -258,5 +411,14 @@
 
   .syncResultsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pageActions,
+  .mobileActionsButton,
+  .filtersBody,
+  .filtersToggleButton {
+    transition: none;
   }
 }

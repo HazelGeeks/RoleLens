@@ -340,7 +340,10 @@ export function JobsTable({
                     <p className={styles.mobileCompany}>{job.company}</p>
                   </div>
                   {hasStatus ? (
-                    <Badge color={statusBadgeColor(job.status)}>
+                    <Badge
+                      color={statusBadgeColor(job.status)}
+                      className={styles.mobileStatusBadge}
+                    >
                       {statusLabels[job.status]}
                     </Badge>
                   ) : null}
@@ -380,7 +383,9 @@ export function JobsTable({
                 {job.extractedSkills.length > 0 ? (
                   <div className={styles.mobileSkills}>
                     {job.extractedSkills.slice(0, 2).map((skill) => (
-                      <Badge key={skill}>{skill}</Badge>
+                      <Badge key={skill} className={styles.mobileSkillBadge}>
+                        {skill}
+                      </Badge>
                     ))}
                     {job.extractedSkills.length > 2 ? (
                       <span className={styles.mobileMoreSkills}>

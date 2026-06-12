@@ -45,6 +45,60 @@
   margin-bottom: 12px;
 }
 
+.brandActions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.mobileMenuButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 16%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface), transparent 4%);
+  color: var(--brand);
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.mobileMenuButton:hover {
+  border-color: color-mix(in srgb, var(--brand), transparent 62%);
+  background: color-mix(in srgb, var(--brand), transparent 92%);
+  transform: translateY(-1px);
+}
+
+.mobileMenuPanel {
+  display: grid;
+  gap: 8px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px) scale(0.99);
+  transition:
+    max-height 220ms ease,
+    opacity 180ms ease,
+    transform 180ms ease,
+    visibility 180ms ease;
+  visibility: hidden;
+}
+
+.mobileMenuPanelOpen {
+  max-height: 420px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  visibility: visible;
+}
+
 .eyebrow {
   margin: 0;
   color: var(--mantine-color-dimmed);
@@ -167,6 +221,13 @@
     font-size: 18px;
   }
 
+  .nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
   .navLink {
     border: 1px solid color-mix(in srgb, var(--border), transparent 18%);
     background: color-mix(in srgb, var(--surface), transparent 10%);
@@ -209,6 +270,19 @@
 }
 
 @media (min-width: 720px) {
+  .mobileMenuButton {
+    display: none;
+  }
+
+  .mobileMenuPanel {
+    max-height: none;
+    overflow: visible;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    visibility: visible;
+  }
+
   .nav {
     display: grid;
     gap: 4px;
@@ -319,6 +393,8 @@
     animation: none;
   }
 
+  .mobileMenuPanel,
+  .mobileMenuButton,
   .navLink {
     transition: none;
   }
