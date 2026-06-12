@@ -137,3 +137,21 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         run: npm run pages:deploy -- --project-name="$CLOUDFLARE_PROJECT_NAME" --branch=main
+
+      - name: Verify deployed auth runtime
+        run: |
+          set -euo pipefail
+
+          RESPONSE=$(curl --silent --show-error --write-out "\n%{http_code}" \
+            "https://$CLOUDFLARE_PROJECT_NAME.pages.dev/api/auth/reset-password/" \
+            -H "content-type: application/json" \
+            --data '{"email":"auth-runtime-check@example.com","password":"runtime-check-password"}')
+          STATUS=$(echo "$RESPONSE" | tail -n 1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          test "$STATUS" = "200" || (
+            echo "Auth runtime check failed with status $STATUS"
+            echo "$BODY"
+            exit 1
+          )
+          echo "$BODY" | jq --exit-status '.ok == true' >/dev/null
