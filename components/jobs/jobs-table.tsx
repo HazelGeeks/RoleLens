@@ -257,14 +257,14 @@ export function JobsTable({
   }, [pageCount, pageIndex]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <ScrollArea type="auto" offsetScrollbars>
         <Table
           striped
           highlightOnHover
           withTableBorder
           withColumnBorders={false}
-          verticalSpacing="sm"
+          verticalSpacing="xs"
           className="min-w-[1360px]"
         >
           <Table.Thead>
@@ -287,8 +287,8 @@ export function JobsTable({
             {table.getRowModel().rows.length === 0 ? (
               <Table.Tr>
                 <Table.Td colSpan={columns.length}>
-                  <Text ta="center" c="dimmed" py="xl">
-                  No job postings found.
+                  <Text ta="center" c="dimmed" py="md">
+                    No job postings found.
                   </Text>
                 </Table.Td>
               </Table.Tr>

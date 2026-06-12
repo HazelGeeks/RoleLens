@@ -72,12 +72,12 @@ html.dark .rolelens-card:hover {
 
 .rolelens-input {
   width: 100%;
-  min-height: 40px;
+  min-height: 36px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
   color: var(--foreground);
-  padding: 8px 12px;
+  padding: 6px 10px;
   font-size: 14px;
   transition: border-color 140ms ease, box-shadow 140ms ease;
 }
@@ -98,7 +98,7 @@ html.dark .rolelens-card:hover {
 }
 
 .rolelens-textarea {
-  min-height: 120px;
+  min-height: 88px;
   resize: vertical;
 }
 

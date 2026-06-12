@@ -1,18 +1,18 @@
 .detailStack {
   display: grid;
-  gap: 18px;
+  gap: 10px;
 }
 
 .hero {
   display: grid;
-  gap: 16px;
+  gap: 10px;
   border: 1px solid color-mix(in srgb, var(--brand), var(--border) 72%);
-  border-radius: 18px;
+  border-radius: 14px;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--brand), transparent 92%), transparent 42%),
     var(--surface);
-  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
-  padding: 20px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
+  padding: 14px;
 }
 
 .heroMain {
@@ -20,7 +20,7 @@
 }
 
 .heroEyebrow {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 800;
@@ -32,17 +32,16 @@
   max-width: 920px;
   margin: 0;
   color: var(--foreground);
-  font-size: clamp(1.7rem, 3vw, 2.55rem);
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
   font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 1.08;
+  line-height: 1.12;
 }
 
 .heroMeta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .heroMetaItem {
@@ -52,9 +51,9 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface), white 24%);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 6px 10px;
+  padding: 4px 8px;
 }
 
 .heroActions {
@@ -70,9 +69,9 @@
   border: 1px solid color-mix(in srgb, var(--brand), transparent 70%);
   border-radius: 999px;
   color: var(--brand);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
-  padding: 8px 12px;
+  padding: 6px 10px;
   text-decoration: none;
   transition: background-color 160ms ease, transform 160ms ease;
 }
@@ -84,31 +83,34 @@
 
 .overview {
   display: grid;
-  gap: 18px;
+  gap: 10px;
 }
 
 .badgeRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .metricsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .metric {
   min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   border: 1px solid color-mix(in srgb, var(--border), transparent 16%);
-  border-radius: 14px;
+  border-radius: 999px;
   background: color-mix(in srgb, var(--surface-muted), transparent 28%);
-  padding: 14px;
+  padding: 6px 10px;
 }
 
 .metricLabel {
-  margin: 0 0 6px;
+  margin: 0;
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 800;
@@ -119,19 +121,18 @@
 .metricValue {
   margin: 0;
   color: var(--foreground);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
   overflow-wrap: anywhere;
 }
 
 .metricValueLarge {
-  font-size: 28px;
-  letter-spacing: -0.04em;
+  font-size: 15px;
 }
 
 .sourceLink {
   color: var(--brand);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 800;
   text-decoration: none;
 }
@@ -143,18 +144,18 @@
 .controlGrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+  gap: 8px;
 }
 
 .panel {
   border: 1px solid color-mix(in srgb, var(--border), transparent 10%);
-  border-radius: 16px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--surface), transparent 4%);
-  padding: 14px;
+  padding: 10px;
 }
 
 .compactPanel {
-  padding: 12px;
+  padding: 10px;
 }
 
 .compactPanel .panelTitle {
@@ -165,8 +166,16 @@
   min-height: 68px;
 }
 
+.followUpTextarea {
+  min-height: 68px;
+}
+
+.noteTextarea {
+  min-height: 76px;
+}
+
 .panelTitle {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--foreground);
   font-size: 14px;
   font-weight: 800;
@@ -175,24 +184,30 @@
 .statusControl {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
+  align-items: end;
 }
 
 .followUpGrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+  gap: 8px;
 }
 
 .dateActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+}
+
+.inlineAction {
+  justify-self: start;
+  width: auto;
 }
 
 .fieldGroup {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .label {
@@ -211,13 +226,19 @@
 .insightGrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
+  gap: 10px;
   align-items: start;
 }
 
 .singleColumnGrid {
   display: grid;
-  gap: 18px;
+  gap: 10px;
+}
+
+.mainStack {
+  display: grid;
+  gap: 10px;
+  align-content: start;
 }
 
 .descriptionCard {
@@ -225,35 +246,51 @@
 }
 
 .descriptionText {
-  max-width: 84ch;
-  margin: 0;
   color: color-mix(in srgb, var(--foreground), var(--text-muted) 18%);
-  font-size: 15px;
-  line-height: 1.75;
-  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.62;
+}
+
+.descriptionText p {
+  margin: 0 0 12px;
+  break-inside: avoid;
+}
+
+.descriptionText p:last-child {
+  margin-bottom: 0;
+}
+
+.descriptionUnavailable {
+  display: grid;
+  gap: 6px;
+  max-width: 78ch;
+  border: 1px dashed color-mix(in srgb, var(--border), transparent 10%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-muted), transparent 44%);
+  padding: 10px;
 }
 
 .sideStack {
   display: grid;
-  gap: 18px;
+  gap: 10px;
 }
 
 .skillsList {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .fitGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .fitItem {
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface-muted);
-  padding: 10px;
+  padding: 8px;
 }
 
 .fitKey {
@@ -266,20 +303,20 @@
 
 .fitValue {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 .timeline {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .timelineItem {
   border: 1px solid color-mix(in srgb, var(--border), transparent 18%);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface-muted);
-  padding: 10px;
+  padding: 8px;
 }
 
 .timelineStatus {
@@ -301,24 +338,24 @@
 
 .notesList {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .noteItem {
   border: 1px solid color-mix(in srgb, var(--border), transparent 10%);
-  border-radius: 14px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--surface-muted), transparent 30%);
-  padding: 12px;
+  padding: 8px;
 }
 
 .noteContent {
   margin: 0;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .noteDate {
-  margin: 8px 0 0;
+  margin: 5px 0 0;
   color: var(--text-muted);
   font-size: 12px;
 }
@@ -340,18 +377,23 @@
   }
 
   .statusControl {
-    grid-template-columns: minmax(0, 220px) auto;
+    grid-template-columns: minmax(0, 200px) max-content;
     align-items: end;
   }
 
   .followUpGrid {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
     align-items: start;
   }
 }
 
 @media (min-width: 1180px) {
   .insightGrid {
-    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.85fr);
+    grid-template-columns: minmax(0, 1.85fr) minmax(280px, 0.75fr);
+  }
+
+  .descriptionText {
+    columns: 2 34ch;
+    column-gap: 28px;
   }
 }

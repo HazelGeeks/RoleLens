@@ -354,6 +354,23 @@ function clipDescription(value: string) {
   return value.slice(0, PYTHON_DESCRIPTION_MAX_CHARS).trim();
 }
 
+function isLikelySearchResultsUrl(sourceUrl: string) {
+  try {
+    const parsed = new URL(sourceUrl);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname.toLowerCase();
+    if (host.includes("linkedin.com")) {
+      return path.includes("/jobs/search");
+    }
+    if (host.includes("indeed.")) {
+      return path.includes("/jobs") && parsed.searchParams.has("q");
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function isHighSignalDescription(value: string, title: string) {
   const normalized = normalizeWhitespace(value);
   if (!normalized) return false;
@@ -377,6 +394,27 @@ function isHighSignalDescription(value: string, title: string) {
   return titleTokens.some((token) => lower.includes(token));
 }
 
+function shouldHydratePythonDescription(
+  value: string,
+  title: string,
+  sourceUrl: string | undefined,
+) {
+  if (!sourceUrl || isLikelySearchResultsUrl(sourceUrl)) return false;
+
+  const description = sanitizeJobDescription(htmlToReadableText(value));
+  if (!description) return true;
+  if (isScrapedLinkPlaceholderDescription(description)) return true;
+
+  const normalizedDescription = normalizeWhitespace(description).toLowerCase();
+  const normalizedTitle = normalizeWhitespace(title).toLowerCase();
+  if (normalizedDescription === normalizedTitle) return true;
+  if (/^https?:\/\//i.test(normalizedDescription)) return true;
+  if (description.length < 80) return true;
+  if (description.split(/\s+/).length < 18) return true;
+
+  return false;
+}
+
 async function fetchDescriptionFromSource(sourceUrl: string, title: string) {
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => {
@@ -393,6 +431,8 @@ async function fetchDescriptionFromSource(sourceUrl: string, title: string) {
       signal: controller.signal,
     });
     if (!response.ok) return undefined;
+    const contentType = response.headers.get("content-type")?.toLowerCase();
+    if (contentType && !contentType.includes("text/html")) return undefined;
     const html = await response.text();
     const cleanedHtml = html
       .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
@@ -844,7 +884,7 @@ async function normalizePythonScrapedItem(
   const hydratedDescription =
     options.hydrateDescriptionFromSource &&
     sourceUrl &&
-    isScrapedLinkPlaceholderDescription(sourceDescription)
+    shouldHydratePythonDescription(sourceDescription, title, sourceUrl)
       ? await fetchDescriptionFromSource(sourceUrl, title)
       : undefined;
   const descriptionRaw =
@@ -944,10 +984,15 @@ async function fetchPythonScrapedSource(
         asString(raw?.summary) ||
         "";
       const itemSourceUrl = asString(raw?.sourceUrl) || asString(raw?.url);
+      const itemTitle = asString(raw?.title) || asString(raw?.role) || "";
       const hydrateDescriptionFromSource =
         hydrationBudget > 0 &&
         !!itemSourceUrl &&
-        isScrapedLinkPlaceholderDescription(descriptionCandidate);
+        shouldHydratePythonDescription(
+          descriptionCandidate,
+          itemTitle,
+          itemSourceUrl,
+        );
       if (hydrateDescriptionFromSource) hydrationBudget -= 1;
 
       return normalizePythonScrapedItem(item, source, index, {

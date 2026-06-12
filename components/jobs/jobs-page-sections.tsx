@@ -62,9 +62,9 @@ export function JobsPageHeader({
   onOpenSaveModal,
 }: JobsPageHeaderProps) {
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h2 className="text-2xl font-semibold">Job Postings</h2>
+        <h2 className="text-xl font-semibold">Job Postings</h2>
         <p className="text-sm text-slate-500">
           Search, filter, sort, and track your frontend application pipeline.
         </p>
@@ -155,8 +155,8 @@ export function JobsFiltersCard({
       : DEFAULT_OPERATIONAL_CHECKLIST;
 
   return (
-    <section className="space-y-3" aria-label="Jobs filters">
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_repeat(6,minmax(0,1fr))]">
+    <section className="space-y-2" aria-label="Jobs filters">
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-[1.2fr_repeat(6,minmax(0,1fr))]">
         <Input
           value={filters.q}
           onChange={(event) => actions.setQ(event.target.value)}
@@ -234,7 +234,7 @@ export function JobsFiltersCard({
         </Select>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
         <p>
           Showing {rowsCount} of {totalJobs} postings
         </p>

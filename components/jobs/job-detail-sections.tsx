@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
@@ -12,59 +13,11 @@ import {
   statusBadgeColor,
 } from "@/lib/presentation";
 import type { LocalJobPosting } from "@/lib/local-jobs";
-import { sanitizeJobDescription } from "@/lib/job-description";
+import { formatJobDescriptionForDisplay } from "@/lib/job-description";
 import styles from "./job-detail-sections.module.css";
 
-function decodeHtmlEntities(value: string) {
-  let next = value;
-
-  // Decode repeatedly so values like "&amp;lt;h2&amp;gt;" also normalize.
-  for (let i = 0; i < 3; i += 1) {
-    const decoded = next
-      .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) =>
-        String.fromCodePoint(parseInt(hex, 16)),
-      )
-      .replace(/&#([0-9]+);/g, (_, dec: string) =>
-        String.fromCodePoint(parseInt(dec, 10)),
-      );
-
-    if (decoded === next) break;
-    next = decoded;
-  }
-
-  return next;
-}
-
 function normalizeDescriptionForDisplay(value: string) {
-  const cleanValue = sanitizeJobDescription(value);
-  if (!cleanValue) return "";
-
-  const decoded = decodeHtmlEntities(cleanValue);
-  const withBreaks = decoded
-    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
-    .replace(
-      /<\/(p|div|section|article|li|ul|ol|h[1-6]|tr|table|blockquote)>/gi,
-      "\n",
-    )
-    .replace(
-      /<(p|div|section|article|li|ul|ol|h[1-6]|tr|table|blockquote)\b[^>]*>/gi,
-      "\n",
-    )
-    .replace(/<[^>]+>/g, " ");
-
-  const lines = withBreaks
-    .split("\n")
-    .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter(Boolean);
-
-  return lines.join("\n");
+  return formatJobDescriptionForDisplay(value);
 }
 
 function formatSalaryRange(job: LocalJobPosting) {
@@ -241,7 +194,11 @@ export function JobOverviewCard({
                 ))}
               </Select>
             </div>
-            <Button variant="secondary" onClick={onSaveStatus}>
+            <Button
+              variant="secondary"
+              className={styles.inlineAction}
+              onClick={onSaveStatus}
+            >
               Save Status
             </Button>
           </div>
@@ -255,7 +212,7 @@ export function JobOverviewCard({
               <Textarea
                 value={nextActionInput}
                 onChange={(event) => onNextActionChange(event.target.value)}
-                className="min-h-[90px]"
+                className={styles.followUpTextarea}
                 placeholder="Example: submit application, then follow up with recruiter"
               />
             </div>
@@ -284,7 +241,12 @@ export function JobOverviewCard({
                   +7d
                 </Button>
               </div>
-              <Button type="button" variant="secondary" onClick={onSaveFollowUp}>
+              <Button
+                type="button"
+                variant="secondary"
+                className={styles.inlineAction}
+                onClick={onSaveFollowUp}
+              >
                 Save Follow-up
               </Button>
               {isFollowUpOverdue ? (
@@ -300,32 +262,57 @@ export function JobOverviewCard({
 
 type JobInsightCardsProps = {
   job: LocalJobPosting;
+  notesCard?: ReactNode;
 };
 
-export function JobInsightCards({ job }: JobInsightCardsProps) {
+export function JobInsightCards({ job, notesCard }: JobInsightCardsProps) {
   const breakdown = job.fitBreakdown ?? null;
   const description = normalizeDescriptionForDisplay(job.descriptionRaw);
   const hasDescription = Boolean(description);
+  const descriptionParagraphs = description.split(/\n{2,}/).filter(Boolean);
   const hasSkills = job.extractedSkills.length > 0;
   const hasBreakdown = Boolean(breakdown && Object.keys(breakdown).length > 0);
   const hasStatusHistory = job.statusHistory.length > 0;
   const hasSidePanels = hasSkills || hasBreakdown || hasStatusHistory;
 
   return (
-    <div className={hasSidePanels && hasDescription ? styles.insightGrid : styles.singleColumnGrid}>
-      {hasDescription ? (
-        <Card className={`${styles.descriptionCard} space-y-3`}>
+    <div className={hasSidePanels ? styles.insightGrid : styles.singleColumnGrid}>
+      <div className={styles.mainStack}>
+        <Card className={`${styles.descriptionCard} space-y-2`}>
           <CardTitle>Description</CardTitle>
-          <p className={styles.descriptionText}>
-            {description}
-          </p>
+          {hasDescription ? (
+            <div className={styles.descriptionText}>
+              {descriptionParagraphs.map((paragraph, index) => (
+                <p key={`${index}-${paragraph.slice(0, 24)}`}>{paragraph}</p>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.descriptionUnavailable}>
+              <p className={styles.emptyText}>
+                Description was not available from the scraped source. This
+                usually happens when the source blocks automated page access or
+                only exposes a search-result URL.
+              </p>
+              {job.sourceUrl ? (
+                <a
+                  href={job.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.sourceLink}
+                >
+                  Open original posting
+                </a>
+              ) : null}
+            </div>
+          )}
         </Card>
-      ) : null}
+        {notesCard}
+      </div>
 
       {hasSidePanels ? (
         <div className={styles.sideStack}>
         {hasSkills || hasBreakdown ? (
-          <Card className="space-y-3">
+          <Card className="space-y-2">
             <CardTitle>Skills & Fit</CardTitle>
             {hasSkills ? (
               <div className={styles.skillsList}>
@@ -348,7 +335,7 @@ export function JobInsightCards({ job }: JobInsightCardsProps) {
         ) : null}
 
         {hasStatusHistory ? (
-          <Card className="space-y-3">
+          <Card className="space-y-2">
             <CardTitle>Status Timeline</CardTitle>
             <div className={styles.timeline}>
               {job.statusHistory.slice(0, 8).map((item) => (
@@ -389,7 +376,7 @@ export function JobNotesCard({
   const hasNotes = notes.length > 0;
 
   return (
-    <Card className={`${styles.notesCard} space-y-3`}>
+    <Card className={`${styles.notesCard} space-y-2`}>
       <CardTitle>Notes</CardTitle>
       {hasNotes ? (
         <CardDescription>
@@ -401,9 +388,13 @@ export function JobNotesCard({
         <Textarea
           value={newNote}
           onChange={(event) => onNewNoteChange(event.target.value)}
-          className="min-h-[100px]"
+          className={styles.noteTextarea}
         />
-        <Button variant="secondary" onClick={onAddNote}>
+        <Button
+          variant="secondary"
+          className={styles.inlineAction}
+          onClick={onAddNote}
+        >
           Add Note
         </Button>
       </div>

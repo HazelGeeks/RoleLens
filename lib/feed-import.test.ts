@@ -230,7 +230,7 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
     expect(mockedFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("drops scraped-link placeholder descriptions when source hydration fails", async () => {
+  it("drops scraped-link placeholder descriptions from search result URLs", async () => {
     const searchUrl =
       "https://www.linkedin.com/jobs/search/?keywords=software%20engineer&location=Vancouver%2C%20British%20Columbia%2C%20Canada";
     const mockedFetch = vi.fn(async (input: RequestInfo | URL) => {
@@ -268,9 +268,60 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
         );
       }
 
-      if (url === searchUrl) {
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+    vi.stubGlobal("fetch", mockedFetch);
+
+    const result = await collectFeedJobs({
+      PYTHON_SCRAPED_FEED_URL: "https://example.com/scraped-jobs.json",
+    });
+
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0]?.descriptionRaw).toBe("");
+    expect(result.jobs[0]?.descriptionRaw).not.toContain("Scraped link from");
+    expect(mockedFetch).toHaveBeenCalledOnce();
+  });
+
+  it("hydrates weak short descriptions from detail source pages", async () => {
+    const mockedFetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+
+      if (url === "https://example.com/scraped-jobs.json") {
         return new Response(
-          "<html><body>Join now Sign in We use cookies to improve your LinkedIn experience.</body></html>",
+          JSON.stringify({
+            jobs: [
+              {
+                externalId: "py:sample:frontend-weak",
+                source: "LINKEDIN",
+                sourceLabel: "PythonScraper:LinkedIn Frontend Search",
+                sourceUrl:
+                  "https://ca.linkedin.com/jobs/view/frontend-engineer-at-acme-456",
+                company: "Acme",
+                location: "Vancouver, British Columbia, Canada",
+                title: "Frontend Engineer",
+                descriptionRaw: "Frontend Engineer",
+                tags: ["python-scraper"],
+                publishedAt: "2026-05-11T00:00:00.000Z",
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      if (url === "https://ca.linkedin.com/jobs/view/frontend-engineer-at-acme-456") {
+        return new Response(
+          "<html><body><main><p>Frontend Engineer role building production React interfaces, TypeScript workflows, accessible design systems, API integrations, and reliable experimentation tooling for customer-facing product teams.</p></main></body></html>",
           {
             status: 200,
             headers: {
@@ -288,9 +339,9 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
       PYTHON_SCRAPED_FEED_URL: "https://example.com/scraped-jobs.json",
     });
 
-    expect(result.jobs).toHaveLength(1);
-    expect(result.jobs[0]?.descriptionRaw).toBe("");
-    expect(result.jobs[0]?.descriptionRaw).not.toContain("Scraped link from");
+    expect(result.jobs[0]?.descriptionRaw).toContain(
+      "Frontend Engineer role building production React interfaces",
+    );
     expect(mockedFetch).toHaveBeenCalledTimes(2);
   });
 

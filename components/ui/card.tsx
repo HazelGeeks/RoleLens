@@ -6,8 +6,8 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <Paper
       component="section"
-      radius="lg"
-      p="lg"
+      radius="md"
+      p="md"
       shadow="sm"
       withBorder
       className={cn(

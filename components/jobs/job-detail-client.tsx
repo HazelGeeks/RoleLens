@@ -187,18 +187,22 @@ export function JobDetailClient() {
       {actionError ? (
         <p className="text-sm text-rose-600 dark:text-rose-300">{actionError}</p>
       ) : null}
-      <JobInsightCards job={job} />
-      <JobNotesCard
-        notes={job.notes}
-        newNote={newNote}
-        onNewNoteChange={setNewNote}
-        onAddNote={() => {
-          void addNewNote().catch((error) => {
-            setActionError(
-              error instanceof Error ? error.message : "Failed to add note",
-            );
-          });
-        }}
+      <JobInsightCards
+        job={job}
+        notesCard={
+          <JobNotesCard
+            notes={job.notes}
+            newNote={newNote}
+            onNewNoteChange={setNewNote}
+            onAddNote={() => {
+              void addNewNote().catch((error) => {
+                setActionError(
+                  error instanceof Error ? error.message : "Failed to add note",
+                );
+              });
+            }}
+          />
+        }
       />
     </div>
   );
