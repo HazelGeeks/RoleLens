@@ -159,89 +159,14 @@ export function JobsFiltersCard({
       : DEFAULT_OPERATIONAL_CHECKLIST;
 
   return (
-    <section className="space-y-2" aria-label="Jobs filters">
-      <div className="grid grid-cols-1 gap-2 lg:grid-cols-[1.2fr_repeat(6,minmax(0,1fr))]">
-        <Input
-          value={filters.q}
-          onChange={(event) => actions.setQ(event.target.value)}
-          placeholder="Search role, company, skills, next action"
-        />
-        <Select
-          value={filters.status}
-          onChange={(event) =>
-            actions.setStatus(event.target.value as JobStatus | "ALL")
-          }
-          aria-label="Filter by status"
-        >
-          <option value="ALL">All Status</option>
-          {statusOptions.map((value) => (
-            <option key={value} value={value}>
-              {statusLabels[value]}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={filters.source}
-          onChange={(event) =>
-            actions.setSource(event.target.value as JobSource | "ALL")
-          }
-          aria-label="Filter by source"
-        >
-          <option value="ALL">All Source</option>
-          {sourceOptions.map((value) => (
-            <option key={value} value={value}>
-              {sourceLabels[value]} ({sourceCounts[value]})
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={filters.remoteType}
-          onChange={(event) =>
-            actions.setRemoteType(event.target.value as RemoteType | "ALL")
-          }
-          aria-label="Filter by remote type"
-        >
-          <option value="ALL">All Work Type</option>
-          {remoteTypeOptions.map((value) => (
-            <option key={value} value={value}>
-              {remoteTypeLabels[value]}
-            </option>
-          ))}
-        </Select>
-        <Input
-          type="number"
-          min={0}
-          max={100}
-          value={filters.minFit}
-          onChange={(event) => actions.setMinFit(event.target.value)}
-          placeholder="Min fit"
-          aria-label="Minimum fit score"
-        />
-        <Input
-          value={filters.requiredSkill}
-          onChange={(event) => actions.setRequiredSkill(event.target.value)}
-          placeholder="Required skill"
-          aria-label="Filter by required skill"
-        />
-        <Select
-          value={filters.sortBy}
-          onChange={(event) =>
-            actions.setSortBy(event.target.value as JobsSortOption)
-          }
-          aria-label="Sort postings"
-        >
-          {jobsSortOptions.map((value) => (
-            <option key={value} value={value}>
-              {jobsSortLabels[value]}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
-        <p>
-          Showing {rowsCount} of {totalJobs} postings
-        </p>
+    <section className={styles.filtersSection} aria-label="Jobs filters">
+      <div className={styles.filtersToolbar}>
+        <div>
+          <p className={styles.filtersEyebrow}>Filters</p>
+          <p className={styles.filtersCount}>
+            Showing <strong>{rowsCount}</strong> of {totalJobs} postings
+          </p>
+        </div>
         <Button
           type="button"
           variant="secondary"
@@ -252,9 +177,102 @@ export function JobsFiltersCard({
         </Button>
       </div>
 
+      <div className={styles.filtersGrid}>
+        <label className={`${styles.filterField} ${styles.filterSearch}`}>
+          <span>Search</span>
+          <Input
+            value={filters.q}
+            onChange={(event) => actions.setQ(event.target.value)}
+            placeholder="Role, company, skills, next action"
+          />
+        </label>
+        <label className={styles.filterField}>
+          <span>Status</span>
+          <Select
+            value={filters.status}
+            onChange={(event) =>
+              actions.setStatus(event.target.value as JobStatus | "ALL")
+            }
+          >
+            <option value="ALL">All Status</option>
+            {statusOptions.map((value) => (
+              <option key={value} value={value}>
+                {statusLabels[value]}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className={styles.filterField}>
+          <span>Source</span>
+          <Select
+            value={filters.source}
+            onChange={(event) =>
+              actions.setSource(event.target.value as JobSource | "ALL")
+            }
+          >
+            <option value="ALL">All Source</option>
+            {sourceOptions.map((value) => (
+              <option key={value} value={value}>
+                {sourceLabels[value]} ({sourceCounts[value]})
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className={styles.filterField}>
+          <span>Work Type</span>
+          <Select
+            value={filters.remoteType}
+            onChange={(event) =>
+              actions.setRemoteType(event.target.value as RemoteType | "ALL")
+            }
+          >
+            <option value="ALL">All Work Type</option>
+            {remoteTypeOptions.map((value) => (
+              <option key={value} value={value}>
+                {remoteTypeLabels[value]}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className={styles.filterField}>
+          <span>Min Fit</span>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={filters.minFit}
+            onChange={(event) => actions.setMinFit(event.target.value)}
+            placeholder="0-100"
+          />
+        </label>
+        <label className={`${styles.filterField} ${styles.filterSkill}`}>
+          <span>Required Skill</span>
+          <Input
+            value={filters.requiredSkill}
+            onChange={(event) => actions.setRequiredSkill(event.target.value)}
+            placeholder="React, TypeScript, Next.js"
+          />
+        </label>
+        <label className={styles.filterField}>
+          <span>Sort</span>
+          <Select
+            value={filters.sortBy}
+            onChange={(event) =>
+              actions.setSortBy(event.target.value as JobsSortOption)
+            }
+          >
+            {jobsSortOptions.map((value) => (
+              <option key={value} value={value}>
+                {jobsSortLabels[value]}
+              </option>
+            ))}
+          </Select>
+        </label>
+      </div>
+
       {syncMessage ? (
         <p
-          className="mt-2 text-sm text-slate-600 dark:text-slate-300"
+          className={styles.syncNotice}
           role="status"
           aria-live="polite"
         >
@@ -264,7 +282,7 @@ export function JobsFiltersCard({
 
       {filters.source !== "ALL" && sourceCounts[filters.source] === 0 ? (
         <p
-          className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+          className={styles.warningNotice}
           role="status"
           aria-live="polite"
         >
@@ -276,7 +294,7 @@ export function JobsFiltersCard({
 
       {syncError ? (
         <div
-          className="mt-1 rounded-lg border border-rose-200 bg-rose-50 p-2 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200"
+          className={styles.errorNotice}
           role="alert"
         >
           <p>{syncError}</p>
@@ -284,9 +302,9 @@ export function JobsFiltersCard({
       ) : null}
 
       {syncError ? (
-        <div className="mt-2 rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800">
-          <p className="font-medium">Operational Checklist</p>
-          <ol className="mt-1 list-decimal space-y-1 pl-4 text-xs text-slate-600 dark:text-slate-300">
+        <div className={styles.checklistPanel}>
+          <p>Operational Checklist</p>
+          <ol>
             {operationalChecklist.map((item) => (
               <li key={item}>{item}</li>
             ))}
@@ -295,19 +313,19 @@ export function JobsFiltersCard({
       ) : null}
 
       {(lastSyncAt || syncSourceResults.length > 0) ? (
-        <details className="mt-1 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-800">
-          <summary className="cursor-pointer font-medium text-slate-600 dark:text-slate-300">
+        <details className={styles.syncDetails}>
+          <summary>
             Sync details (optional)
           </summary>
-          <div className="mt-2 space-y-2">
-            <p className="text-xs text-slate-500">
+          <div className={styles.syncDetailsBody}>
+            <p className={styles.syncTimestamp}>
               {lastSyncAt
                 ? `Last sync: ${new Date(lastSyncAt).toLocaleString()}`
                 : "No sync yet"}
             </p>
-            <div className="rounded-lg border border-slate-200 p-2 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
-              <p className="font-medium">Sync Diagnostics</p>
-              <p className="mt-1">
+            <div className={styles.diagnosticsPanel}>
+              <p>Sync Diagnostics</p>
+              <p>
                 Python scraped feed:{" "}
                 {syncDiagnostics.python.scrapedFeedConfigured ? "yes" : "no"}{" "}
                 (configured total {syncDiagnostics.python.configuredSourceCount})
@@ -317,34 +335,34 @@ export function JobsFiltersCard({
 
             {syncSourceResults.length > 0 ? (
               <div
-                className="rounded-xl border border-slate-200 p-3 dark:border-slate-800"
+                className={styles.latestSyncPanel}
                 role="status"
                 aria-live="polite"
               >
-                <h3 className="text-sm font-semibold">Latest Sync Results</h3>
-                <p className="mt-1 text-xs text-slate-500">
+                <h3>Latest Sync Results</h3>
+                <p>
                   Source-level success and failure details.
                 </p>
-                <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-2">
+                <div className={styles.syncResultsGrid}>
                   {syncSourceResults.map((result) => (
                     <div
                       key={result.source}
-                      className="rounded-lg bg-slate-100 p-2 text-sm dark:bg-slate-900"
+                      className={styles.syncResultItem}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">{result.source}</span>
+                      <div>
+                        <span>{result.source}</span>
                         <span
                           className={
                             result.ok
-                              ? "text-emerald-700 dark:text-emerald-300"
-                              : "text-rose-700 dark:text-rose-300"
+                              ? styles.syncResultSuccess
+                              : styles.syncResultFailed
                           }
                         >
                           {result.ok ? `Success (${result.importedJobs})` : "Failed"}
                         </span>
                       </div>
                       {result.message ? (
-                        <p className="mt-1 break-words text-xs text-slate-600 dark:text-slate-300">
+                        <p>
                           {result.message}
                         </p>
                       ) : null}
