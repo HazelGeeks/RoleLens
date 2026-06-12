@@ -72,13 +72,6 @@ jobs:
             -H "Content-Type: application/json")
 
           PAYLOAD=$(echo "$CURRENT_PROJECT" | jq --compact-output --arg d1_database_id "$D1_DATABASE_ID" '
-            def required_vars:
-              {
-                PERSISTENCE_BACKEND: { type: "plain_text", value: "d1" },
-                AUTH_BACKEND: { type: "plain_text", value: "d1" },
-                PERSISTENCE_D1_BINDING: { type: "plain_text", value: "DB" }
-              };
-
             def as_object:
               if type == "object" then . else {} end;
 
@@ -87,8 +80,7 @@ jobs:
               | ($env | as_object) as $base
               | $base
               + {
-                  d1_databases: (((($base.d1_databases // {}) | as_object) + { DB: { id: $d1_database_id } })),
-                  env_vars: (((($base.env_vars // {}) | as_object) + required_vars))
+                  d1_databases: (((($base.d1_databases // {}) | as_object) + { DB: { id: $d1_database_id } }))
                 };
 
             {
@@ -116,16 +108,10 @@ jobs:
           echo "$VERIFIED_PROJECT" | jq --compact-output '{
             production_branch: .result.production_branch,
             production: {
-              d1_databases: (.result.deployment_configs.production.d1_databases // {}),
-              auth_backend: (.result.deployment_configs.production.env_vars.AUTH_BACKEND.value // null),
-              persistence_backend: (.result.deployment_configs.production.env_vars.PERSISTENCE_BACKEND.value // null),
-              persistence_d1_binding: (.result.deployment_configs.production.env_vars.PERSISTENCE_D1_BINDING.value // null)
+              d1_databases: (.result.deployment_configs.production.d1_databases // {})
             },
             preview: {
-              d1_databases: (.result.deployment_configs.preview.d1_databases // {}),
-              auth_backend: (.result.deployment_configs.preview.env_vars.AUTH_BACKEND.value // null),
-              persistence_backend: (.result.deployment_configs.preview.env_vars.PERSISTENCE_BACKEND.value // null),
-              persistence_d1_binding: (.result.deployment_configs.preview.env_vars.PERSISTENCE_D1_BINDING.value // null)
+              d1_databases: (.result.deployment_configs.preview.d1_databases // {})
             }
           }'
 
