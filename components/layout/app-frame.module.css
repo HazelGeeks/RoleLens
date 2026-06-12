@@ -62,8 +62,133 @@
 }
 
 .nav {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
+}
+
+.navLink {
+  flex: 0 0 auto;
+}
+
+.navUtility {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.authPrimary,
+.authSecondary,
+.authButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 10px;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.authPrimary {
+  background: var(--mantine-color-indigo-6);
+  color: white;
+}
+
+.authSecondary,
+.authButton {
+  background: color-mix(in srgb, var(--brand), transparent 90%);
+  color: var(--brand);
+}
+
+.authButton {
+  cursor: pointer;
+  font: inherit;
+}
+
+.authPrimary:hover,
+.authSecondary:hover,
+.authButton:hover {
+  transform: translateY(-1px);
+}
+
+.userLabel {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 719px) {
+  .shell {
+    background: #f7f8fb;
+  }
+
+  :global(html.dark) .shell {
+    background: #050816;
+  }
+
+  .grid {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .sidebar {
+    border-radius: 12px;
+    padding: 10px;
+  }
+
+  .brandRow {
+    margin-bottom: 8px;
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+
+  .brandTitle {
+    font-size: 18px;
+  }
+
+  .navLink {
+    border: 1px solid color-mix(in srgb, var(--border), transparent 18%);
+    background: color-mix(in srgb, var(--surface), transparent 10%);
+    font-size: 13px;
+    padding: 7px 9px;
+  }
+
+  .navUtility {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .userLabel {
+    grid-column: 1 / -1;
+  }
+
+  .content {
+    border-radius: 12px;
+    padding: 8px;
+  }
 }
 
 .navLink {
@@ -81,6 +206,36 @@
     color 180ms ease,
     transform 180ms ease,
     box-shadow 180ms ease;
+}
+
+@media (min-width: 720px) {
+  .nav {
+    display: grid;
+    gap: 4px;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .navLink {
+    flex: initial;
+  }
+
+  .navUtility {
+    display: grid;
+    gap: 6px;
+    border-top: 1px solid color-mix(in srgb, var(--border), transparent 16%);
+    padding-top: 10px;
+  }
+
+  .userLabel {
+    display: block;
+  }
+
+  .authPrimary,
+  .authSecondary,
+  .authButton {
+    width: 100%;
+  }
 }
 
 .navLink:hover {

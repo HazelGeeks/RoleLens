@@ -5,10 +5,13 @@ import {
   BarChart3,
   ClipboardList,
   FileText,
+  LogIn,
+  LogOut,
   MessageSquare,
   Target,
+  UserPlus,
 } from "lucide-react";
-import { SidebarAuthSection } from "@/components/layout/sidebar-auth-section";
+import { useAuth } from "@/components/providers/auth-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import styles from "./app-frame.module.css";
 
@@ -21,6 +24,8 @@ const navigationItems = [
 ];
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
+  const { status, user, signOut } = useAuth();
+
   return (
     <div className={styles.shell}>
       <a href="#main-content" className={styles.skipLink}>
@@ -46,7 +51,40 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-          <SidebarAuthSection />
+          <div className={styles.navUtility} aria-label="Account actions">
+            {status === "loading" ? (
+              <span className={styles.userLabel} role="status" aria-live="polite">
+                Checking session...
+              </span>
+            ) : status === "authenticated" && user ? (
+              <>
+                <span className={styles.userLabel} title={user.email}>
+                  {user.name || user.email}
+                </span>
+                <button
+                  type="button"
+                  className={styles.authButton}
+                  onClick={() => {
+                    void signOut();
+                  }}
+                >
+                  <LogOut size={15} />
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className={styles.authPrimary}>
+                  <LogIn size={15} />
+                  Login
+                </Link>
+                <Link href="/signup" className={styles.authSecondary}>
+                  <UserPlus size={15} />
+                  Sign up
+                </Link>
+              </>
+            )}
+          </div>
         </aside>
         <main id="main-content" tabIndex={-1} className={styles.content}>
           {children}

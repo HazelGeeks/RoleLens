@@ -1,0 +1,41 @@
+.pageHeader {
+  display: grid;
+  gap: 10px;
+}
+
+.pageHeader h2 {
+  margin: 0;
+}
+
+.pageActions {
+  display: grid;
+  gap: 7px;
+}
+
+.primaryActions,
+.platformActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.platformActions {
+  border-top: 1px solid color-mix(in srgb, var(--border), transparent 28%);
+  padding-top: 7px;
+}
+
+@media (min-width: 760px) {
+  .pageHeader {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .pageActions {
+    justify-items: end;
+  }
+
+  .primaryActions,
+  .platformActions {
+    justify-content: flex-end;
+  }
+}

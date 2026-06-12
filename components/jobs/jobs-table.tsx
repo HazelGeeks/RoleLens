@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { statusLabels } from "@/lib/constants";
 import { formatCurrency, statusBadgeColor } from "@/lib/presentation";
 import { cn } from "@/lib/utils";
+import styles from "./jobs-table.module.css";
 
 export type JobRow = {
   id: string;
@@ -45,6 +46,7 @@ type JobsTableProps = {
 };
 
 const ROWS_PER_PAGE = 30;
+const MOBILE_ROWS_BATCH_SIZE = 8;
 
 function formatPostedDate(value: string | null) {
   if (!value) return "-";
@@ -53,6 +55,14 @@ function formatPostedDate(value: string | null) {
     return value.length >= 10 ? value.slice(0, 10) : value;
   }
   return parsed.toISOString().slice(0, 10);
+}
+
+function formatSalary(row: JobRow) {
+  if (!row.salaryMin && !row.salaryMax) return null;
+  return `${formatCurrency(row.salaryMin, row.salaryCurrency || "CAD")} - ${formatCurrency(
+    row.salaryMax,
+    row.salaryCurrency || "CAD",
+  )}`;
 }
 
 export function JobsTable({
@@ -222,6 +232,10 @@ export function JobsTable({
     pageIndex: 0,
     pageSize: ROWS_PER_PAGE,
   });
+  const [mobileRowsVisible, setMobileRowsVisible] = React.useState(
+    MOBILE_ROWS_BATCH_SIZE,
+  );
+  const mobileLoadMoreRef = React.useRef<HTMLDivElement | null>(null);
 
   const table = useReactTable({
     data,
@@ -240,7 +254,8 @@ export function JobsTable({
   const pageCount = table.getPageCount();
   const pageIndex = table.getState().pagination.pageIndex;
   const totalRows = table.getPrePaginationRowModel().rows.length;
-  const pageRows = table.getRowModel().rows.length;
+  const currentPageRows = table.getRowModel().rows;
+  const pageRows = currentPageRows.length;
   const startRow = totalRows === 0 ? 0 : pageIndex * ROWS_PER_PAGE + 1;
   const endRow =
     totalRows === 0
@@ -255,10 +270,162 @@ export function JobsTable({
     for (let page = from; page <= to; page += 1) pages.push(page);
     return pages;
   }, [pageCount, pageIndex]);
+  const mobileVisibleRows = currentPageRows.slice(0, mobileRowsVisible);
+  const hasMoreMobileRows = mobileRowsVisible < currentPageRows.length;
+
+  React.useEffect(() => {
+    setMobileRowsVisible(MOBILE_ROWS_BATCH_SIZE);
+  }, [data, pageIndex, sorting]);
+
+  React.useEffect(() => {
+    const target = mobileLoadMoreRef.current;
+    if (!target || !hasMoreMobileRows) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        setMobileRowsVisible((count) =>
+          Math.min(count + MOBILE_ROWS_BATCH_SIZE, currentPageRows.length),
+        );
+      },
+      { rootMargin: "240px 0px" },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [currentPageRows.length, hasMoreMobileRows, mobileRowsVisible]);
+
+  const loadMoreMobileRows = () => {
+    setMobileRowsVisible((count) =>
+      Math.min(count + MOBILE_ROWS_BATCH_SIZE, currentPageRows.length),
+    );
+  };
 
   return (
     <div className="space-y-2">
-      <ScrollArea type="auto" offsetScrollbars>
+      <div className={styles.mobileList}>
+        {currentPageRows.length === 0 ? (
+          <Text ta="center" c="dimmed" py="md">
+            No job postings found.
+          </Text>
+        ) : (
+          mobileVisibleRows.map((row) => {
+            const job = row.original;
+            const encoded = encodeURIComponent(job.id);
+            const checked = selectedIds.includes(job.id);
+            const salary = formatSalary(job);
+            const hasStatus = job.status !== "NONE";
+            const isInactive = job.status === "ARCHIVE";
+            const due =
+              !!job.followUpDate && !isInactive && job.followUpDate <= today;
+
+            return (
+              <article key={job.id} className={styles.mobileCard}>
+                <div className={styles.mobileCardHeader}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) =>
+                      onToggleSelect(job.id, event.target.checked)
+                    }
+                    aria-label={`Select ${job.title} at ${job.company} for comparison`}
+                  />
+                  <div className={styles.mobileTitleBlock}>
+                    <Link
+                      href={`/jobs?id=${encoded}`}
+                      className={styles.mobileTitle}
+                    >
+                      {job.title}
+                    </Link>
+                    <p className={styles.mobileCompany}>{job.company}</p>
+                  </div>
+                  {hasStatus ? (
+                    <Badge color={statusBadgeColor(job.status)}>
+                      {statusLabels[job.status]}
+                    </Badge>
+                  ) : null}
+                </div>
+
+                <div className={styles.mobileMetaGrid}>
+                  {job.location ? (
+                    <div className={styles.mobileMetaItem}>
+                      <span>Location</span>
+                      <strong>{job.location}</strong>
+                    </div>
+                  ) : null}
+                  <div className={styles.mobileMetaItem}>
+                    <span>Fit</span>
+                    <strong>{job.fitScore ?? "-"}</strong>
+                  </div>
+                  <div className={styles.mobileMetaItem}>
+                    <span>Posted</span>
+                    <strong>{formatPostedDate(job.publishedAt)}</strong>
+                  </div>
+                  {job.followUpDate ? (
+                    <div
+                      className={`${styles.mobileMetaItem} ${due ? styles.mobileDue : ""}`}
+                    >
+                      <span>Follow-up</span>
+                      <strong>{job.followUpDate}</strong>
+                    </div>
+                  ) : null}
+                  {salary ? (
+                    <div className={styles.mobileMetaItem}>
+                      <span>Salary</span>
+                      <strong>{salary}</strong>
+                    </div>
+                  ) : null}
+                </div>
+
+                {job.extractedSkills.length > 0 ? (
+                  <div className={styles.mobileSkills}>
+                    {job.extractedSkills.slice(0, 2).map((skill) => (
+                      <Badge key={skill}>{skill}</Badge>
+                    ))}
+                    {job.extractedSkills.length > 2 ? (
+                      <span className={styles.mobileMoreSkills}>
+                        +{job.extractedSkills.length - 2}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {job.nextAction ? (
+                  <p className={styles.mobileNextAction}>{job.nextAction}</p>
+                ) : null}
+
+                <Button
+                  component={Link}
+                  href={`/jobs?id=${encoded}`}
+                  variant="light"
+                  size="xs"
+                  className={styles.mobileDetailButton}
+                >
+                  Open detail
+                </Button>
+              </article>
+            );
+          })
+        )}
+        {hasMoreMobileRows ? (
+          <div ref={mobileLoadMoreRef} className={styles.mobileLoadMore}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={loadMoreMobileRows}
+            >
+              Load more postings
+            </Button>
+            <p>
+              Showing {Math.min(mobileRowsVisible, currentPageRows.length)} of{" "}
+              {currentPageRows.length} on this page
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      <ScrollArea type="auto" offsetScrollbars className={styles.tableScroll}>
         <Table
           striped
           highlightOnHover
@@ -307,7 +474,9 @@ export function JobsTable({
         </Table>
       </ScrollArea>
 
-      <div className="flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        className={`${styles.paginationBar} flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between`}
+      >
         <p>
           Showing {startRow}-{endRow} of {totalRows} postings (30 per page)
         </p>

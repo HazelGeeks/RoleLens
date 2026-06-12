@@ -29,6 +29,7 @@ import {
   jobsSortOptions,
   type JobsSortOption,
 } from "@/lib/jobs-sort";
+import styles from "./jobs-page-sections.module.css";
 
 const DEFAULT_OPERATIONAL_CHECKLIST = [
   "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
@@ -62,40 +63,43 @@ export function JobsPageHeader({
   onOpenSaveModal,
 }: JobsPageHeaderProps) {
   return (
-    <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <header className={styles.pageHeader}>
       <div>
         <h2 className="text-xl font-semibold">Job Postings</h2>
         <p className="text-sm text-slate-500">
           Search, filter, sort, and track your frontend application pipeline.
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={onSyncAll}
-          disabled={isSyncing}
-        >
-          {isSyncing && activeSyncPlatform === "all"
-            ? "Syncing all..."
-            : "Sync All Feeds"}
-        </Button>
-        {PLATFORM_BUTTONS.map((platform) => (
+      <div className={styles.pageActions}>
+        <div className={styles.primaryActions}>
           <Button
-            key={platform}
             type="button"
             variant="secondary"
-            onClick={() => onSyncPlatform(platform)}
+            onClick={onSyncAll}
             disabled={isSyncing}
           >
-            {isSyncing && activeSyncPlatform === platform
-              ? "Syncing " + feedPlatformLabels[platform] + "..."
-              : "Sync " + feedPlatformLabels[platform]}
+            {isSyncing && activeSyncPlatform === "all" ? "Syncing..." : "Sync all"}
           </Button>
-        ))}
-        <Button type="button" onClick={onOpenSaveModal}>
-          Save New Posting
-        </Button>
+          <Button type="button" onClick={onOpenSaveModal}>
+            Save new
+          </Button>
+        </div>
+        <div className={styles.platformActions} aria-label="Platform sync actions">
+          {PLATFORM_BUTTONS.map((platform) => (
+            <Button
+              key={platform}
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => onSyncPlatform(platform)}
+              disabled={isSyncing}
+            >
+              {isSyncing && activeSyncPlatform === platform
+                ? "Syncing..."
+                : feedPlatformLabels[platform]}
+            </Button>
+          ))}
+        </div>
       </div>
     </header>
   );
