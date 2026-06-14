@@ -44,7 +44,7 @@ export function JobDetailNotFound() {
       <p className={styles.emptyText}>
         This item may not exist in the current local cache or persistence store.
       </p>
-      <Link href="/" className={styles.backLink}>
+      <Link href="/jobs" className={styles.backLink}>
         Back to list
       </Link>
     </div>
@@ -78,7 +78,7 @@ export function JobDetailHeader({ job }: JobDetailHeaderProps) {
         ) : null}
       </div>
       <div className={styles.heroActions}>
-        <Link href="/" className={styles.backLink}>
+        <Link href="/jobs" className={styles.backLink}>
           Back to list
         </Link>
       </div>

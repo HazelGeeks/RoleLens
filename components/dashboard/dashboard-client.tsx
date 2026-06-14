@@ -276,7 +276,7 @@ export function DashboardClient() {
             <Link href="/jobs/new">
               <Button>Save New Posting</Button>
             </Link>
-            <Link href="/">
+            <Link href="/jobs">
               <Button variant="secondary">Open Jobs List</Button>
             </Link>
           </div>

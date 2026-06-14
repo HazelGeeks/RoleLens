@@ -19,7 +19,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import styles from "./app-frame.module.css";
 
 const navigationItems = [
-  { href: "/", label: "Jobs", icon: ClipboardList },
+  { href: "/jobs", label: "Jobs", icon: ClipboardList },
   { href: "/resume", label: "Resume", icon: FileText },
   { href: "/interview", label: "Interview", icon: MessageSquare },
   { href: "/interview/goals", label: "Goals", icon: Target },
