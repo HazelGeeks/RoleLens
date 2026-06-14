@@ -1,15 +1,15 @@
 import { Suspense } from "react";
-import { JobDetailClient } from "@/components/jobs/job-detail-client";
+import { JobsRouteClient } from "@/components/jobs/jobs-route-client";
 
 
 function Loading() {
-  return <p className="text-sm text-slate-500">Loading job detail...</p>;
+  return <p className="text-sm text-slate-500">Loading jobs...</p>;
 }
 
-export default function JobDetailPage() {
+export default function JobsPage() {
   return (
     <Suspense fallback={<Loading />}>
-      <JobDetailClient />
+      <JobsRouteClient />
     </Suspense>
   );
 }
