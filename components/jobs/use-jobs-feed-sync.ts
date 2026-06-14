@@ -6,6 +6,7 @@ import {
   getLastFeedSyncSummary,
   syncJobsFromFeeds,
 } from "@/lib/feed-sync";
+import { getActiveAuthSessionUserId } from "@/lib/auth-client";
 import { buildFeedSyncAlert } from "@/lib/feed-sync-alert";
 import type { FeedImportDiagnostics, FeedSourceResult } from "@/lib/feed-types";
 import { feedPlatformLabels, type FeedPlatform } from "@/lib/feed-platform";
@@ -226,7 +227,7 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
     void runFeedSync({
       silent: true,
       refresh: shouldForceRefresh,
-      persistToDb: false,
+      persistToDb: getActiveAuthSessionUserId() != null,
     });
   }, [runFeedSync, showSyncToast]);
 

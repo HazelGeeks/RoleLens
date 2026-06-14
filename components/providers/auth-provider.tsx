@@ -57,7 +57,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     void (async () => {
-      await syncAuthSessionFromServer();
+      const syncedUser = await syncAuthSessionFromServer();
+      if (syncedUser) {
+        await claimLocalJobsForActiveSession();
+      }
       refreshFromStorage();
     })();
 

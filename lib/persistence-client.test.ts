@@ -85,12 +85,31 @@ describe("persistence client recovery helpers", () => {
   it("uses clientRequestId override when recreating a persistent job", async () => {
     setupWindow();
 
-    const fetchMock = vi.fn(async () =>
-      new Response(JSON.stringify({ ok: true, job: basePersistentJob }), {
-        status: 201,
-        headers: { "content-type": "application/json" },
-      }),
-    );
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === "/api/jobs") {
+        if (init?.method === "GET") {
+          return new Response(JSON.stringify({ ok: true, jobs: [] }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        return new Response(JSON.stringify({ ok: true, job: basePersistentJob }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        });
+      }
+
+      if (url === "/api/jobs/job-1") {
+        return new Response(JSON.stringify({ ok: true, job: basePersistentJob }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+
+      throw new Error("Unexpected fetch URL: " + url);
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     await mirrorLocalJobToPersistence(baseLocalJob, {
@@ -134,12 +153,55 @@ describe("persistence client recovery helpers", () => {
       failed: 0,
     });
 
-    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const init = fetchMock.mock.calls[1]?.[1] as RequestInit;
     const payload = JSON.parse(String(init.body)) as {
       clientRequestId?: string;
     };
     expect(payload.clientRequestId).toBe("account-claim:local-1");
     expect(payload).not.toHaveProperty("persistentId");
+
+    const stored = JSON.parse(
+      localStorage.getItem(LOCAL_JOBS_STORAGE_KEY) || "[]",
+    ) as LocalJobPosting[];
+    expect(stored[0]?.persistentId).toBe("job-1");
+    expect(stored[0]?.persistentVersion).toBe(1);
+  });
+
+  it("does not recreate local jobs already present in the active account", async () => {
+    const { localStorage } = installMockWindow({
+      [AUTH_SESSION_STORAGE_KEY]: JSON.stringify({
+        user: {
+          id: "user-1",
+          email: "user@example.com",
+          name: "User",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      }),
+      [LOCAL_JOBS_STORAGE_KEY]: JSON.stringify([
+        {
+          ...baseLocalJob,
+          persistentId: "job-1",
+          persistentVersion: 1,
+        },
+      ]),
+    });
+
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ ok: true, jobs: [basePersistentJob] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(claimLocalJobsForActiveSession()).resolves.toEqual({
+      claimed: 1,
+      failed: 0,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(init.method).toBe("GET");
 
     const stored = JSON.parse(
       localStorage.getItem(LOCAL_JOBS_STORAGE_KEY) || "[]",

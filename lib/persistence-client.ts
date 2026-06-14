@@ -83,6 +83,33 @@ function sameTags(left: string[], right: string[]) {
   return sortedLeft.every((tag, index) => tag === sortedRight[index]);
 }
 
+function findMatchingPersistentJob(
+  localJob: LocalJobPosting,
+  persistentJobs: PersistentJob[],
+) {
+  if (localJob.persistentId) {
+    const byPersistentId = persistentJobs.find(
+      (job) => job.id === localJob.persistentId,
+    );
+    if (byPersistentId) return byPersistentId;
+  }
+
+  if (localJob.sourceUrl) {
+    const bySourceUrl = persistentJobs.find(
+      (job) =>
+        job.sourceUrl &&
+        normalizeKey(job.sourceUrl) === normalizeKey(localJob.sourceUrl || ""),
+    );
+    if (bySourceUrl) return bySourceUrl;
+  }
+
+  return persistentJobs.find(
+    (job) =>
+      normalizeKey(job.company) === normalizeKey(localJob.company) &&
+      normalizeKey(job.title) === normalizeKey(localJob.title),
+  );
+}
+
 async function ensureOkResponse(response: Response) {
   if (response.ok) return;
 
@@ -214,7 +241,7 @@ export async function listPersistentJobsClient() {
     jobs: PersistentJob[];
   };
 
-  return payload.jobs;
+  return Array.isArray(payload.jobs) ? payload.jobs : [];
 }
 
 export async function getPersistentJobClient(jobId: string) {
@@ -375,11 +402,25 @@ export async function claimLocalJobsForActiveSession() {
   }
 
   const nextJobs = new Map(localJobs.map((job) => [job.id, job]));
+  let persistentJobs: PersistentJob[] = [];
   let claimed = 0;
   let failed = 0;
 
+  try {
+    persistentJobs = await listPersistentJobsClient();
+  } catch {
+    persistentJobs = [];
+  }
+
   for (const job of localJobs) {
     try {
+      const existingPersistent = findMatchingPersistentJob(job, persistentJobs);
+      if (existingPersistent) {
+        nextJobs.set(job.id, toLocalJobFromPersistent(existingPersistent, job));
+        claimed += 1;
+        continue;
+      }
+
       const portableJob = {
         ...job,
         persistentId: undefined,
@@ -388,6 +429,7 @@ export async function claimLocalJobsForActiveSession() {
       const persistent = await mirrorLocalJobToPersistence(portableJob, {
         clientRequestId: `account-claim:${job.id}`,
       });
+      persistentJobs = [persistent, ...persistentJobs];
       nextJobs.set(job.id, toLocalJobFromPersistent(persistent, job));
       claimed += 1;
     } catch {
