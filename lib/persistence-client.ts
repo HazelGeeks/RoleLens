@@ -13,6 +13,12 @@ import { getActiveAuthSessionUserId } from "@/lib/auth-client";
 const USER_ID_KEY = "rolelens.persistence.userId";
 const DEVICE_ID_KEY = "rolelens.persistence.deviceId";
 const TOKEN_KEY = "rolelens.persistence.token";
+export const LOCAL_JOBS_CLAIMED_EVENT = "rolelens:local-jobs-claimed";
+
+export type LocalJobsClaimedDetail = {
+  claimed: number;
+  failed: number;
+};
 
 function normalizeKey(value: string) {
   return value.trim().toLowerCase();
@@ -438,6 +444,17 @@ export async function claimLocalJobsForActiveSession() {
   }
 
   saveJobsToStorage(Array.from(nextJobs.values()), "sync");
+
+  if (typeof window !== "undefined" && (claimed > 0 || failed > 0)) {
+    window.dispatchEvent(
+      new CustomEvent<LocalJobsClaimedDetail>(LOCAL_JOBS_CLAIMED_EVENT, {
+        detail: {
+          claimed,
+          failed,
+        },
+      }),
+    );
+  }
 
   return {
     claimed,

@@ -24,6 +24,15 @@ import {
 import { SaveJobModal } from "@/components/jobs/save-job-modal";
 import { SyncToast } from "@/components/jobs/sync-toast";
 import { useJobsFeedSync } from "@/components/jobs/use-jobs-feed-sync";
+import {
+  LOCAL_JOBS_CLAIMED_EVENT,
+  type LocalJobsClaimedDetail,
+} from "@/lib/persistence-client";
+
+type JobsNotice = {
+  id: number;
+  message: string;
+};
 
 export function JobsPageClient() {
   const router = useRouter();
@@ -38,6 +47,7 @@ export function JobsPageClient() {
   const [sortBy, setSortBy] = useState<JobsSortOption>("SMART");
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [jobsNotice, setJobsNotice] = useState<JobsNotice | null>(null);
 
   const {
     isSyncing,
@@ -93,6 +103,48 @@ export function JobsPageClient() {
     setStatus("ALL");
     setCompareIds([]);
   }, [jobsView]);
+
+  useEffect(() => {
+    const handleLocalJobsClaimed = (event: Event) => {
+      const detail = (event as CustomEvent<LocalJobsClaimedDetail>).detail;
+      if (!detail || detail.claimed <= 0) return;
+
+      const failedSuffix =
+        detail.failed > 0 ? ` ${detail.failed} item(s) need another retry.` : "";
+      setJobsNotice({
+        id: Date.now(),
+        message:
+          `${detail.claimed} local posting(s) are now linked to your account.` +
+          failedSuffix,
+      });
+    };
+
+    window.addEventListener(
+      LOCAL_JOBS_CLAIMED_EVENT,
+      handleLocalJobsClaimed as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        LOCAL_JOBS_CLAIMED_EVENT,
+        handleLocalJobsClaimed as EventListener,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!jobsNotice) return;
+
+    const timeout = window.setTimeout(() => {
+      setJobsNotice((current) =>
+        current?.id === jobsNotice.id ? null : current,
+      );
+    }, 6000);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [jobsNotice]);
 
   const viewFilteredJobs = useMemo(
     () => jobs.filter((job) => isJobInView(job.status, jobsView)),
@@ -253,6 +305,13 @@ export function JobsPageClient() {
 
       {syncToast ? (
         <SyncToast message={syncToast.message} onDismiss={dismissSyncToast} />
+      ) : null}
+
+      {jobsNotice ? (
+        <SyncToast
+          message={jobsNotice.message}
+          onDismiss={() => setJobsNotice(null)}
+        />
       ) : null}
     </div>
   );

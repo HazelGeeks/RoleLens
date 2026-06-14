@@ -7,6 +7,7 @@ import {
   claimLocalJobsForActiveSession,
   getPersistentJobClient,
   isPersistenceNotFoundError,
+  LOCAL_JOBS_CLAIMED_EVENT,
   mirrorLocalJobToPersistence,
 } from "@/lib/persistence-client";
 import {
@@ -122,6 +123,7 @@ describe("persistence client recovery helpers", () => {
   });
 
   it("claims local jobs for the active account session", async () => {
+    const dispatchEvent = vi.fn(() => true);
     const { localStorage } = installMockWindow({
       [AUTH_SESSION_STORAGE_KEY]: JSON.stringify({
         user: {
@@ -138,6 +140,8 @@ describe("persistence client recovery helpers", () => {
           persistentVersion: 3,
         },
       ]),
+    }, {
+      dispatchEvent,
     });
 
     const fetchMock = vi.fn(async () =>
@@ -165,6 +169,15 @@ describe("persistence client recovery helpers", () => {
     ) as LocalJobPosting[];
     expect(stored[0]?.persistentId).toBe("job-1");
     expect(stored[0]?.persistentVersion).toBe(1);
+    expect(dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: LOCAL_JOBS_CLAIMED_EVENT,
+        detail: {
+          claimed: 1,
+          failed: 0,
+        },
+      }),
+    );
   });
 
   it("does not recreate local jobs already present in the active account", async () => {
