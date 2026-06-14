@@ -1,11 +1,12 @@
 import { collectFeedJobs, writeFeedSnapshotToCache } from "@/lib/feed-import";
+import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
 export const runtime = "edge";
 
 const CRON_SECRET_HEADER = "x-cron-secret";
 
-function isAuthorized(request: Request) {
-  const expected = process.env.CRON_SECRET?.trim();
+function isAuthorized(request: Request, env: RuntimeEnv) {
+  const expected = env.CRON_SECRET?.trim();
   if (!expected) {
     return {
       ok: false as const,
@@ -37,12 +38,13 @@ function isAuthorized(request: Request) {
 }
 
 async function runCronImport(request: Request) {
-  const auth = isAuthorized(request);
+  const env = await getRuntimeEnv();
+  const auth = isAuthorized(request, env);
   if (!auth.ok) {
     return auth.error;
   }
 
-  const snapshot = await collectFeedJobs(process.env, {
+  const snapshot = await collectFeedJobs(env, {
     requestUrl: request.url,
   });
   await writeFeedSnapshotToCache(request, snapshot);

@@ -4,6 +4,7 @@ import {
   writeFeedSnapshotToCache,
 } from "@/lib/feed-import";
 import { parseFeedPlatform } from "@/lib/feed-platform";
+import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
 export const runtime = "edge";
 
@@ -26,9 +27,9 @@ function parsePositiveInteger(value: string | undefined, fallback: number) {
   return parsed;
 }
 
-function getPublicRateLimitPerMinute() {
+function getPublicRateLimitPerMinute(env: RuntimeEnv) {
   return parsePositiveInteger(
-    process.env.IMPORT_PUBLIC_RATE_LIMIT_PER_MIN,
+    env.IMPORT_PUBLIC_RATE_LIMIT_PER_MIN,
     DEFAULT_PUBLIC_RATE_LIMIT_PER_MIN,
   );
 }
@@ -51,12 +52,12 @@ function isLocalhostRequest(url: URL) {
   return host === "localhost" || host === "127.0.0.1" || host === "::1";
 }
 
-function getExpectedSyncSecret() {
-  return process.env.SYNC_ADMIN_SECRET?.trim() || process.env.CRON_SECRET?.trim();
+function getExpectedSyncSecret(env: RuntimeEnv) {
+  return env.SYNC_ADMIN_SECRET?.trim() || env.CRON_SECRET?.trim();
 }
 
-function hasValidSyncSecret(request: Request) {
-  const expected = getExpectedSyncSecret();
+function hasValidSyncSecret(request: Request, env: RuntimeEnv) {
+  const expected = getExpectedSyncSecret(env);
   if (!expected) return false;
 
   const provided =
@@ -71,11 +72,11 @@ function hasValidSyncSecret(request: Request) {
   return authorization.slice(bearerPrefix.length).trim() === expected;
 }
 
-function allowPublicFeedRefresh() {
-  return process.env.ALLOW_PUBLIC_FEED_REFRESH?.trim() === "1";
+function allowPublicFeedRefresh(env: RuntimeEnv) {
+  return env.ALLOW_PUBLIC_FEED_REFRESH?.trim() === "1";
 }
 
-function consumePublicRateLimit(key: string) {
+function consumePublicRateLimit(key: string, env: RuntimeEnv) {
   const now = Date.now();
   const bucket = publicImportBuckets.get(key);
   if (!bucket || bucket.resetAt <= now) {
@@ -90,7 +91,7 @@ function consumePublicRateLimit(key: string) {
   }
 
   bucket.count += 1;
-  const limit = getPublicRateLimitPerMinute();
+  const limit = getPublicRateLimitPerMinute(env);
   if (bucket.count <= limit) {
     publicImportBuckets.set(key, bucket);
     return {
@@ -119,17 +120,18 @@ function buildGuardedResponse(payload: Record<string, unknown>, status: number) 
 }
 
 export async function GET(request: Request) {
+  const env = await getRuntimeEnv();
   const url = new URL(request.url);
   const refresh = url.searchParams.get("refresh") === "1";
   const platform = parseFeedPlatform(url.searchParams.get("platform"));
   const platformScoped = platform !== "all";
   const expensiveSyncRequest = refresh || platformScoped;
   const localRequest = isLocalhostRequest(url);
-  const syncAuthorized = hasValidSyncSecret(request);
+  const syncAuthorized = hasValidSyncSecret(request, env);
 
   if (!localRequest && !syncAuthorized) {
     const clientId = getClientIdentifier(request);
-    const limiter = consumePublicRateLimit(clientId);
+    const limiter = consumePublicRateLimit(clientId, env);
     if (limiter.limited) {
       return Response.json(
         {
@@ -151,7 +153,7 @@ export async function GET(request: Request) {
     expensiveSyncRequest &&
     !localRequest &&
     !syncAuthorized &&
-    !allowPublicFeedRefresh()
+    !allowPublicFeedRefresh(env)
   ) {
     return buildGuardedResponse(
       {
@@ -181,7 +183,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const snapshot = await collectFeedJobs(process.env, {
+  const snapshot = await collectFeedJobs(env, {
     requestUrl: request.url,
     platform,
   });

@@ -119,6 +119,8 @@ const ASHBY_JOB_BOARD_QUERY =
   "query ApiJobBoard($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { teams { id name } jobPostings { id title locationName teamId workplaceType employmentType } } }";
 const SMARTRECRUITERS_PAGE_LIMIT = 100;
 const LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH = "/api/jobs/local-python-scraped-feed";
+const DEFAULT_HOSTED_PYTHON_SCRAPED_FEED_URL =
+  "https://raw.githubusercontent.com/HazelGeeks/RoleLens/main/data/scraped/python-scraped-jobs.json";
 const PYTHON_DESCRIPTION_FETCH_TIMEOUT_MS = 6000;
 const PYTHON_DESCRIPTION_MAX_CHARS = 5000;
 const PYTHON_DESCRIPTION_HYDRATION_LIMIT = 20;
@@ -778,6 +780,8 @@ function toPythonScrapedSourceConfig(
           LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH,
           requestBaseUrl,
         ).toString();
+      } else {
+        url = DEFAULT_HOSTED_PYTHON_SCRAPED_FEED_URL;
       }
     } catch {
       url = undefined;

@@ -1,6 +1,7 @@
 import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
 import { collectFeedJobs, writeFeedSnapshotToCache } from "@/lib/feed-import";
 import { parseFeedPlatform } from "@/lib/feed-platform";
+import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
 export const runtime = "edge";
 
@@ -16,14 +17,14 @@ function isLocalhostRequest(url: URL) {
   return host === "localhost" || host === "127.0.0.1" || host === "::1";
 }
 
-function getExpectedSyncSecret() {
-  return process.env.SYNC_ADMIN_SECRET?.trim() || process.env.CRON_SECRET?.trim();
+function getExpectedSyncSecret(env: RuntimeEnv) {
+  return env.SYNC_ADMIN_SECRET?.trim() || env.CRON_SECRET?.trim();
 }
 
-function getSyncAdminEmails() {
+function getSyncAdminEmails(env: RuntimeEnv) {
   const configuredEmails = [
-    process.env.SYNC_ADMIN_EMAILS || "",
-    process.env.SYNC_ADMIN_EMAIL || "",
+    env.SYNC_ADMIN_EMAILS || "",
+    env.SYNC_ADMIN_EMAIL || "",
   ].join(",");
 
   return new Set(
@@ -34,8 +35,8 @@ function getSyncAdminEmails() {
   );
 }
 
-function hasValidSyncSecret(request: Request) {
-  const expected = getExpectedSyncSecret();
+function hasValidSyncSecret(request: Request, env: RuntimeEnv) {
+  const expected = getExpectedSyncSecret(env);
   if (!expected) return false;
 
   const provided =
@@ -106,11 +107,12 @@ function parsePayload(value: unknown): SyncRequestPayload {
 }
 
 export async function POST(request: Request) {
+  const env = await getRuntimeEnv();
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
   const url = new URL(request.url);
   const localRequest = isLocalhostRequest(url);
-  const syncSecretAuthorized = hasValidSyncSecret(request);
+  const syncSecretAuthorized = hasValidSyncSecret(request, env);
   const sessionUser =
     localRequest || syncSecretAuthorized
       ? null
@@ -121,7 +123,7 @@ export async function POST(request: Request) {
   }
 
   if (!localRequest && !syncSecretAuthorized && sessionUser) {
-    const syncAdminEmails = getSyncAdminEmails();
+    const syncAdminEmails = getSyncAdminEmails(env);
     if (syncAdminEmails.size === 0) {
       return forbidden("Sync admin emails are not configured");
     }
@@ -140,7 +142,7 @@ export async function POST(request: Request) {
   }
 
   const platform = parseFeedPlatform(payload.platform);
-  const snapshot = await collectFeedJobs(process.env, {
+  const snapshot = await collectFeedJobs(env, {
     requestUrl: request.url,
     platform,
   });

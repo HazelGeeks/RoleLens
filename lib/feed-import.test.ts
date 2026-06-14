@@ -372,6 +372,36 @@ describe("collectFeedJobs diagnostics (python-only)", () => {
     expect(mockedFetch).toHaveBeenCalledOnce();
   });
 
+  it("uses the hosted repository snapshot by default in production", async () => {
+    const mockedFetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            jobs: [],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        ),
+    );
+    vi.stubGlobal("fetch", mockedFetch);
+
+    const result = await collectFeedJobs(
+      { NODE_ENV: "production", PYTHON_SCRAPED_FEED_URL: "" },
+      { requestUrl: "https://rolelens.pages.dev/api/jobs/import?refresh=1" },
+    );
+
+    expect(result.sourceCount).toBe(1);
+    expect(result.diagnostics.python.scrapedFeedConfigured).toBe(true);
+    expect(mockedFetch).toHaveBeenCalledWith(
+      "https://raw.githubusercontent.com/HazelGeeks/RoleLens/main/data/scraped/python-scraped-jobs.json",
+      expect.any(Object),
+    );
+  });
+
   it("filters imported jobs by platform when requested", async () => {
     vi.stubGlobal(
       "fetch",
