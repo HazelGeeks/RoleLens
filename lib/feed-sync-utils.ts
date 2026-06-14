@@ -25,11 +25,11 @@ const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
 
 export const DEFAULT_RECOVERY_GUIDE = [
   "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
-  "To use a hosted crawler output locally, set PYTHON_SCRAPED_FEED_URL in .env.local.",
-  "Cloudflare Pages: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
-  "Use PYTHON_SCRAPED_FEED_URL as the ingestion source in deployed environments.",
+  "Production: run the Python Scrape Now workflow so it posts crawler output to /api/jobs/ingest and stores the latest snapshot in D1.",
+  "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET for D1 ingestion.",
+  "Only set PYTHON_SCRAPED_FEED_URL when intentionally debugging direct JSON feed imports.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
-  "Call /api/jobs/import?refresh=1, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
+  "Call /api/jobs/import, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
 ];
 
 const AUTO_IMPORT_TAG_PREFIXES = [

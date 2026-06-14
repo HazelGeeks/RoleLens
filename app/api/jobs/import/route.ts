@@ -3,6 +3,10 @@ import {
   readFeedSnapshotFromCache,
   writeFeedSnapshotToCache,
 } from "@/lib/feed-import";
+import {
+  readLatestFeedSnapshotFromD1,
+  writeLatestFeedSnapshotToD1,
+} from "@/lib/feed-snapshot-store";
 import { parseFeedPlatform } from "@/lib/feed-platform";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
@@ -166,12 +170,31 @@ export async function GET(request: Request) {
   }
 
   if (!refresh && !platformScoped) {
+    const d1Snapshot = await readLatestFeedSnapshotFromD1();
+    if (d1Snapshot) {
+      await writeFeedSnapshotToCache(request, d1Snapshot);
+      return Response.json(
+        {
+          ...d1Snapshot,
+          cached: true,
+          cacheSource: "d1",
+          platform,
+        },
+        {
+          headers: {
+            "cache-control": "public, max-age=15, s-maxage=60, stale-while-revalidate=60",
+          },
+        },
+      );
+    }
+
     const cached = await readFeedSnapshotFromCache(request);
     if (cached) {
       return Response.json(
         {
           ...cached,
           cached: true,
+          cacheSource: "edge",
           platform,
         },
         {
@@ -189,6 +212,7 @@ export async function GET(request: Request) {
   });
 
   if (!platformScoped) {
+    await writeLatestFeedSnapshotToD1(snapshot);
     await writeFeedSnapshotToCache(request, snapshot);
   }
 

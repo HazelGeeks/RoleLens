@@ -1,4 +1,8 @@
 import { collectFeedJobs, writeFeedSnapshotToCache } from "@/lib/feed-import";
+import {
+  readLatestFeedSnapshotFromD1,
+  writeLatestFeedSnapshotToD1,
+} from "@/lib/feed-snapshot-store";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
 export const runtime = "edge";
@@ -47,6 +51,24 @@ async function runCronImport(request: Request) {
   const snapshot = await collectFeedJobs(env, {
     requestUrl: request.url,
   });
+
+  if (snapshot.sourceCount === 0) {
+    const existingSnapshot = await readLatestFeedSnapshotFromD1();
+    if (existingSnapshot) {
+      await writeFeedSnapshotToCache(request, existingSnapshot);
+      return Response.json({
+        ok: true,
+        generatedAt: existingSnapshot.generatedAt,
+        sourceCount: existingSnapshot.sourceCount,
+        importedJobs: existingSnapshot.jobs.length,
+        errors: existingSnapshot.errors,
+        sourceResults: existingSnapshot.sourceResults,
+        cacheSource: "d1",
+      });
+    }
+  }
+
+  await writeLatestFeedSnapshotToD1(snapshot);
   await writeFeedSnapshotToCache(request, snapshot);
 
   return Response.json({

@@ -1,8 +1,10 @@
 import { extractJobDraft } from "@/lib/job-extraction";
 import type { EmploymentType, JobSource, RemoteType } from "@/lib/local-jobs";
 import type {
+  FeedImportError,
   FeedImportDiagnostics,
   FeedImportSnapshot,
+  FeedSourceResult,
   ImportedFeedJob,
 } from "@/lib/feed-types";
 import {
@@ -106,11 +108,11 @@ const DEFAULT_LOCATION_KEYWORDS = [
 
 const DEFAULT_RECOVERY_GUIDE = [
   "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
-  "To use a hosted crawler output locally, set PYTHON_SCRAPED_FEED_URL in .env.local.",
-  "Cloudflare Pages: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
-  "Use PYTHON_SCRAPED_FEED_URL as the ingestion source in deployed environments.",
+  "Production: run the Python Scrape Now workflow so it posts crawler output to /api/jobs/ingest and stores the latest snapshot in D1.",
+  "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET for D1 ingestion.",
+  "Only set PYTHON_SCRAPED_FEED_URL when intentionally debugging direct JSON feed imports.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
-  "Call /api/jobs/import?refresh=1, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
+  "Call /api/jobs/import, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
 ];
 
 const ASHBY_JOB_BOARD_ENDPOINT =
@@ -119,8 +121,6 @@ const ASHBY_JOB_BOARD_QUERY =
   "query ApiJobBoard($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { teams { id name } jobPostings { id title locationName teamId workplaceType employmentType } } }";
 const SMARTRECRUITERS_PAGE_LIMIT = 100;
 const LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH = "/api/jobs/local-python-scraped-feed";
-const DEFAULT_HOSTED_PYTHON_SCRAPED_FEED_URL =
-  "https://raw.githubusercontent.com/HazelGeeks/RoleLens/main/data/scraped/python-scraped-jobs.json";
 const PYTHON_DESCRIPTION_FETCH_TIMEOUT_MS = 6000;
 const PYTHON_DESCRIPTION_MAX_CHARS = 5000;
 const PYTHON_DESCRIPTION_HYDRATION_LIMIT = 20;
@@ -185,6 +185,43 @@ export function buildFeedImportDiagnostics(
       configuredSourceCount: pythonScrapedConfigured ? 1 : 0,
     },
     sourceCount,
+  };
+}
+
+export function buildFeedImportSnapshotFromImportedJobs(input: {
+  generatedAt?: string;
+  sourceCount: number;
+  jobs: ImportedFeedJob[];
+  errors?: FeedImportError[];
+  sourceResults?: FeedSourceResult[];
+  env?: NodeJS.ProcessEnv;
+}): FeedImportSnapshot {
+  const env = input.env || process.env;
+  const roleKeywords = parseKeywordList(
+    env.TARGET_ROLE_KEYWORDS,
+    DEFAULT_ROLE_KEYWORDS,
+  );
+  const locationKeywords = parseKeywordList(
+    env.TARGET_LOCATION_KEYWORDS,
+    DEFAULT_LOCATION_KEYWORDS,
+  );
+  const filteredJobs = input.jobs.filter((job) =>
+    isRelevantImportedJob(job, roleKeywords, locationKeywords),
+  );
+  const dedupedJobs = dedupeImportedJobs(filteredJobs);
+  const importedSourceCount = new Set(
+    dedupedJobs.map((job) => job.sourceLabel || job.source),
+  ).size;
+
+  return {
+    generatedAt: input.generatedAt || new Date().toISOString(),
+    sourceCount: input.sourceCount,
+    importedSourceCount,
+    jobs: dedupedJobs,
+    errors: input.errors || [],
+    sourceResults: input.sourceResults || [],
+    diagnostics: buildFeedImportDiagnostics(input.sourceCount, true),
+    recoveryGuide: DEFAULT_RECOVERY_GUIDE,
   };
 }
 
@@ -780,8 +817,6 @@ function toPythonScrapedSourceConfig(
           LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH,
           requestBaseUrl,
         ).toString();
-      } else {
-        url = DEFAULT_HOSTED_PYTHON_SCRAPED_FEED_URL;
       }
     } catch {
       url = undefined;
@@ -1384,7 +1419,7 @@ export async function collectFeedJobs(
         {
           source: "configuration",
           message:
-            "No sources configured. Local dev: call via /api/jobs/import (uses local fallback) or set PYTHON_SCRAPED_FEED_URL in .env.local. Cloudflare: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
+            "No direct feed sources configured. Local dev: call via /api/jobs/import (uses local fallback) or set PYTHON_SCRAPED_FEED_URL in .env.local. Production should read D1-ingested snapshots from /api/jobs/import; run the Python Scrape Now workflow if D1 has no snapshot yet.",
         },
       ],
       sourceResults: [],

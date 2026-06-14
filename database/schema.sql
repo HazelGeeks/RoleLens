@@ -1,6 +1,6 @@
 -- RoleLens canonical schema snapshot
 -- Keep this file in sync whenever SQL query/schema changes are introduced.
--- Source baseline: migrations/0001_persistence.sql, 0002_auth.sql, 0003_goals.sql
+-- Source baseline: migrations/0001_persistence.sql, 0002_auth.sql, 0003_goals.sql, 0004_feed_snapshots.sql
 
 CREATE TABLE IF NOT EXISTS persistent_jobs (
   id TEXT PRIMARY KEY,
@@ -96,3 +96,14 @@ CREATE TABLE IF NOT EXISTS persistent_goal_followups (
 
 CREATE INDEX IF NOT EXISTS idx_persistent_goal_followups_goal_created
   ON persistent_goal_followups (user_id, goal_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS feed_import_snapshots (
+  key TEXT PRIMARY KEY,
+  generated_at TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_feed_import_snapshots_generated
+  ON feed_import_snapshots (generated_at DESC);

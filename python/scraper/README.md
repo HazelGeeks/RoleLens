@@ -1,6 +1,6 @@
 # Python Site Scraper
 
-This scraper is now intended for **site-centric crawling**: scrape multiple job-board pages, generate normalized JSON, and feed RoleLens through `PYTHON_SCRAPED_FEED_URL`.
+This scraper is intended for **site-centric crawling**: scrape multiple job-board pages, generate normalized JSON, and ingest that output into RoleLens D1 through `/api/jobs/ingest`.
 
 ## Output format
 
@@ -13,7 +13,7 @@ The script writes:
 - `sourceResults[]`
 - `errors[]`
 
-RoleLens ingests this payload from `PYTHON_SCRAPED_FEED_URL`.
+RoleLens ingests this payload into D1. The app then reads the latest D1-ingested snapshot through `/api/jobs/import`.
 
 ## Source catalogs
 
@@ -87,18 +87,19 @@ python3 python/scraper/scrape_jobkorea.py
 
 ## Connect to RoleLens import
 
-Set in `.env.local` (or Cloudflare Pages variables):
+Scheduled GitHub Actions runs post the generated JSON to:
 
-```bash
-PYTHON_SCRAPED_FEED_URL=https://raw.githubusercontent.com/<owner>/<repo>/main/data/scraped/python-scraped-jobs.json
-PYTHON_SCRAPED_SOURCE_LABEL=Python Scraper
-PYTHON_SCRAPED_SOURCE_TYPE=MANUAL
+```text
+POST /api/jobs/ingest
+Header: x-cron-secret: $ROLELENS_CRON_SECRET
 ```
 
-Then refresh:
+For local debugging, `npm run dev` can still read `data/scraped/python-scraped-jobs.json` through `/api/jobs/local-python-scraped-feed`.
+
+Then inspect the current app feed:
 
 ```bash
-curl -s "http://localhost:3000/api/jobs/import?refresh=1" | jq '{sourceCount, diagnostics, errors, sourceResults}'
+curl -s "http://localhost:3000/api/jobs/import" | jq '{sourceCount, diagnostics, errors, sourceResults}'
 ```
 
 ## GitHub Actions
@@ -109,4 +110,4 @@ Use `.github/workflows/python-scrape-now.yml` (`workflow_dispatch`):
 - `source_urls` is optional and merged with the file
 - `timeout_seconds` / `limit_per_source` tune run behavior
 - `platform` can scope runs to `all`, `indeed`, `linkedin`, `saramin`, or `jobkorea`
-- `commit_changes=true` commits updated JSON snapshot
+- `commit_changes=true` commits updated JSON snapshot for debugging/audit only

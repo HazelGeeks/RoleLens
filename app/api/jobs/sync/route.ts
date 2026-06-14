@@ -1,5 +1,6 @@
 import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
 import { collectFeedJobs, writeFeedSnapshotToCache } from "@/lib/feed-import";
+import { writeLatestFeedSnapshotToD1 } from "@/lib/feed-snapshot-store";
 import { parseFeedPlatform } from "@/lib/feed-platform";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
@@ -148,6 +149,7 @@ export async function POST(request: Request) {
   });
 
   if (platform === "all") {
+    await writeLatestFeedSnapshotToD1(snapshot);
     await writeFeedSnapshotToCache(request, snapshot);
   }
 
