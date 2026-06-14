@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/components/providers/auth-provider";
 import { Card } from "@/components/ui/card";
 import { JobsTable } from "@/components/jobs/jobs-table";
 import type { JobSource, JobStatus, RemoteType } from "@/lib/local-jobs";
@@ -36,8 +37,10 @@ type JobsNotice = {
 
 export function JobsPageClient() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { jobs, refreshJobs } = useLiveLocalJobs();
+  const { status: authStatus } = useAuth();
+  const { jobs, persistenceError, refreshJobs } = useLiveLocalJobs();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<JobStatus | "ALL">("ALL");
   const [source, setSource] = useState<JobSource | "ALL">("ALL");
@@ -48,6 +51,7 @@ export function JobsPageClient() {
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [jobsNotice, setJobsNotice] = useState<JobsNotice | null>(null);
+  const [dismissedPersistenceError, setDismissedPersistenceError] = useState<string | null>(null);
 
   const {
     isSyncing,
@@ -75,10 +79,11 @@ export function JobsPageClient() {
 
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete("save");
-    const nextHref = nextParams.toString() ? "/?" + nextParams.toString() : "/";
+    const nextQuery = nextParams.toString();
+    const nextHref = nextQuery ? `${pathname}?${nextQuery}` : pathname;
 
     router.replace(nextHref, { scroll: false });
-  }, [router, searchParams]);
+  }, [pathname, router, searchParams]);
 
   useEffect(() => {
     if (!isSaveModalOpen) return;
@@ -145,6 +150,12 @@ export function JobsPageClient() {
       window.clearTimeout(timeout);
     };
   }, [jobsNotice]);
+
+  useEffect(() => {
+    if (!persistenceError) {
+      setDismissedPersistenceError(null);
+    }
+  }, [persistenceError]);
 
   const viewFilteredJobs = useMemo(
     () => jobs.filter((job) => isJobInView(job.status, jobsView)),
@@ -305,6 +316,15 @@ export function JobsPageClient() {
 
       {syncToast ? (
         <SyncToast message={syncToast.message} onDismiss={dismissSyncToast} />
+      ) : null}
+
+      {authStatus === "authenticated" &&
+      persistenceError &&
+      dismissedPersistenceError !== persistenceError ? (
+        <SyncToast
+          message={`Account postings could not be loaded. Showing this browser's local copy for now. ${persistenceError}`}
+          onDismiss={() => setDismissedPersistenceError(persistenceError)}
+        />
       ) : null}
 
       {jobsNotice ? (

@@ -16,6 +16,7 @@ export function useLiveLocalJobs() {
   // Keep the first client render identical to SSR output.
   // We read localStorage after mount to avoid hydration mismatch.
   const [jobs, setJobs] = useState<LocalJobPosting[]>([]);
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
 
   const refreshJobs = useCallback(async () => {
     const localJobs = getJobsFromStorage();
@@ -26,8 +27,14 @@ export function useLiveLocalJobs() {
       if (typeof window !== "undefined") {
         window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify(merged));
       }
+      setPersistenceError(null);
       setJobs(merged);
-    } catch {
+    } catch (error) {
+      setPersistenceError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load account postings.",
+      );
       setJobs(localJobs);
     }
   }, []);
@@ -62,6 +69,7 @@ export function useLiveLocalJobs() {
 
   return {
     jobs,
+    persistenceError,
     refreshJobs,
   };
 }
