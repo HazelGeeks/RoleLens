@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LocalJobPosting } from "@/lib/local-jobs";
+import { LOCAL_JOBS_STORAGE_KEY } from "@/lib/local-jobs";
 import type { PersistentJob } from "@/lib/persistence/types";
+import { AUTH_SESSION_STORAGE_KEY } from "@/lib/auth-client";
 import {
+  claimLocalJobsForActiveSession,
   getPersistentJobClient,
   isPersistenceNotFoundError,
   mirrorLocalJobToPersistence,
@@ -97,5 +100,51 @@ describe("persistence client recovery helpers", () => {
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const payload = JSON.parse(String(init.body)) as { clientRequestId?: string };
     expect(payload.clientRequestId).toBe("recovery:local-1:1");
+  });
+
+  it("claims local jobs for the active account session", async () => {
+    const { localStorage } = installMockWindow({
+      [AUTH_SESSION_STORAGE_KEY]: JSON.stringify({
+        user: {
+          id: "user-1",
+          email: "user@example.com",
+          name: "User",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      }),
+      [LOCAL_JOBS_STORAGE_KEY]: JSON.stringify([
+        {
+          ...baseLocalJob,
+          persistentId: "anonymous-job-1",
+          persistentVersion: 3,
+        },
+      ]),
+    });
+
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ ok: true, job: basePersistentJob }), {
+        status: 201,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(claimLocalJobsForActiveSession()).resolves.toEqual({
+      claimed: 1,
+      failed: 0,
+    });
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const payload = JSON.parse(String(init.body)) as {
+      clientRequestId?: string;
+    };
+    expect(payload.clientRequestId).toBe("account-claim:local-1");
+    expect(payload).not.toHaveProperty("persistentId");
+
+    const stored = JSON.parse(
+      localStorage.getItem(LOCAL_JOBS_STORAGE_KEY) || "[]",
+    ) as LocalJobPosting[];
+    expect(stored[0]?.persistentId).toBe("job-1");
+    expect(stored[0]?.persistentVersion).toBe(1);
   });
 });

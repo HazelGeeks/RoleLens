@@ -1,4 +1,8 @@
-import type { LocalJobPosting } from "@/lib/local-jobs";
+import {
+  getJobsFromStorage,
+  saveJobsToStorage,
+  type LocalJobPosting,
+} from "@/lib/local-jobs";
 import type {
   CreatePersistentJobInput,
   PersistentJob,
@@ -352,4 +356,49 @@ export async function mirrorLocalJobToPersistence(
   }
 
   return latest;
+}
+
+export async function claimLocalJobsForActiveSession() {
+  if (!getActiveAuthSessionUserId()) {
+    return {
+      claimed: 0,
+      failed: 0,
+    };
+  }
+
+  const localJobs = getJobsFromStorage();
+  if (localJobs.length === 0) {
+    return {
+      claimed: 0,
+      failed: 0,
+    };
+  }
+
+  const nextJobs = new Map(localJobs.map((job) => [job.id, job]));
+  let claimed = 0;
+  let failed = 0;
+
+  for (const job of localJobs) {
+    try {
+      const portableJob = {
+        ...job,
+        persistentId: undefined,
+        persistentVersion: undefined,
+      };
+      const persistent = await mirrorLocalJobToPersistence(portableJob, {
+        clientRequestId: `account-claim:${job.id}`,
+      });
+      nextJobs.set(job.id, toLocalJobFromPersistent(persistent, job));
+      claimed += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  saveJobsToStorage(Array.from(nextJobs.values()), "sync");
+
+  return {
+    claimed,
+    failed,
+  };
 }

@@ -18,6 +18,7 @@ import {
   syncAuthSessionFromServer,
   type AuthSessionUser,
 } from "@/lib/auth-client";
+import { claimLocalJobsForActiveSession } from "@/lib/persistence-client";
 
 type AuthStatus = "loading" | "guest" | "authenticated";
 
@@ -90,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (result.ok) {
       setUser(result.user);
       setStatus("authenticated");
+      await claimLocalJobsForActiveSession();
       return { ok: true };
     }
 
@@ -102,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (result.ok) {
       setUser(result.user);
       setStatus("authenticated");
+      await claimLocalJobsForActiveSession();
       return { ok: true };
     }
 
