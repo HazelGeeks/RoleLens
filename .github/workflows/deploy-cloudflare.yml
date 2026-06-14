@@ -58,6 +58,11 @@ jobs:
             echo "Set it with: npx wrangler pages secret put AUTH_PASSWORD_PEPPER --project-name=$CLOUDFLARE_PROJECT_NAME"
             exit 1
           )
+          grep -q "CRON_SECRET" /tmp/rolelens-pages-secrets.txt || (
+            echo "Missing Cloudflare Pages secret: CRON_SECRET"
+            echo "Set it with: npx wrangler pages secret put CRON_SECRET --project-name=$CLOUDFLARE_PROJECT_NAME"
+            exit 1
+          )
 
       - name: Build Pages output
         run: npm run pages:build

@@ -104,7 +104,7 @@ jobs:
             exit 1
           fi
 
-          curl --fail --silent --show-error \
+          curl --location --fail --silent --show-error \
             --request POST \
             --header "content-type: application/json" \
             --header "x-cron-secret: $ROLELENS_CRON_SECRET" \
