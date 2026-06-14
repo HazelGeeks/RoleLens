@@ -68,8 +68,10 @@ async function runCronImport(request: Request) {
     }
   }
 
-  await writeLatestFeedSnapshotToD1(snapshot);
-  await writeFeedSnapshotToCache(request, snapshot);
+  if (snapshot.sourceCount > 0) {
+    await writeLatestFeedSnapshotToD1(snapshot);
+    await writeFeedSnapshotToCache(request, snapshot);
+  }
 
   return Response.json({
     ok: true,

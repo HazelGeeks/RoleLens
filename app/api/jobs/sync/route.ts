@@ -148,7 +148,7 @@ export async function POST(request: Request) {
     platform,
   });
 
-  if (platform === "all") {
+  if (platform === "all" && snapshot.sourceCount > 0) {
     await writeLatestFeedSnapshotToD1(snapshot);
     await writeFeedSnapshotToCache(request, snapshot);
   }
