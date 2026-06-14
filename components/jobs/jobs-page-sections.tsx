@@ -421,7 +421,9 @@ export function JobsFiltersCard({
                                   : styles.syncResultFailed
                               }
                             >
-                              {result.ok ? `Success (${result.importedJobs})` : "Failed"}
+                              {result.ok
+                                ? `Success (${result.importedJobs} raw)`
+                                : "Failed"}
                             </span>
                           </div>
                           {result.message ? (

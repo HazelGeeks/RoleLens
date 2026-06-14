@@ -31,6 +31,13 @@ function buildRecoveryMessage(message: string) {
   return safeMessage + ". " + recovery;
 }
 
+function countRawImportedPostings(sourceResults: FeedSourceResult[]) {
+  return sourceResults.reduce(
+    (total, result) => total + (result.ok ? result.importedJobs : 0),
+    0,
+  );
+}
+
 export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -79,8 +86,14 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
         setSyncRecoveryGuide(result.recoveryGuide);
         const platformLabel = feedPlatformLabels[platform];
         const targetLabel = platform === "all" ? "all feeds" : platformLabel + " feed";
+        const rawImported = countRawImportedPostings(result.sourceResults);
+        const rawImportPrefix =
+          rawImported > result.totalImported
+            ? rawImported + " raw scraped postings matched to "
+            : "";
         setSyncMessage(
           "Synced " +
+            rawImportPrefix +
             result.totalImported +
             " postings (" +
             result.added +
@@ -199,11 +212,17 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
     let shouldForceRefresh = false;
 
     if (lastSummary) {
+      const rawImported = countRawImportedPostings(lastSummary.sourceResults);
+      const rawImportPrefix =
+        rawImported > lastSummary.totalImported
+          ? rawImported + " raw scraped postings matched to "
+          : "";
+
       setSyncSourceResults(lastSummary.sourceResults);
       setSyncDiagnostics(lastSummary.diagnostics);
       setSyncRecoveryGuide(lastSummary.recoveryGuide);
       setSyncMessage(
-        `Last sync imported ${lastSummary.totalImported} postings from ${lastSummary.importedSourceCount} source(s).`,
+        `Last sync imported ${rawImportPrefix}${lastSummary.totalImported} postings from ${lastSummary.importedSourceCount} source(s).`,
       );
 
       const alert = buildFeedSyncAlert({
