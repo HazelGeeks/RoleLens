@@ -191,7 +191,7 @@ export function buildFeedImportDiagnostics(
 export function buildFeedImportSnapshotFromImportedJobs(input: {
   generatedAt?: string;
   sourceCount: number;
-  jobs: ImportedFeedJob[];
+  jobs: Array<Partial<ImportedFeedJob>>;
   errors?: FeedImportError[];
   sourceResults?: FeedSourceResult[];
   env?: NodeJS.ProcessEnv;
@@ -205,7 +205,10 @@ export function buildFeedImportSnapshotFromImportedJobs(input: {
     env.TARGET_LOCATION_KEYWORDS,
     DEFAULT_LOCATION_KEYWORDS,
   );
-  const filteredJobs = input.jobs.filter((job) =>
+  const normalizedJobs = input.jobs
+    .map((job) => normalizeImportedFeedJob(job))
+    .filter((job): job is ImportedFeedJob => Boolean(job));
+  const filteredJobs = normalizedJobs.filter((job) =>
     isRelevantImportedJob(job, roleKeywords, locationKeywords),
   );
   const dedupedJobs = dedupeImportedJobs(filteredJobs);
@@ -222,6 +225,52 @@ export function buildFeedImportSnapshotFromImportedJobs(input: {
     sourceResults: input.sourceResults || [],
     diagnostics: buildFeedImportDiagnostics(input.sourceCount, true),
     recoveryGuide: DEFAULT_RECOVERY_GUIDE,
+  };
+}
+
+function normalizeImportedFeedJob(
+  job: Partial<ImportedFeedJob>,
+): ImportedFeedJob | null {
+  if (!job || typeof job !== "object") return null;
+
+  const title = asString(job.title);
+  if (!title) return null;
+
+  const sourceLabel = asString(job.sourceLabel) || "Python Scraper";
+  const company =
+    asString(job.company) ||
+    asString(job.sourceLabel)?.replace(/^PythonScraper:/, "") ||
+    "Unknown Company";
+  const externalId =
+    asString(job.externalId) ||
+    asString(job.sourceUrl) ||
+    `${company}:${title}`;
+
+  return {
+    externalId,
+    source: job.source || "MANUAL",
+    sourceLabel,
+    sourceUrl: asString(job.sourceUrl),
+    company,
+    title,
+    location: asString(job.location),
+    remoteType: job.remoteType,
+    employmentType: job.employmentType,
+    salaryMin: job.salaryMin,
+    salaryMax: job.salaryMax,
+    salaryCurrency: asString(job.salaryCurrency),
+    seniority: asString(job.seniority),
+    workAuthorizationNote: asString(job.workAuthorizationNote),
+    descriptionRaw: asString(job.descriptionRaw) || title,
+    extractedSkills: Array.isArray(job.extractedSkills)
+      ? job.extractedSkills.filter(
+          (skill): skill is string => typeof skill === "string",
+        )
+      : [],
+    tags: Array.isArray(job.tags)
+      ? job.tags.filter((tag): tag is string => typeof tag === "string")
+      : [],
+    publishedAt: asString(job.publishedAt),
   };
 }
 
