@@ -22,7 +22,7 @@ export function buildFeedSyncAlert(
     return {
       level: "error",
       message:
-        "No valid feed source is configured. In production, run the Python Scrape Now workflow so it ingests the latest crawler output into D1. For local direct-feed debugging, set PYTHON_SCRAPED_FEED_URL in .env.local, restart, then retry sync.",
+        "No valid feed source is configured. Run the Python Scrape Now workflow so it ingests the latest crawler output into D1, then retry sync.",
     };
   }
 

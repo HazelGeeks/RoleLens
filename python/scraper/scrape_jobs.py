@@ -571,8 +571,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--output",
-        default="data/scraped/python-scraped-jobs.json",
-        help="Output JSON path consumed by RoleLens D1 ingestion.",
+        default="python-scraped-jobs.json",
+        help="Temporary output JSON path posted to RoleLens D1 ingestion.",
     )
     parser.add_argument("--timeout", type=int, default=20, help="HTTP timeout per source.")
     parser.add_argument(

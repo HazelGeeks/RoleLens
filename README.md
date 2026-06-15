@@ -37,7 +37,7 @@ Why this mode exists:
 RoleLens now supports a scraping-first automation path:
 
 1. Crawl configured job-board pages via Python workflow
-2. Publish normalized JSON snapshot
+2. Upload normalized JSON as a workflow artifact
 3. Trigger daily refresh via `/api/jobs/cron`
 4. Client merges imported postings into local storage while preserving status/notes/follow-up
 
@@ -47,13 +47,6 @@ Primary (site crawling):
 
 - `TARGET_ROLE_KEYWORDS` (optional CSV; default targets frontend/backend/software engineer/blockchain)
 - `TARGET_LOCATION_KEYWORDS` (optional CSV; default targets Canada/Korea)
-
-Optional direct Python scraping feed (local/debug mode):
-
-- `PYTHON_SCRAPED_FEED_URL` (optional JSON endpoint for local/debug imports; production normally reads the latest D1-ingested snapshot)
-- `PYTHON_SCRAPED_SOURCE_LABEL` (optional, default: `Python Scraper`)
-- `PYTHON_SCRAPED_SOURCE_TYPE` (optional: `LINKEDIN`/`INDEED`/`SARAMIN`/`JOBKOREA`/`MANUAL`, default: `MANUAL`)
-- `PYTHON_SCRAPED_DEFAULT_COMPANY` (optional fallback company label)
 
 Korean source note:
 
@@ -107,14 +100,13 @@ Purpose:
 
 1. Trigger **job-site crawling** manually (`workflow_dispatch`) or daily (`schedule`, 00:00 UTC)
 2. Use a default site catalog (`python/scraper/sources.sites.json`) and optionally merge ad-hoc URLs
-3. Generate normalized JSON at `data/scraped/python-scraped-jobs.json`
+3. Generate normalized JSON at a temporary runner path
 4. POST the generated JSON to `/api/jobs/ingest` so Cloudflare D1 becomes the canonical feed snapshot
-5. Optionally commit updated JSON snapshot to repository for debugging/audit only
 
 Schedule behavior:
 
 - Scheduled runs ingest JSON into D1 and upload the JSON as a workflow artifact.
-- Manual runs keep `commit_changes` as an explicit opt-in.
+- Manual runs do the same; scraper JSON is not committed back to the repository.
 
 To consume scraper output in RoleLens:
 
@@ -130,23 +122,12 @@ Recommended for scraping-heavy mode:
 
 ### Troubleshooting Feed Source Configuration
 
-If you see "No valid feed source is configured", run this local-first checklist:
+If you see "No valid feed source is configured", run this checklist:
 
-1. Local dev fallback check:
-   - Open `GET /api/jobs/local-python-scraped-feed` and confirm it returns JSON.
-   - This endpoint serves `data/scraped/python-scraped-jobs.json` in local development.
-
-2. Optional local override:
-   - Set `PYTHON_SCRAPED_FEED_URL` in `.env.local` if you want to use a hosted JSON feed instead of the local fallback.
-
-3. For Cloudflare Pages, confirm D1 migrations are applied and the Python scrape workflow can call `/api/jobs/ingest`.
-4. Call `GET /api/jobs/import` and verify it returns the latest D1-ingested snapshot.
-5. If you intentionally want a direct refresh from `PYTHON_SCRAPED_FEED_URL`, set that env var and call `GET /api/jobs/import?refresh=1` (or platform scope: `GET /api/jobs/import?refresh=1&platform=indeed`) and verify:
-   - If `ALLOW_PUBLIC_FEED_REFRESH=0` in production, include `x-rolelens-sync-secret` (or `x-cron-secret`) for this check.
-   - `diagnostics.python.configuredSourceCount > 0`
-   - `sourceCount > 0`
-
-6. Open Jobs page and run `Sync All Feeds` (or a platform-specific sync button) again.
+1. Confirm D1 migrations are applied and `feed_import_snapshots` exists.
+2. Confirm the Python scrape workflow can call `/api/jobs/ingest` with `ROLELENS_CRON_SECRET`.
+3. Call `GET /api/jobs/import` and verify it returns the latest D1-ingested snapshot.
+4. Open Jobs page and run `Sync All Feeds` (or a platform-specific sync button) again.
 
 Notes:
 - Do not use comma-only or whitespace-only values (for example: `, ,`).
@@ -248,14 +229,6 @@ npm run dev:cloudflare
 ```
 
 Open `http://localhost:3000`.
-
-Optional direct feed setup in `.env.local` for debugging:
-
-```bash
-PYTHON_SCRAPED_FEED_URL=https://example.com/debug-scraped-jobs.json
-```
-
-If `PYTHON_SCRAPED_FEED_URL` is empty in local development, RoleLens falls back to `/api/jobs/local-python-scraped-feed` automatically (including `npm run dev:cloudflare` on localhost).
 
 If `3000` is already in use, Next.js may start on `3001` (or another port). Use the URL shown in the terminal.
 

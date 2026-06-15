@@ -48,7 +48,7 @@ Use default site catalog:
 
 ```bash
 python3 python/scraper/scrape_jobs.py \
-  --output data/scraped/python-scraped-jobs.json
+  --output python-scraped-jobs.json
 ```
 
 Add ad-hoc sources on top of catalog:
@@ -56,7 +56,7 @@ Add ad-hoc sources on top of catalog:
 ```bash
 python3 python/scraper/scrape_jobs.py \
   --source-urls "https://www.example.com/jobs,https://jobs.example.org/openings" \
-  --output data/scraped/python-scraped-jobs.json
+  --output python-scraped-jobs.json
 ```
 
 Use custom catalog file:
@@ -64,7 +64,7 @@ Use custom catalog file:
 ```bash
 python3 python/scraper/scrape_jobs.py \
   --sources-file python/scraper/sources.example.json \
-  --output data/scraped/python-scraped-jobs.json
+  --output python-scraped-jobs.json
 ```
 
 Run one platform only:
@@ -94,7 +94,7 @@ POST /api/jobs/ingest
 Header: x-cron-secret: $ROLELENS_CRON_SECRET
 ```
 
-For local debugging, `npm run dev` can still read `data/scraped/python-scraped-jobs.json` through `/api/jobs/local-python-scraped-feed`.
+For local debugging, post a generated JSON file to a local or deployed `/api/jobs/ingest` endpoint with the matching `x-cron-secret` header.
 
 Then inspect the current app feed:
 
@@ -110,4 +110,5 @@ Use `.github/workflows/python-scrape-now.yml` (`workflow_dispatch`):
 - `source_urls` is optional and merged with the file
 - `timeout_seconds` / `limit_per_source` tune run behavior
 - `platform` can scope runs to `all`, `indeed`, `linkedin`, `saramin`, or `jobkorea`
-- `commit_changes=true` commits updated JSON snapshot for debugging/audit only
+
+The workflow writes JSON to a temporary runner path, uploads it as a workflow artifact, and ingests it into D1. It does not commit scraper output back to the repository.

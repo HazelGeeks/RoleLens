@@ -12,10 +12,6 @@ import {
   matchesFeedPlatform,
   parseFeedPlatform,
 } from "@/lib/feed-platform";
-import {
-  isScrapedLinkPlaceholderDescription,
-  sanitizeJobDescription,
-} from "@/lib/job-description";
 
 type FeedSourceConfig = {
   key: string;
@@ -54,14 +50,6 @@ type AtsSourceConfig =
       companyIdentifier: string;
       companyName: string;
     };
-
-type PythonScrapedSourceConfig = {
-  key: string;
-  source: JobSource;
-  label: string;
-  url: string;
-  defaultCompany?: string;
-};
 
 type CollectFeedJobsOptions = {
   requestUrl?: string;
@@ -107,10 +95,8 @@ const DEFAULT_LOCATION_KEYWORDS = [
 ];
 
 const DEFAULT_RECOVERY_GUIDE = [
-  "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
   "Production: run the Python Scrape Now workflow so it posts crawler output to /api/jobs/ingest and stores the latest snapshot in D1.",
   "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET for D1 ingestion.",
-  "Only set PYTHON_SCRAPED_FEED_URL when intentionally debugging direct JSON feed imports.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
   "Call /api/jobs/import, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
 ];
@@ -120,22 +106,6 @@ const ASHBY_JOB_BOARD_ENDPOINT =
 const ASHBY_JOB_BOARD_QUERY =
   "query ApiJobBoard($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { teams { id name } jobPostings { id title locationName teamId workplaceType employmentType } } }";
 const SMARTRECRUITERS_PAGE_LIMIT = 100;
-const LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH = "/api/jobs/local-python-scraped-feed";
-const PYTHON_DESCRIPTION_FETCH_TIMEOUT_MS = 6000;
-const PYTHON_DESCRIPTION_MAX_CHARS = 5000;
-const PYTHON_DESCRIPTION_HYDRATION_LIMIT = 20;
-const LOW_SIGNAL_DESCRIPTION_MARKERS = [
-  "we use cookies",
-  "linkedin and 3rd parties use essential and non-essential cookies",
-  "join now",
-  "sign in",
-  "create your account",
-  "accept cookies",
-  "log in",
-  "captcha",
-  "access denied",
-  "are you a human",
-] as const;
 
 function splitCsv(value: string | undefined) {
   if (!value) return [];
@@ -143,23 +113,6 @@ function splitCsv(value: string | undefined) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function normalizeHttpUrl(value: string | undefined) {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === ",") return undefined;
-
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return undefined;
-    }
-
-    return parsed.toString();
-  } catch {
-    return undefined;
-  }
 }
 
 export function buildFeedImportDiagnostics(
@@ -311,18 +264,6 @@ function asBoolean(value: unknown) {
   return typeof value === "boolean" ? value : undefined;
 }
 
-function asStringArray(value: unknown) {
-  if (Array.isArray(value)) {
-    return value
-      .map((entry) => asString(entry))
-      .filter((entry): entry is string => !!entry);
-  }
-
-  const single = asString(value);
-  if (!single) return [];
-  return splitCsv(single);
-}
-
 function parseEmploymentType(value: unknown): EmploymentType | undefined {
   const normalized = asString(value)
     ?.replace(/([a-z])([A-Z])/g, "$1_$2")
@@ -344,16 +285,6 @@ function parseEmploymentType(value: unknown): EmploymentType | undefined {
   return allowed.includes(normalized as EmploymentType)
     ? (normalized as EmploymentType)
     : undefined;
-}
-
-function hashToId(seed: string) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash << 5) - hash + seed.charCodeAt(i);
-    hash |= 0;
-  }
-
-  return `py:${Math.abs(hash).toString(16)}`;
 }
 
 function escapeRegex(value: string) {
@@ -438,104 +369,6 @@ function decodeXmlEntities(value: string) {
     );
 }
 
-function clipDescription(value: string) {
-  return value.slice(0, PYTHON_DESCRIPTION_MAX_CHARS).trim();
-}
-
-function isLikelySearchResultsUrl(sourceUrl: string) {
-  try {
-    const parsed = new URL(sourceUrl);
-    const host = parsed.hostname.toLowerCase();
-    const path = parsed.pathname.toLowerCase();
-    if (host.includes("linkedin.com")) {
-      return path.includes("/jobs/search");
-    }
-    if (host.includes("indeed.")) {
-      return path.includes("/jobs") && parsed.searchParams.has("q");
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-function isHighSignalDescription(value: string, title: string) {
-  const normalized = normalizeWhitespace(value);
-  if (!normalized) return false;
-  if (normalized.length < 80) return false;
-  if (normalized.split(/\s+/).length < 18) return false;
-  if (/^https?:\/\//i.test(normalized)) return false;
-  if (isScrapedLinkPlaceholderDescription(normalized)) return false;
-
-  const lower = normalized.toLowerCase();
-  const hasLowSignalMarker = LOW_SIGNAL_DESCRIPTION_MARKERS.some((marker) =>
-    lower.includes(marker),
-  );
-  if (!hasLowSignalMarker) return true;
-
-  const titleTokens = title
-    .toLowerCase()
-    .split(/[^a-z0-9가-힣]+/)
-    .filter((token) => token.length >= 4);
-  if (titleTokens.length === 0) return false;
-
-  return titleTokens.some((token) => lower.includes(token));
-}
-
-function shouldHydratePythonDescription(
-  value: string,
-  title: string,
-  sourceUrl: string | undefined,
-) {
-  if (!sourceUrl || isLikelySearchResultsUrl(sourceUrl)) return false;
-
-  const description = sanitizeJobDescription(htmlToReadableText(value));
-  if (!description) return true;
-  if (isScrapedLinkPlaceholderDescription(description)) return true;
-
-  const normalizedDescription = normalizeWhitespace(description).toLowerCase();
-  const normalizedTitle = normalizeWhitespace(title).toLowerCase();
-  if (normalizedDescription === normalizedTitle) return true;
-  if (/^https?:\/\//i.test(normalizedDescription)) return true;
-  if (description.length < 80) return true;
-  if (description.split(/\s+/).length < 18) return true;
-
-  return false;
-}
-
-async function fetchDescriptionFromSource(sourceUrl: string, title: string) {
-  const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => {
-    controller.abort();
-  }, PYTHON_DESCRIPTION_FETCH_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(sourceUrl, {
-      headers: {
-        "user-agent": "RoleLensDescriptionHydrator/1.0 (+https://rolelens.pages.dev)",
-        accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
-      },
-      cache: "no-store",
-      signal: controller.signal,
-    });
-    if (!response.ok) return undefined;
-    const contentType = response.headers.get("content-type")?.toLowerCase();
-    if (contentType && !contentType.includes("text/html")) return undefined;
-    const html = await response.text();
-    const cleanedHtml = html
-      .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-      .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ");
-    const text = htmlToReadableText(cleanedHtml);
-    if (!isHighSignalDescription(text, title)) return undefined;
-    return clipDescription(text);
-  } catch {
-    return undefined;
-  } finally {
-    clearTimeout(timeoutHandle);
-  }
-}
-
 function readFirstTag(block: string, tags: string[]) {
   for (const tag of tags) {
     const pattern = new RegExp(
@@ -605,22 +438,6 @@ function normalizeDateFromEpoch(value: number | undefined) {
   const parsed = new Date(epoch);
   if (Number.isNaN(parsed.getTime())) return undefined;
   return parsed.toISOString();
-}
-
-function parseSource(value: string | undefined): JobSource | undefined {
-  if (!value) return undefined;
-  const upper = value.toUpperCase();
-  if (
-    upper === "LINKEDIN" ||
-    upper === "INDEED" ||
-    upper === "SARAMIN" ||
-    upper === "JOBKOREA" ||
-    upper === "MANUAL"
-  ) {
-    return upper;
-  }
-
-  return undefined;
 }
 
 function cleanFeedTitle(title: string, sourceKey: string) {
@@ -699,66 +516,6 @@ function inferCompanyFromTitle(title: string) {
     return first;
   }
   return undefined;
-}
-
-function inferCompanyFromSourceUrl(sourceUrl: string | undefined) {
-  if (!sourceUrl) return undefined;
-
-  try {
-    const parsed = new URL(sourceUrl);
-    const host = parsed.hostname.toLowerCase();
-    const path = parsed.pathname;
-
-    if (host.includes("linkedin.com")) {
-      const linkedinMatch = path.match(/\/jobs\/view\/[^/?#]*-at-([a-z0-9-]+)-\d+/i);
-      if (linkedinMatch?.[1]) {
-        const inferred = linkedinMatch[1]
-          .split("-")
-          .map((chunk) =>
-            chunk.length > 0 ? chunk[0].toUpperCase() + chunk.slice(1) : chunk,
-          )
-          .join(" ");
-        return isBoardCompanyLabel(inferred) ? undefined : inferred;
-      }
-    }
-  } catch {
-    return undefined;
-  }
-
-  return undefined;
-}
-
-function normalizeScrapedCompany(input: {
-  rawCompany: string | undefined;
-  sourceLabel: string;
-  sourceUrl: string | undefined;
-}) {
-  const company = input.rawCompany ? normalizeWhitespace(input.rawCompany) : undefined;
-  if (!company) return undefined;
-
-  if (isBoardCompanyLabel(company)) return undefined;
-
-  const normalizedCompany = company.toLowerCase();
-  const normalizedSourceLabel = input.sourceLabel.toLowerCase();
-  if (normalizedSourceLabel.includes(normalizedCompany)) return undefined;
-
-  try {
-    if (input.sourceUrl) {
-      const host = new URL(input.sourceUrl).hostname.toLowerCase();
-      if (
-        (host.includes("linkedin.com") && normalizedCompany === "linkedin") ||
-        (host.includes("indeed.") && normalizedCompany === "indeed") ||
-        (host.includes("jobkorea.") && normalizedCompany === "jobkorea") ||
-        (host.includes("saramin.") && normalizedCompany === "saramin")
-      ) {
-        return undefined;
-      }
-    }
-  } catch {
-    // ignore malformed sourceUrl and keep evaluating the company candidate
-  }
-
-  return company;
 }
 
 function normalizeImportedItem(
@@ -846,43 +603,6 @@ function toAtsSourceConfig(env: NodeJS.ProcessEnv): AtsSourceConfig[] {
   return [];
 }
 
-function toPythonScrapedSourceConfig(
-  env: NodeJS.ProcessEnv,
-  options: CollectFeedJobsOptions,
-): PythonScrapedSourceConfig | null {
-  const configuredUrl = normalizeHttpUrl(env.PYTHON_SCRAPED_FEED_URL);
-  const isProduction = env.NODE_ENV === "production";
-
-  let url = configuredUrl;
-  if (!url && options.requestUrl) {
-    try {
-      const requestBaseUrl = new URL(options.requestUrl);
-      const isLocalRequest =
-        requestBaseUrl.hostname === "localhost" ||
-        requestBaseUrl.hostname === "127.0.0.1";
-
-      if (!isProduction || isLocalRequest) {
-        url = new URL(
-          LOCAL_DEV_PYTHON_SCRAPED_FEED_PATH,
-          requestBaseUrl,
-        ).toString();
-      }
-    } catch {
-      url = undefined;
-    }
-  }
-
-  if (!url) return null;
-
-  return {
-    key: "python-scraped",
-    source: parseSource(env.PYTHON_SCRAPED_SOURCE_TYPE) ?? "MANUAL",
-    label: env.PYTHON_SCRAPED_SOURCE_LABEL || "Python Scraper",
-    url,
-    defaultCompany: env.PYTHON_SCRAPED_DEFAULT_COMPANY,
-  };
-}
-
 async function fetchAndParseFeedSource(
   source: FeedSourceConfig,
 ): Promise<ImportedFeedJob[]> {
@@ -942,154 +662,6 @@ function mapAtsDraftToImported(input: {
     tags: Array.from(new Set([...input.tags, ...draft.tags])),
     publishedAt: input.publishedAt,
   };
-}
-
-type NormalizePythonScrapedItemOptions = {
-  hydrateDescriptionFromSource: boolean;
-};
-
-async function normalizePythonScrapedItem(
-  value: unknown,
-  source: PythonScrapedSourceConfig,
-  index: number,
-  options: NormalizePythonScrapedItemOptions,
-): Promise<ImportedFeedJob | null> {
-  const raw = asRecord(value);
-  if (!raw) return null;
-
-  const title = asString(raw.title) || asString(raw.role);
-  if (!title) return null;
-
-  const sourceUrl = asString(raw.sourceUrl) || asString(raw.url);
-  const sourceLabel = asString(raw.sourceLabel) || source.label;
-  const sourceType = parseSource(asString(raw.source)) ?? source.source;
-  const rawDescriptionCandidate =
-    asString(raw.descriptionRaw) ||
-    asString(raw.description) ||
-    asString(raw.summary) ||
-    title;
-  const sourceDescription = htmlToReadableText(rawDescriptionCandidate) || title;
-  const hydratedDescription =
-    options.hydrateDescriptionFromSource &&
-    sourceUrl &&
-    shouldHydratePythonDescription(sourceDescription, title, sourceUrl)
-      ? await fetchDescriptionFromSource(sourceUrl, title)
-      : undefined;
-  const descriptionRaw =
-    sanitizeJobDescription(hydratedDescription) ||
-    sanitizeJobDescription(sourceDescription);
-
-  const draft = extractJobDraft({
-    sourceUrl,
-    existingTitle: title,
-    descriptionRaw,
-  });
-
-  const companyCandidates = [
-    asString(raw.company),
-    draft.company,
-    inferCompanyFromTitle(title),
-    inferCompanyFromSourceUrl(sourceUrl),
-    source.defaultCompany,
-  ];
-  let company: string | undefined;
-  for (const candidate of companyCandidates) {
-    const normalizedCompany = normalizeScrapedCompany({
-      rawCompany: candidate,
-      sourceLabel,
-      sourceUrl,
-    });
-    if (!normalizedCompany) continue;
-    company = normalizedCompany;
-    break;
-  }
-
-  company ||= "Unknown Company";
-  const externalId =
-    asString(raw.externalId) ||
-    asString(raw.id) ||
-    hashToId(`${source.key}:${sourceUrl || title}:${index}`);
-  const tags = Array.from(
-    new Set([
-      "python-scraper",
-      source.key,
-      ...asStringArray(raw.tags),
-      ...draft.tags,
-    ]),
-  );
-
-  return {
-    externalId,
-    source: sourceType,
-    sourceLabel,
-    sourceUrl,
-    company,
-    title,
-    location: draft.location || asString(raw.location),
-    remoteType: draft.remoteType,
-    employmentType: draft.employmentType || parseEmploymentType(raw.employmentType),
-    salaryMin: draft.salaryMin ?? asNumber(raw.salaryMin),
-    salaryMax: draft.salaryMax ?? asNumber(raw.salaryMax),
-    salaryCurrency: draft.salaryCurrency || asString(raw.salaryCurrency),
-    seniority: draft.seniority || asString(raw.seniority),
-    workAuthorizationNote:
-      draft.workAuthorizationNote || asString(raw.workAuthorizationNote),
-    descriptionRaw,
-    extractedSkills: Array.from(
-      new Set([...draft.extractedSkills, ...asStringArray(raw.extractedSkills)]),
-    ),
-    tags,
-    publishedAt: normalizeDate(asString(raw.publishedAt)),
-  };
-}
-
-async function fetchPythonScrapedSource(
-  source: PythonScrapedSourceConfig,
-): Promise<ImportedFeedJob[]> {
-  const response = await fetch(source.url, {
-    headers: {
-      "user-agent": "RoleLensPythonScraper/1.0 (+https://rolelens.pages.dev)",
-      accept: "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(`Python scraped feed request failed (${response.status})`);
-  }
-
-  const payload = (await response.json()) as unknown;
-  const root = asRecord(payload);
-  const jobs = Array.isArray(root?.jobs) ? root.jobs : [];
-  let hydrationBudget = PYTHON_DESCRIPTION_HYDRATION_LIMIT;
-
-  const normalizedJobs = await Promise.all(
-    jobs.map((item, index) => {
-      const raw = asRecord(item);
-      const descriptionCandidate =
-        asString(raw?.descriptionRaw) ||
-        asString(raw?.description) ||
-        asString(raw?.summary) ||
-        "";
-      const itemSourceUrl = asString(raw?.sourceUrl) || asString(raw?.url);
-      const itemTitle = asString(raw?.title) || asString(raw?.role) || "";
-      const hydrateDescriptionFromSource =
-        hydrationBudget > 0 &&
-        !!itemSourceUrl &&
-        shouldHydratePythonDescription(
-          descriptionCandidate,
-          itemTitle,
-          itemSourceUrl,
-        );
-      if (hydrateDescriptionFromSource) hydrationBudget -= 1;
-
-      return normalizePythonScrapedItem(item, source, index, {
-        hydrateDescriptionFromSource,
-      });
-    }),
-  );
-
-  return normalizedJobs.filter((item): item is ImportedFeedJob => item !== null);
 }
 
 async function fetchGreenhouseSource(
@@ -1422,10 +994,8 @@ export async function collectFeedJobs(
 ): Promise<FeedImportSnapshot> {
   const feedSources = toFeedSourceConfig(env);
   const atsSources = toAtsSourceConfig(env);
-  const pythonScrapedSource = toPythonScrapedSourceConfig(env, options);
-  const sourceCount =
-    feedSources.length + atsSources.length + (pythonScrapedSource ? 1 : 0);
-  const diagnostics = buildFeedImportDiagnostics(sourceCount, !!pythonScrapedSource);
+  const sourceCount = feedSources.length + atsSources.length;
+  const diagnostics = buildFeedImportDiagnostics(sourceCount, false);
   const errors: FeedImportSnapshot["errors"] = [];
   const sourceResults: FeedImportSnapshot["sourceResults"] = [];
   const roleKeywords = parseKeywordList(
@@ -1448,14 +1018,6 @@ export async function collectFeedJobs(
         label: source.label,
         run: () => fetchAndParseAtsSource(source),
       })),
-      ...(pythonScrapedSource
-        ? [
-            {
-              label: pythonScrapedSource.label,
-              run: () => fetchPythonScrapedSource(pythonScrapedSource),
-            },
-          ]
-        : []),
     ];
 
   if (tasks.length === 0) {
@@ -1468,7 +1030,7 @@ export async function collectFeedJobs(
         {
           source: "configuration",
           message:
-            "No direct feed sources configured. Local dev: call via /api/jobs/import (uses local fallback) or set PYTHON_SCRAPED_FEED_URL in .env.local. Production should read D1-ingested snapshots from /api/jobs/import; run the Python Scrape Now workflow if D1 has no snapshot yet.",
+            "No direct feed sources configured. RoleLens should read D1-ingested snapshots from /api/jobs/import; run the Python Scrape Now workflow if D1 has no snapshot yet.",
         },
       ],
       sourceResults: [],
