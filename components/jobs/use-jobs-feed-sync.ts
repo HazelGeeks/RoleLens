@@ -6,7 +6,6 @@ import {
   getLastFeedSyncSummary,
   syncJobsFromFeeds,
 } from "@/lib/feed-sync";
-import { getActiveAuthSessionUserId } from "@/lib/auth-client";
 import { buildFeedSyncAlert } from "@/lib/feed-sync-alert";
 import type { FeedImportDiagnostics, FeedSourceResult } from "@/lib/feed-types";
 import { feedPlatformLabels, type FeedPlatform } from "@/lib/feed-platform";
@@ -27,7 +26,7 @@ type SyncOptions = {
 function buildRecoveryMessage(message: string) {
   const safeMessage = message.endsWith(".") ? message.slice(0, -1) : message;
   const recovery =
-    "Recovery: run the Python Scrape Now workflow, verify D1 ingestion, then retry sync.";
+    "Recovery: verify the D1 feed snapshot ingestion, then retry sync.";
   return safeMessage + ". " + recovery;
 }
 
@@ -159,9 +158,9 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
         }
 
         if (
-          message.includes("status 403") &&
-          (message.includes("Admin access required") ||
-            message.includes("Sync admin emails are not configured"))
+          message.includes("Admin access required") ||
+          message.includes("Sync admin emails are not configured") ||
+          message.includes("status 403")
         ) {
           setSyncError(null);
           showSyncToast("Admin access is required to sync feeds.");
@@ -209,8 +208,6 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
   useEffect(() => {
     setLastSyncAt(getLastFeedSyncAt());
     const lastSummary = getLastFeedSyncSummary();
-    let shouldForceRefresh = false;
-
     if (lastSummary) {
       const rawImported = countRawImportedPostings(lastSummary.sourceResults);
       const rawImportPrefix =
@@ -238,15 +235,12 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
         setSyncError(null);
       }
 
-      shouldForceRefresh =
-        lastSummary.sourceCount === 0 ||
-        lastSummary.errors.some((entry) => entry.source === "configuration");
     }
 
     void runFeedSync({
       silent: true,
-      refresh: shouldForceRefresh,
-      persistToDb: getActiveAuthSessionUserId() != null,
+      refresh: false,
+      persistToDb: false,
     });
   }, [runFeedSync, showSyncToast]);
 

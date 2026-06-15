@@ -141,4 +141,55 @@ describe("/api/jobs DB persistence API", () => {
     expect(fetched.ok).toBe(true);
     expect(fetched.job.nextAction).toBe("Prepare interview notes");
   });
+
+  it("supports trailing slash dynamic job routes", async () => {
+    const headers = buildHeaders("user-db-api", "device-a");
+
+    const createResponse = await POST(
+      new Request("https://rolelens.pages.dev/api/jobs", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          company: "Figma",
+          title: "UI Engineer",
+          status: "SAVE",
+        }),
+      }),
+    );
+
+    const created = (await createResponse.json()) as {
+      job: { id: string; version: number };
+    };
+
+    const patchResponse = await PATCH(
+      new Request(`https://rolelens.pages.dev/api/jobs/${created.job.id}/`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          op: "status",
+          expectedVersion: created.job.version,
+          status: "SUBMITTED",
+        }),
+      }),
+      { params: Promise.resolve({ id: `${created.job.id}/` }) },
+    );
+
+    expect(patchResponse.status).toBe(200);
+
+    const fetchResponse = await GET_BY_ID(
+      new Request(`https://rolelens.pages.dev/api/jobs/${created.job.id}/`, {
+        method: "GET",
+        headers,
+      }),
+      { params: Promise.resolve({ id: `${created.job.id}/` }) },
+    );
+    const fetched = (await fetchResponse.json()) as {
+      ok: boolean;
+      job: { status: string };
+    };
+
+    expect(fetchResponse.status).toBe(200);
+    expect(fetched.ok).toBe(true);
+    expect(fetched.job.status).toBe("SUBMITTED");
+  });
 });

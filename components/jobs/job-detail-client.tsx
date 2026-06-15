@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { statusOptions } from "@/lib/constants";
-import { upsertJob } from "@/lib/local-jobs";
+import {
+  addNote as addLocalNote,
+  updateFollowUp as updateLocalFollowUp,
+  updateStatus as updateLocalStatus,
+  upsertJob,
+} from "@/lib/local-jobs";
 import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
 import {
   isPersistenceNotFoundError,
@@ -111,45 +116,72 @@ export function JobDetailClient() {
 
   const saveStatus = async () => {
     setActionError(null);
-    const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
-      op: "status",
-      expectedVersion,
-      status: status || job.status,
-    }));
-
-    upsertJob(toLocalJobFromPersistent(updated, job));
+    const nextStatus = status || job.status;
+    updateLocalStatus(job.id, nextStatus);
     setStatus("");
     await refreshJobs();
+
+    try {
+      const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
+        op: "status",
+        expectedVersion,
+        status: nextStatus,
+      }));
+
+      upsertJob(toLocalJobFromPersistent(updated, job));
+      await refreshJobs();
+    } catch {
+      await refreshJobs();
+    }
   };
 
   const saveFollowUp = async () => {
     setActionError(null);
-    const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
-      op: "update",
-      expectedVersion,
-      changes: {
-        nextAction: nextActionInput.trim() || undefined,
-        followUpDate: followUpDateInput.trim() || undefined,
-      },
-    }));
-
-    upsertJob(toLocalJobFromPersistent(updated, job));
+    const nextAction = nextActionInput.trim() || undefined;
+    const followUpDate = followUpDateInput.trim() || undefined;
+    updateLocalFollowUp(job.id, {
+      nextAction,
+      followUpDate,
+    });
     await refreshJobs();
+
+    try {
+      const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
+        op: "update",
+        expectedVersion,
+        changes: {
+          nextAction,
+          followUpDate,
+        },
+      }));
+
+      upsertJob(toLocalJobFromPersistent(updated, job));
+      await refreshJobs();
+    } catch {
+      await refreshJobs();
+    }
   };
 
   const addNewNote = async () => {
     if (!newNote.trim()) return;
     setActionError(null);
-
-    const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
-      op: "note",
-      expectedVersion,
-      content: newNote.trim(),
-    }));
-
-    upsertJob(toLocalJobFromPersistent(updated, job));
+    const content = newNote.trim();
+    addLocalNote(job.id, content);
     setNewNote("");
     await refreshJobs();
+
+    try {
+      const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
+        op: "note",
+        expectedVersion,
+        content,
+      }));
+
+      upsertJob(toLocalJobFromPersistent(updated, job));
+      await refreshJobs();
+    } catch {
+      await refreshJobs();
+    }
   };
 
   return (

@@ -251,7 +251,7 @@ export async function listPersistentJobsClient() {
 }
 
 export async function getPersistentJobClient(jobId: string) {
-  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/`, {
     method: "GET",
     cache: "no-store",
     headers: buildPersistenceHeaders(),
@@ -302,7 +302,7 @@ export async function patchPersistentJobClient(
   jobId: string,
   patch: PersistentJobPatch,
 ) {
-  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/`, {
     method: "PATCH",
     headers: buildPersistenceHeaders(),
     body: JSON.stringify(patch),

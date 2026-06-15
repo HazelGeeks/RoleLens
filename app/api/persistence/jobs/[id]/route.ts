@@ -30,9 +30,15 @@ function formatValidation(error: z.ZodError) {
   }));
 }
 
-async function getRouteJobId(context: RouteContext) {
+async function getRouteJobId(request: Request, context: RouteContext) {
+  const pathId = new URL(request.url).pathname
+    .replace(/\/+$/g, "")
+    .split("/")
+    .pop();
+  if (pathId) return decodeURIComponent(pathId);
+
   const params = await context.params;
-  return params.id;
+  return params.id.replace(/\/+$/g, "");
 }
 
 export async function GET(request: Request, context: RouteContext) {
@@ -40,7 +46,7 @@ export async function GET(request: Request, context: RouteContext) {
     const auth = await authorizePersistenceRequest(request);
     if (!auth.ok) return auth.response;
 
-    const jobId = await getRouteJobId(context);
+    const jobId = await getRouteJobId(request, context);
     const job = await getPersistentJob(auth.identity.userId, jobId);
 
     if (!job) {
@@ -81,7 +87,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const auth = await authorizePersistenceRequest(request);
     if (!auth.ok) return auth.response;
 
-    const jobId = await getRouteJobId(context);
+    const jobId = await getRouteJobId(request, context);
 
     let payload: unknown;
     try {

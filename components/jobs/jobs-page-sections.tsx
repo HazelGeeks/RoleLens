@@ -36,7 +36,7 @@ import {
 import styles from "./jobs-page-sections.module.css";
 
 const DEFAULT_OPERATIONAL_CHECKLIST = [
-  "Run the Python Scrape Now workflow so it posts crawler output to /api/jobs/ingest.",
+  "Post the latest normalized feed snapshot to /api/jobs/ingest so D1 stores it.",
   "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET.",
   "Confirm D1 migrations are applied and feed_import_snapshots exists.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
