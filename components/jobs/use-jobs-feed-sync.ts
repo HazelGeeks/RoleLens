@@ -27,7 +27,7 @@ type SyncOptions = {
 function buildRecoveryMessage(message: string) {
   const safeMessage = message.endsWith(".") ? message.slice(0, -1) : message;
   const recovery =
-    "Recovery: retry sync. If it keeps failing, verify PYTHON_SCRAPED_FEED_URL and deployment environment settings.";
+    "Recovery: run the Python Scrape Now workflow, verify D1 ingestion, then retry sync.";
   return safeMessage + ". " + recovery;
 }
 

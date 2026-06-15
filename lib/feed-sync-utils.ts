@@ -27,7 +27,7 @@ export const DEFAULT_RECOVERY_GUIDE = [
   "Production: run the Python Scrape Now workflow so it posts crawler output to /api/jobs/ingest and stores the latest snapshot in D1.",
   "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET for D1 ingestion.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
-  "Call /api/jobs/import, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
+  "Call /api/jobs/import, then retry Sync All Feeds in the Jobs page.",
 ];
 
 const AUTO_IMPORT_TAG_PREFIXES = [

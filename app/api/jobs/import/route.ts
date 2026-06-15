@@ -1,14 +1,14 @@
 import {
-  collectFeedJobs,
   readFeedSnapshotFromCache,
   writeFeedSnapshotToCache,
-} from "@/lib/feed-import";
-import {
-  readLatestFeedSnapshotFromD1,
-  writeLatestFeedSnapshotToD1,
-} from "@/lib/feed-snapshot-store";
+} from "@/lib/feed-snapshot-cache";
+import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
 import { parseFeedPlatform } from "@/lib/feed-platform";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
+import {
+  buildMissingD1FeedSnapshot,
+  filterFeedSnapshotByPlatform,
+} from "@/lib/feed-snapshot";
 
 export const runtime = "edge";
 
@@ -76,10 +76,6 @@ function hasValidSyncSecret(request: Request, env: RuntimeEnv) {
   return authorization.slice(bearerPrefix.length).trim() === expected;
 }
 
-function allowPublicFeedRefresh(env: RuntimeEnv) {
-  return env.ALLOW_PUBLIC_FEED_REFRESH?.trim() === "1";
-}
-
 function consumePublicRateLimit(key: string, env: RuntimeEnv) {
   const now = Date.now();
   const bucket = publicImportBuckets.get(key);
@@ -114,22 +110,12 @@ function consumePublicRateLimit(key: string, env: RuntimeEnv) {
   };
 }
 
-function buildGuardedResponse(payload: Record<string, unknown>, status: number) {
-  return Response.json(payload, {
-    status,
-    headers: {
-      "cache-control": "no-store",
-    },
-  });
-}
-
 export async function GET(request: Request) {
   const env = await getRuntimeEnv();
   const url = new URL(request.url);
   const refresh = url.searchParams.get("refresh") === "1";
   const platform = parseFeedPlatform(url.searchParams.get("platform"));
   const platformScoped = platform !== "all";
-  const expensiveSyncRequest = refresh || platformScoped;
   const localRequest = isLocalhostRequest(url);
   const syncAuthorized = hasValidSyncSecret(request, env);
 
@@ -153,46 +139,34 @@ export async function GET(request: Request) {
     }
   }
 
-  if (
-    expensiveSyncRequest &&
-    !localRequest &&
-    !syncAuthorized &&
-    !allowPublicFeedRefresh(env)
-  ) {
-    return buildGuardedResponse(
+  const d1Snapshot = await readLatestFeedSnapshotFromD1();
+  if (d1Snapshot) {
+    const snapshot = filterFeedSnapshotByPlatform(d1Snapshot, platform);
+    if (!platformScoped) {
+      await writeFeedSnapshotToCache(request, d1Snapshot);
+    }
+    return Response.json(
       {
-        ok: false,
-        message:
-          "Manual feed refresh is disabled on this public import endpoint. Use authenticated POST /api/jobs/sync from the app, cached /api/jobs/import responses, or trigger /api/jobs/cron with x-cron-secret.",
+        ...snapshot,
+        cached: true,
+        cacheSource: "d1",
+        platform,
       },
-      403,
+      {
+        headers: {
+          "cache-control": "public, max-age=15, s-maxage=60, stale-while-revalidate=60",
+        },
+      },
     );
   }
 
   if (!refresh && !platformScoped) {
-    const d1Snapshot = await readLatestFeedSnapshotFromD1();
-    if (d1Snapshot) {
-      await writeFeedSnapshotToCache(request, d1Snapshot);
-      return Response.json(
-        {
-          ...d1Snapshot,
-          cached: true,
-          cacheSource: "d1",
-          platform,
-        },
-        {
-          headers: {
-            "cache-control": "public, max-age=15, s-maxage=60, stale-while-revalidate=60",
-          },
-        },
-      );
-    }
-
     const cached = await readFeedSnapshotFromCache(request);
     if (cached) {
+      const snapshot = filterFeedSnapshotByPlatform(cached, platform);
       return Response.json(
         {
-          ...cached,
+          ...snapshot,
           cached: true,
           cacheSource: "edge",
           platform,
@@ -206,15 +180,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const snapshot = await collectFeedJobs(env, {
-    requestUrl: request.url,
-    platform,
-  });
-
-  if (!platformScoped && snapshot.sourceCount > 0) {
-    await writeLatestFeedSnapshotToD1(snapshot);
-    await writeFeedSnapshotToCache(request, snapshot);
-  }
+  const snapshot = buildMissingD1FeedSnapshot();
 
   return Response.json(
     {

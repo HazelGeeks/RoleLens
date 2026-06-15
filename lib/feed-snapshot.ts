@@ -1,0 +1,82 @@
+import type { FeedImportSnapshot } from "@/lib/feed-types";
+import {
+  type FeedPlatform,
+  matchesFeedPlatform,
+  parseFeedPlatform,
+} from "@/lib/feed-platform";
+
+const D1_RECOVERY_GUIDE = [
+  "Run the Python Scrape Now workflow so it posts crawler output to /api/jobs/ingest and stores the latest snapshot in D1.",
+  "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET for D1 ingestion.",
+  "Confirm D1 migrations are applied and feed_import_snapshots exists.",
+  "Call /api/jobs/import, then retry Sync All Feeds in the Jobs page.",
+];
+
+export function buildMissingD1FeedSnapshot(): FeedImportSnapshot {
+  return {
+    generatedAt: new Date().toISOString(),
+    sourceCount: 0,
+    importedSourceCount: 0,
+    jobs: [],
+    errors: [
+      {
+        source: "d1",
+        message:
+          "No D1-ingested feed snapshot is available. Run the Python Scrape Now workflow first.",
+      },
+    ],
+    sourceResults: [],
+    diagnostics: {
+      ats: {
+        greenhouseBoardCount: 0,
+        leverCompanyCount: 0,
+        ashbyOrganizationCount: 0,
+        smartRecruitersCompanyCount: 0,
+        configuredSourceCount: 0,
+      },
+      rss: {
+        linkedinConfigured: false,
+        indeedConfigured: false,
+        thirdConfigured: false,
+        configuredSourceCount: 0,
+      },
+      python: {
+        scrapedFeedConfigured: false,
+        configuredSourceCount: 0,
+      },
+      sourceCount: 0,
+    },
+    recoveryGuide: D1_RECOVERY_GUIDE,
+  };
+}
+
+export function filterFeedSnapshotByPlatform(
+  snapshot: FeedImportSnapshot,
+  inputPlatform: FeedPlatform | string | null | undefined,
+): FeedImportSnapshot {
+  const platform = parseFeedPlatform(inputPlatform);
+  if (platform === "all") return snapshot;
+
+  const jobs = snapshot.jobs.filter((job) => matchesFeedPlatform(job, platform));
+  const importedSourceCount = new Set(
+    jobs.map((job) => job.sourceLabel || job.source),
+  ).size;
+
+  return {
+    ...snapshot,
+    importedSourceCount,
+    jobs,
+    sourceResults: snapshot.sourceResults
+      .map((result) => {
+        const importedJobs = jobs.filter(
+          (job) => (job.sourceLabel || job.source) === result.source,
+        ).length;
+        return {
+          ...result,
+          importedJobs,
+          message: `Platform filter (${platform}): ${importedJobs}/${result.importedJobs}`,
+        };
+      })
+      .filter((result) => result.importedJobs > 0 || !result.ok),
+  };
+}

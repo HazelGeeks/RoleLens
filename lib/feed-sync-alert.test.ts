@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { buildFeedSyncAlert } from "@/lib/feed-sync-alert";
 
 describe("buildFeedSyncAlert", () => {
-  it("returns configuration error when sources are not configured", () => {
+  it("returns an error when no D1 snapshot is available", () => {
     const alert = buildFeedSyncAlert({
       sourceCount: 0,
       errors: [
         {
-          source: "configuration",
-          message: "No sources configured",
+          source: "d1",
+          message: "No D1-ingested feed snapshot is available",
         },
       ],
       sourceResults: [],
@@ -16,7 +16,7 @@ describe("buildFeedSyncAlert", () => {
 
     expect(alert).not.toBeNull();
     expect(alert?.level).toBe("error");
-    expect(alert?.message.toLowerCase()).toContain("no valid feed source");
+    expect(alert?.message.toLowerCase()).toContain("no d1 feed snapshot");
     expect(alert?.message).toContain("D1");
     expect(alert?.message).toContain("Python Scrape Now");
   });

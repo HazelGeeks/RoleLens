@@ -5,8 +5,7 @@ import type {
   PersistentJobNote,
   PersistentJobPatch,
 } from "@/lib/persistence/types";
-
-const DEFAULT_D1_BINDING = "DB";
+import { getD1DatabaseFromContext, type D1DatabaseLike } from "@/lib/d1";
 
 const userJobStore = new Map<string, Map<string, PersistentJob>>();
 const createRequestIndex = new Map<string, Map<string, string>>();
@@ -27,21 +26,6 @@ type PersistenceBackend =
       kind: "d1";
       db: D1DatabaseLike;
     };
-
-type D1PreparedStatementLike = {
-  bind(...values: unknown[]): D1PreparedStatementLike;
-  run(): Promise<{
-    meta?: {
-      changes?: number;
-    };
-  }>;
-  all<T = unknown>(): Promise<{ results: T[] }>;
-  first<T = unknown>(): Promise<T | null>;
-};
-
-type D1DatabaseLike = {
-  prepare(query: string): D1PreparedStatementLike;
-};
 
 type JobRow = {
   id: string;
@@ -130,49 +114,6 @@ function withVersioning(job: PersistentJob, deviceId: string) {
 
 function hasOwn<T extends object>(value: T, key: string) {
   return Object.prototype.hasOwnProperty.call(value, key);
-}
-
-function isD1DatabaseLike(value: unknown): value is D1DatabaseLike {
-  if (!value || typeof value !== "object") return false;
-  const maybeDb = value as { prepare?: unknown };
-  return typeof maybeDb.prepare === "function";
-}
-
-function getD1FromGlobalScope(bindingName: string): D1DatabaseLike | undefined {
-  const scope = globalThis as Record<string, unknown> & {
-    __env__?: Record<string, unknown>;
-    __ENV__?: Record<string, unknown>;
-  };
-
-  const direct = scope[bindingName];
-  if (isD1DatabaseLike(direct)) return direct;
-
-  const lowerEnvCandidate = scope.__env__?.[bindingName];
-  if (isD1DatabaseLike(lowerEnvCandidate)) return lowerEnvCandidate;
-
-  const upperEnvCandidate = scope.__ENV__?.[bindingName];
-  if (isD1DatabaseLike(upperEnvCandidate)) return upperEnvCandidate;
-
-  return undefined;
-}
-
-async function getD1DatabaseFromContext(): Promise<D1DatabaseLike | undefined> {
-  const bindingName =
-    process.env.PERSISTENCE_D1_BINDING?.trim() || DEFAULT_D1_BINDING;
-
-  try {
-    const { getRequestContext } = await import("@cloudflare/next-on-pages");
-    const context = getRequestContext();
-    const env = context.env as Record<string, unknown> | undefined;
-    const candidate = env?.[bindingName];
-    if (isD1DatabaseLike(candidate)) {
-      return candidate;
-    }
-  } catch {
-    // Ignore context lookup errors; global binding fallback is checked below.
-  }
-
-  return getD1FromGlobalScope(bindingName);
 }
 
 async function resolvePersistenceBackend(): Promise<PersistenceBackend> {

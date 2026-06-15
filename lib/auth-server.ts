@@ -1,12 +1,4 @@
-type D1PreparedStatementLike = {
-  bind(...values: unknown[]): D1PreparedStatementLike;
-  first<T>(): Promise<T | null>;
-  run(): Promise<unknown>;
-};
-
-type D1DatabaseLike = {
-  prepare(query: string): D1PreparedStatementLike;
-};
+import { getD1DatabaseFromContext, type D1DatabaseLike } from "@/lib/d1";
 
 type AuthBackend =
   | {
@@ -74,7 +66,6 @@ export type AuthPasswordResetResult =
 const AUTH_COOKIE_NAME = "rolelens_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const PASSWORD_HASH_ALGORITHM = "sha256";
-const DEFAULT_D1_BINDING = "DB";
 const DEV_AUTH_PASSWORD_PEPPER_FALLBACK = "rolelens-dev-insecure-pepper";
 
 const memoryUsersById = new Map<string, AuthUserRecord>();
@@ -144,12 +135,6 @@ async function resolveAuthPasswordPepper() {
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
-}
-
-function isD1DatabaseLike(value: unknown): value is D1DatabaseLike {
-  if (!value || typeof value !== "object") return false;
-  const maybeDb = value as { prepare?: unknown };
-  return typeof maybeDb.prepare === "function";
 }
 
 function bytesToBase64(bytes: Uint8Array) {
@@ -280,43 +265,6 @@ async function verifyPassword(password: string, storedHash: string) {
   return safeEqualBytes(actualBytes, expectedBytes);
 }
 
-function getD1FromGlobalScope(bindingName: string): D1DatabaseLike | undefined {
-  const scope = globalThis as Record<string, unknown> & {
-    __env__?: Record<string, unknown>;
-    __ENV__?: Record<string, unknown>;
-  };
-
-  const direct = scope[bindingName];
-  if (isD1DatabaseLike(direct)) return direct;
-
-  const lowerEnvCandidate = scope.__env__?.[bindingName];
-  if (isD1DatabaseLike(lowerEnvCandidate)) return lowerEnvCandidate;
-
-  const upperEnvCandidate = scope.__ENV__?.[bindingName];
-  if (isD1DatabaseLike(upperEnvCandidate)) return upperEnvCandidate;
-
-  return undefined;
-}
-
-async function getD1DatabaseFromRequestContext(): Promise<D1DatabaseLike | undefined> {
-  const bindingName =
-    process.env.PERSISTENCE_D1_BINDING?.trim() || DEFAULT_D1_BINDING;
-
-  try {
-    const { getRequestContext } = await import("@cloudflare/next-on-pages");
-    const context = getRequestContext();
-    const env = context.env as Record<string, unknown> | undefined;
-    const candidate = env?.[bindingName];
-    if (isD1DatabaseLike(candidate)) {
-      return candidate;
-    }
-  } catch {
-    // Ignore context lookup errors; global binding fallback is checked below.
-  }
-
-  return getD1FromGlobalScope(bindingName);
-}
-
 async function resolveAuthBackend(): Promise<AuthBackend> {
   const configured = process.env.AUTH_BACKEND?.trim().toLowerCase();
   const persistenceBackend = process.env.PERSISTENCE_BACKEND?.trim().toLowerCase();
@@ -332,7 +280,7 @@ async function resolveAuthBackend(): Promise<AuthBackend> {
   }
 
   const shouldUseD1 = configured === "d1" || persistenceBackend === "d1";
-  const db = await getD1DatabaseFromRequestContext();
+  const db = await getD1DatabaseFromContext();
 
   if (!shouldUseD1 && db) {
     return { kind: "d1", db };

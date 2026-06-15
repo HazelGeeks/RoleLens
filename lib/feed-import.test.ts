@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  buildFeedImportSnapshotFromImportedJobs,
-  collectFeedJobs,
-  readFeedSnapshotFromCache,
-} from "@/lib/feed-import";
+import { buildFeedImportSnapshotFromImportedJobs } from "@/lib/feed-import";
+import { readFeedSnapshotFromCache } from "@/lib/feed-snapshot-cache";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -59,24 +56,6 @@ describe("feed import snapshots", () => {
         new Request("https://rolelens.pages.dev/api/jobs/import"),
       ),
     ).resolves.toBeNull();
-  });
-
-  it("does not treat blank source variables as configured direct feeds", async () => {
-    const result = await collectFeedJobs({
-      GREENHOUSE_BOARD_TOKENS: " , , ",
-      LEVER_COMPANIES: ",",
-      ASHBY_ORGANIZATIONS: " , ",
-      SMARTRECRUITERS_COMPANIES: " , ",
-      LINKEDIN_ALERT_FEED_URL: " , ",
-      INDEED_ALERT_FEED_URL: "   ",
-      THIRD_ALERT_FEED_URL: ",",
-    });
-
-    expect(result.sourceCount).toBe(0);
-    expect(result.diagnostics.python.scrapedFeedConfigured).toBe(false);
-    expect(result.diagnostics.python.configuredSourceCount).toBe(0);
-    expect(result.errors[0]?.source).toBe("configuration");
-    expect(result.errors[0]?.message).toContain("D1-ingested snapshots");
   });
 
   it("normalizes ingested Python scraper payloads for D1 snapshots", async () => {

@@ -1,8 +1,12 @@
 import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
-import { collectFeedJobs, writeFeedSnapshotToCache } from "@/lib/feed-import";
-import { writeLatestFeedSnapshotToD1 } from "@/lib/feed-snapshot-store";
+import { writeFeedSnapshotToCache } from "@/lib/feed-snapshot-cache";
+import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
 import { parseFeedPlatform } from "@/lib/feed-platform";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
+import {
+  buildMissingD1FeedSnapshot,
+  filterFeedSnapshotByPlatform,
+} from "@/lib/feed-snapshot";
 
 export const runtime = "edge";
 
@@ -143,14 +147,13 @@ export async function POST(request: Request) {
   }
 
   const platform = parseFeedPlatform(payload.platform);
-  const snapshot = await collectFeedJobs(env, {
-    requestUrl: request.url,
-    platform,
-  });
+  const d1Snapshot = await readLatestFeedSnapshotFromD1();
+  const snapshot = d1Snapshot
+    ? filterFeedSnapshotByPlatform(d1Snapshot, platform)
+    : buildMissingD1FeedSnapshot();
 
-  if (platform === "all" && snapshot.sourceCount > 0) {
-    await writeLatestFeedSnapshotToD1(snapshot);
-    await writeFeedSnapshotToCache(request, snapshot);
+  if (platform === "all" && d1Snapshot) {
+    await writeFeedSnapshotToCache(request, d1Snapshot);
   }
 
   const latencyMs = Date.now() - startedAt;

@@ -15,14 +15,14 @@ export function buildFeedSyncAlert(
   input: FeedSyncHealthInput,
 ): FeedSyncAlert | null {
   const configurationError = input.errors.find(
-    (entry) => entry.source === "configuration",
+    (entry) => entry.source === "configuration" || entry.source === "d1",
   );
 
   if (configurationError) {
     return {
       level: "error",
       message:
-        "No valid feed source is configured. Run the Python Scrape Now workflow so it ingests the latest crawler output into D1, then retry sync.",
+        "No D1 feed snapshot is available. Run the Python Scrape Now workflow so it ingests the latest crawler output into D1, then retry sync.",
     };
   }
 

@@ -36,12 +36,11 @@ import {
 import styles from "./jobs-page-sections.module.css";
 
 const DEFAULT_OPERATIONAL_CHECKLIST = [
-  "Local dev: /api/jobs/import automatically falls back to /api/jobs/local-python-scraped-feed when PYTHON_SCRAPED_FEED_URL is empty.",
-  "To use a hosted crawler output locally, set PYTHON_SCRAPED_FEED_URL in .env.local.",
-  "Cloudflare Pages: set PYTHON_SCRAPED_FEED_URL for both Production and Preview.",
-  "Use PYTHON_SCRAPED_FEED_URL as the ingestion source in deployed environments.",
+  "Run the Python Scrape Now workflow so it posts crawler output to /api/jobs/ingest.",
+  "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET.",
+  "Confirm D1 migrations are applied and feed_import_snapshots exists.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
-  "Call /api/jobs/import?refresh=1, then retry Sync All Feeds (or a platform sync button) in the Jobs page.",
+  "Call /api/jobs/import, then retry Sync All Feeds in the Jobs page.",
 ];
 
 type JobsPageHeaderProps = {
@@ -389,9 +388,8 @@ export function JobsFiltersCard({
                 <div className={styles.diagnosticsPanel}>
                   <p>Sync Diagnostics</p>
                   <p>
-                    Python scraped feed:{" "}
-                    {syncDiagnostics.python.scrapedFeedConfigured ? "yes" : "no"}{" "}
-                    (configured total {syncDiagnostics.python.configuredSourceCount})
+                    D1 Python snapshot:{" "}
+                    {syncDiagnostics.python.scrapedFeedConfigured ? "yes" : "no"}
                   </p>
                   <p>Final sourceCount: {syncDiagnostics.sourceCount}</p>
                 </div>

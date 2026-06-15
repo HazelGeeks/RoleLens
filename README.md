@@ -57,7 +57,6 @@ Legacy source variables (`GREENHOUSE_*`, `LEVER_*`, RSS fallback URLs) are not u
 - `CRON_SECRET` (required; `/api/jobs/cron` rejects all calls without `x-cron-secret`)
 - `SYNC_ADMIN_SECRET` (optional; protects manual import refresh via `x-rolelens-sync-secret`, falls back to `CRON_SECRET` when unset)
 - `SYNC_ADMIN_EMAILS` (required for browser-triggered manual sync in production; comma-separated admin account emails; `SYNC_ADMIN_EMAIL` is also accepted for one admin)
-- `ALLOW_PUBLIC_FEED_REFRESH` (optional; default recommended `0` in production to block public expensive refresh calls)
 - `IMPORT_PUBLIC_RATE_LIMIT_PER_MIN` (optional; default `60`, anonymous import-route request budget per IP)
 
 Auth security:
@@ -88,9 +87,9 @@ POST $ROLELENS_SYNC_URL/api/jobs/cron
 Header: x-cron-secret: $ROLELENS_CRON_SECRET
 ```
 
-On the app list screen, manual refresh supports `Sync All Feeds` plus platform-scoped sync buttons (`Sync Indeed`, `Sync LinkedIn`, `Sync Saramin`, `Sync JobKorea`). In production, browser-triggered manual sync requires the signed-in account email to be listed in `SYNC_ADMIN_EMAILS`; cron/secret-triggered sync still uses `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
+On the app list screen, `Sync All Feeds` reads the latest D1-ingested snapshot and merges it into the browser workspace. Platform-scoped sync buttons (`Sync Indeed`, `Sync LinkedIn`, `Sync Saramin`, `Sync JobKorea`) filter the same D1 snapshot by platform. In production, browser-triggered manual sync requires the signed-in account email to be listed in `SYNC_ADMIN_EMAILS`; cron/secret-triggered sync still uses `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
 
-Production hardening default: keep `ALLOW_PUBLIC_FEED_REFRESH=0`. In that mode, public users can read cached `/api/jobs/import` snapshots, but expensive refresh calls (`refresh=1` or `platform=...`) require `x-rolelens-sync-secret` (or `x-cron-secret`) from a trusted server workflow.
+Production hardening default: public users can read cached `/api/jobs/import` snapshots. Scraper refreshes run through the Python Scrape Now workflow and `/api/jobs/ingest`, not through public app routes.
 
 ### Python Scrape Trigger (GitHub Actions)
 
@@ -235,7 +234,7 @@ If `3000` is already in use, Next.js may start on `3001` (or another port). Use 
 Local diagnostics check:
 
 ```bash
-curl -s "http://localhost:3000/api/jobs/import?refresh=1" | jq '{sourceCount, diagnostics, errors}'
+curl -s "http://localhost:3000/api/jobs/import" | jq '{sourceCount, diagnostics, errors}'
 ```
 
 If development cache/runtime gets unstable (for example ENOENT under `.next/static/development`):
