@@ -48,7 +48,7 @@ jobs:
       CLOUDFLARE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
       SCRAPER_SOURCE_URLS: ${{ github.event.inputs.source_urls || '' }}
       SCRAPER_SOURCES_FILE: ${{ github.event.inputs.sources_file || 'python/scraper/sources.sites.json' }}
-      SCRAPER_OUTPUT_PATH: ${{ runner.temp }}/python-scraped-jobs.json
+      SCRAPER_OUTPUT_PATH: python-scraped-jobs.json
       SCRAPER_TIMEOUT_SECONDS: ${{ github.event.inputs.timeout_seconds || '20' }}
       SCRAPER_LIMIT_PER_SOURCE: ${{ github.event.inputs.limit_per_source || '120' }}
       SCRAPER_PLATFORM: ${{ github.event.inputs.platform || 'all' }}
