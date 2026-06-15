@@ -18,7 +18,7 @@ describe("buildFeedSyncAlert", () => {
     expect(alert?.level).toBe("error");
     expect(alert?.message.toLowerCase()).toContain("no d1 feed snapshot");
     expect(alert?.message).toContain("D1");
-    expect(alert?.message).toContain("Python Scrape Now");
+    expect(alert?.message).toContain("Ingest");
   });
 
   it("returns warning for partial source failures", () => {

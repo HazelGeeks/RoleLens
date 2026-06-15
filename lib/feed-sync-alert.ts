@@ -22,7 +22,7 @@ export function buildFeedSyncAlert(
     return {
       level: "error",
       message:
-        "No D1 feed snapshot is available. Run the Python Scrape Now workflow so it ingests the latest crawler output into D1, then retry sync.",
+        "No D1 feed snapshot is available. Ingest a normalized feed snapshot into D1, then retry sync.",
     };
   }
 

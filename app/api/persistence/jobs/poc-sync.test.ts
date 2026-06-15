@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as GET_BY_ID, PATCH } from "@/app/api/persistence/jobs/[id]/route";
 import { GET as LIST, POST } from "@/app/api/persistence/jobs/route";
 import { POST as SIGNUP } from "@/app/api/auth/signup/route";
@@ -26,6 +26,7 @@ describe("/api/persistence/jobs PoC sync", () => {
     resetAuthStoreForTests();
     resetPersistentStoreForTests();
     delete process.env.PERSISTENCE_POC_TOKEN;
+    vi.unstubAllEnvs();
   });
 
   afterAll(() => {
@@ -261,6 +262,19 @@ describe("/api/persistence/jobs PoC sync", () => {
     );
 
     expect(authorizedResponse.status).toBe(200);
+  });
+
+  it("rejects header-only persistence access in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    const response = await LIST(
+      new Request("https://rolelens.pages.dev/api/persistence/jobs", {
+        method: "GET",
+        headers: buildHeaders("user-production", "device-a"),
+      }),
+    );
+
+    expect(response.status).toBe(401);
   });
 
   it("accepts authenticated session when PERSISTENCE_POC_TOKEN is configured", async () => {

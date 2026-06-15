@@ -87,28 +87,17 @@ python3 python/scraper/scrape_jobkorea.py
 
 ## Connect to RoleLens import
 
-Scheduled GitHub Actions runs post the generated JSON to:
+RoleLens no longer runs this scraper from GitHub Actions. If you run the scraper manually or from another scheduler, post the generated JSON to:
 
 ```text
 POST /api/jobs/ingest
-Header: x-cron-secret: $ROLELENS_CRON_SECRET
+Header: x-cron-secret: $CRON_SECRET
 ```
 
-For local debugging, post a generated JSON file to a local or deployed `/api/jobs/ingest` endpoint with the matching `x-cron-secret` header.
+For local debugging, post a generated JSON file to a local or deployed `/api/jobs/ingest` endpoint with the matching `x-cron-secret` header. The app reads the latest ingested snapshot from D1.
 
 Then inspect the current app feed:
 
 ```bash
 curl -s "http://localhost:3000/api/jobs/import" | jq '{sourceCount, diagnostics, errors, sourceResults}'
 ```
-
-## GitHub Actions
-
-Use `.github/workflows/python-scrape-now.yml` (`workflow_dispatch`):
-
-- `sources_file` defaults to `python/scraper/sources.sites.json`
-- `source_urls` is optional and merged with the file
-- `timeout_seconds` / `limit_per_source` tune run behavior
-- `platform` can scope runs to `all`, `indeed`, `linkedin`, `saramin`, or `jobkorea`
-
-The workflow writes JSON to a temporary runner path, uploads it as a workflow artifact, and ingests it into D1. It does not commit scraper output back to the repository.

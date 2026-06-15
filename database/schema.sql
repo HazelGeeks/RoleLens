@@ -1,7 +1,14 @@
 -- RoleLens canonical schema snapshot
 -- Keep this file in sync whenever SQL query/schema changes are introduced.
 -- Source baseline: migrations/0001_persistence.sql, 0002_auth.sql, 0003_goals.sql, 0004_feed_snapshots.sql
+-- Cleanup baseline: migrations/0005_drop_legacy_scraped_feed_snapshots.sql removes obsolete scraped_feed_* tables.
+-- Naming rules: see docs/decisions/d1-schema-conventions.md.
+-- Table namespaces:
+--   auth_*       authentication and session records
+--   persistent_* user-owned application data exposed through persistence APIs
+--   feed_*       imported feed snapshots and sync metadata
 
+-- User-owned job persistence.
 CREATE TABLE IF NOT EXISTS persistent_jobs (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -45,6 +52,7 @@ CREATE TABLE IF NOT EXISTS persistent_job_create_requests (
 CREATE INDEX IF NOT EXISTS idx_persistent_create_requests_job
   ON persistent_job_create_requests (user_id, job_id);
 
+-- Authentication.
 CREATE TABLE IF NOT EXISTS auth_users (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
@@ -72,6 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_sessions_user
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires
   ON auth_sessions (expires_at);
 
+-- User-owned interview/application goals.
 CREATE TABLE IF NOT EXISTS persistent_goals (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -97,6 +106,7 @@ CREATE TABLE IF NOT EXISTS persistent_goal_followups (
 CREATE INDEX IF NOT EXISTS idx_persistent_goal_followups_goal_created
   ON persistent_goal_followups (user_id, goal_id, created_at DESC);
 
+-- Imported feed snapshots. D1 is the source of truth; GitHub scraping artifacts are not used.
 CREATE TABLE IF NOT EXISTS feed_import_snapshots (
   key TEXT PRIMARY KEY,
   generated_at TEXT NOT NULL,

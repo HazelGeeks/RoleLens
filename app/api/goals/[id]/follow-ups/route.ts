@@ -1,37 +1,14 @@
 import { z } from "zod";
-import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
+import { requireGoalUser } from "@/app/api/goals/auth";
 import { createGoalFollowUp } from "@/lib/goals/store";
 import { createGoalFollowUpSchema } from "@/lib/goals/validators";
 import { toPublicServerError } from "@/lib/server-config-errors";
 
 export const runtime = "edge";
-const USER_HEADER = "x-rolelens-user";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
-
-type AuthResult =
-  | {
-      ok: true;
-      userId: string;
-    }
-  | {
-      ok: false;
-      response: Response;
-    };
-
-function unauthorized(message: string) {
-  return Response.json(
-    {
-      ok: false,
-      message,
-    },
-    {
-      status: 401,
-    },
-  );
-}
 
 function badRequest(message: string, details?: unknown) {
   return Response.json(
@@ -53,31 +30,8 @@ function formatValidation(error: z.ZodError) {
   }));
 }
 
-async function requireSessionUser(request: Request): Promise<AuthResult> {
-  const user = await getAuthSessionUserFromRequest(request);
-  if (user) {
-    return {
-      ok: true,
-      userId: user.id,
-    };
-  }
-
-  const headerUserId = request.headers.get(USER_HEADER)?.trim();
-  if (headerUserId) {
-    return {
-      ok: true,
-      userId: headerUserId,
-    };
-  }
-
-  return {
-    ok: false,
-    response: unauthorized("Login required"),
-  };
-}
-
 export async function POST(request: Request, context: RouteContext) {
-  const auth = await requireSessionUser(request);
+  const auth = await requireGoalUser(request);
   if (!auth.ok) return auth.response;
 
   let payload: unknown;

@@ -10,6 +10,8 @@
     "lint": "eslint app components lib",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify": "npm run lint && npm test",
+    "cf:build": "npm run pages:build",
     "pages:build": "next build && npx @cloudflare/next-on-pages@1 && node scripts/patch-pages-routes.mjs",
     "pages:deploy": "wrangler pages deploy .vercel/output/static",
     "db:schema:local": "wrangler d1 migrations apply rolelens-db --local",
@@ -19,7 +21,6 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@mantine/core": "^7.17.8",
-    "@mantine/hooks": "^7.17.8",
     "@tanstack/react-table": "^8.21.3",
     "clsx": "^2.1.1",
     "lucide-react": "^1.8.0",

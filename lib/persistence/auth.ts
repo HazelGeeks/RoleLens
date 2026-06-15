@@ -42,6 +42,10 @@ function getBearerToken(request: Request) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function isProductionRuntime() {
+  return process.env.NODE_ENV?.trim().toLowerCase() === "production";
+}
+
 export async function authorizePersistenceRequest(
   request: Request,
 ): Promise<AuthResult> {
@@ -59,17 +63,42 @@ export async function authorizePersistenceRequest(
   const expectedToken = process.env.PERSISTENCE_POC_TOKEN?.trim();
   if (expectedToken) {
     const providedToken = getBearerToken(request);
-    if (providedToken !== expectedToken) {
-      const authUser = await getAuthSessionUserFromRequest(request);
-      const expectedUserId = authUser ? `account-${authUser.id}` : null;
-
-      if (!expectedUserId || expectedUserId !== userId) {
-        return {
-          ok: false,
-          response: unauthorized("Unauthorized"),
-        };
-      }
+    if (providedToken === expectedToken) {
+      return {
+        ok: true,
+        identity: {
+          userId,
+          deviceId,
+        },
+      };
     }
+  }
+
+  const authUser = await getAuthSessionUserFromRequest(request);
+  const expectedUserId = authUser ? `account-${authUser.id}` : null;
+
+  if (expectedUserId) {
+    if (expectedUserId !== userId) {
+      return {
+        ok: false,
+        response: unauthorized("Unauthorized"),
+      };
+    }
+
+    return {
+      ok: true,
+      identity: {
+        userId,
+        deviceId,
+      },
+    };
+  }
+
+  if (expectedToken || isProductionRuntime()) {
+    return {
+      ok: false,
+      response: unauthorized("Unauthorized"),
+    };
   }
 
   return {

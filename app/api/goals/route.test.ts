@@ -159,4 +159,23 @@ describe("/api/goals", () => {
     expect(payload.count).toBe(1);
     expect(payload.goals[0]?.company).toBe("OpenAI");
   });
+
+  it("rejects x-rolelens-user header without session in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    const response = await CREATE_GOAL(
+      new Request("https://rolelens.pages.dev/api/goals", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-rolelens-user": "user-header-only",
+        },
+        body: JSON.stringify({
+          company: "OpenAI",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(401);
+  });
 });

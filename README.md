@@ -32,27 +32,18 @@ Why this mode exists:
    - `ARCHIVE`
 7. Login / Sign-up with server-side session auth (D1 in Cloudflare runtime, memory fallback locally)
 
-## Stable Daily Automation
+## Stable Feed Storage
 
-RoleLens now supports a scraping-first automation path:
+RoleLens uses D1 as the canonical feed snapshot store:
 
-1. Crawl configured job-board pages via Python workflow
-2. Upload normalized JSON as a workflow artifact
-3. Trigger daily refresh via `/api/jobs/cron`
-4. Client merges imported postings into local storage while preserving status/notes/follow-up
+1. Authorized ingest clients can POST normalized feed JSON to `/api/jobs/ingest`
+2. `/api/jobs/ingest` stores the latest snapshot in D1 (`feed_import_snapshots`)
+3. `/api/jobs/import` and `/api/jobs/sync` read the latest snapshot from D1
+4. Client sync merges imported postings into local storage while preserving status/notes/follow-up
 
 ### Feed Source Environment Variables
 
-Primary (site crawling):
-
-- `TARGET_ROLE_KEYWORDS` (optional CSV; default targets frontend/backend/software engineer/blockchain)
-- `TARGET_LOCATION_KEYWORDS` (optional CSV; default targets Canada/Korea)
-
-Korean source note:
-
-- If a Korean job board does not provide ATS/RSS APIs, use the Python scraper workflow; scheduled runs ingest the scraper output into D1 through `/api/jobs/ingest`.
-
-Legacy source variables (`GREENHOUSE_*`, `LEVER_*`, RSS fallback URLs) are not used in the Python-only flow.
+Feed ingestion:
 
 - `CRON_SECRET` (required; `/api/jobs/cron` rejects all calls without `x-cron-secret`)
 - `SYNC_ADMIN_SECRET` (optional; protects manual import refresh via `x-rolelens-sync-secret`, falls back to `CRON_SECRET` when unset)
@@ -66,78 +57,44 @@ Auth security:
   - In non-production local dev, if omitted, RoleLens uses a development fallback pepper and logs a warning.
 - `AUTH_BACKEND` (optional override: `memory`/`d1`; if unset, RoleLens auto-uses D1 when the binding is available)
 
-### Daily Cron Trigger (GitHub Actions)
+### D1 Feed Refresh
 
-Workflow file: `.github/workflows/daily-feed-sync.yml`
+The app no longer runs GitHub-based scraping. D1 is the source of truth for imported feed snapshots.
 
-Required GitHub Secrets:
-
-- `ROLELENS_CRON_SECRET` (must match Cloudflare Pages `CRON_SECRET`)
-- `ROLELENS_SYNC_URL` (optional, default: `https://rolelens.pages.dev`)
-
-Optional hardening:
-
-1. Restrict cron route to `POST` only.
-2. Use header-based auth only (`x-cron-secret`), never query-string secrets.
-
-The cron workflow calls:
+`POST /api/jobs/ingest` accepts a normalized feed snapshot and stores it in D1:
 
 ```bash
-POST $ROLELENS_SYNC_URL/api/jobs/cron
-Header: x-cron-secret: $ROLELENS_CRON_SECRET
+curl --fail --silent --show-error \
+  --request POST \
+  --header "content-type: application/json" \
+  --header "x-cron-secret: $CRON_SECRET" \
+  --data-binary "@feed-snapshot.json" \
+  "https://rolelens.pages.dev/api/jobs/ingest"
+```
+
+`POST /api/jobs/cron` refreshes the edge cache from the latest D1 snapshot:
+
+```bash
+curl --fail --silent --show-error \
+  --request POST \
+  --header "x-cron-secret: $CRON_SECRET" \
+  "https://rolelens.pages.dev/api/jobs/cron"
 ```
 
 On the app list screen, `Sync All Feeds` reads the latest D1-ingested snapshot and merges it into the browser workspace. Platform-scoped sync buttons (`Sync Indeed`, `Sync LinkedIn`, `Sync Saramin`, `Sync JobKorea`) filter the same D1 snapshot by platform. In production, browser-triggered manual sync requires the signed-in account email to be listed in `SYNC_ADMIN_EMAILS`; cron/secret-triggered sync still uses `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
-
-Production hardening default: public users can read cached `/api/jobs/import` snapshots. Scraper refreshes run through the Python Scrape Now workflow and `/api/jobs/ingest`, not through public app routes.
-
-### Python Scrape Trigger (GitHub Actions)
-
-Workflow file: `.github/workflows/python-scrape-now.yml`
-
-Purpose:
-
-1. Trigger **job-site crawling** manually (`workflow_dispatch`) or daily (`schedule`, 00:00 UTC)
-2. Use a default site catalog (`python/scraper/sources.sites.json`) and optionally merge ad-hoc URLs
-3. Generate normalized JSON at a temporary runner path
-4. POST the generated JSON to `/api/jobs/ingest` so Cloudflare D1 becomes the canonical feed snapshot
-
-Schedule behavior:
-
-- Scheduled runs ingest JSON into D1 and upload the JSON as a workflow artifact.
-- Manual runs do the same; scraper JSON is not committed back to the repository.
-
-To consume scraper output in RoleLens:
-
-- Configure GitHub secret `ROLELENS_CRON_SECRET` to match Cloudflare Pages `CRON_SECRET`.
-- Optionally configure `ROLELENS_SYNC_URL`; it defaults to `https://rolelens.pages.dev`.
-- The app reads the latest feed snapshot from D1 via `/api/jobs/import`.
-
-Recommended for scraping-heavy mode:
-
-- Focus on Python source catalog + D1 ingestion.
-- Start from Korean and remote-board URLs in `python/scraper/sources.sites.json`, then add/replace sources as needed.
-- Use workflow input `platform` (all/indeed/linkedin/saramin/jobkorea) for platform-only refreshes.
 
 ### Troubleshooting Feed Source Configuration
 
 If you see "No valid feed source is configured", run this checklist:
 
 1. Confirm D1 migrations are applied and `feed_import_snapshots` exists.
-2. Confirm the Python scrape workflow can call `/api/jobs/ingest` with `ROLELENS_CRON_SECRET`.
+2. Confirm your ingest client can call `/api/jobs/ingest` with `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
 3. Call `GET /api/jobs/import` and verify it returns the latest D1-ingested snapshot.
 4. Open Jobs page and run `Sync All Feeds` (or a platform-specific sync button) again.
 
 Notes:
 - Do not use comma-only or whitespace-only values (for example: `, ,`).
 - API diagnostics never return raw secret values; only counts/booleans are exposed.
-
-### Canada/Korea Precision Preset
-
-Set these for higher-precision targeting:
-
-- `TARGET_ROLE_KEYWORDS=frontend,front-end,react,typescript,web ui`
-- `TARGET_LOCATION_KEYWORDS=canada,toronto,vancouver,montreal,ottawa,korea,seoul,대한민국,한국,서울`
 
 ## Important Tradeoff
 
@@ -181,6 +138,7 @@ Design and planning docs:
 
 - `docs/product/rolelens-persistence-requirements.md`
 - `docs/decisions/persistent-storage-architecture.md`
+- `docs/decisions/d1-schema-conventions.md`
 - `docs/product/rolelens-multidevice-journey.md`
 
 ## Data Reliability Improvements (Issue #3)
@@ -253,6 +211,8 @@ npm run dev
 - `npm run build` - production build
 - `npm run lint` - lint
 - `npm run test` - unit tests (cron security, persistence PoC, local data reliability)
+- `npm run verify` - lint + tests
+- `npm run cf:build` - alias for Cloudflare Pages output build
 - `npm run pages:build` - Cloudflare Pages output build
 - `npm run pages:deploy` - deploy `.vercel/output/static` to Cloudflare Pages
 - `npm run db:schema:local` - apply database schema changes locally

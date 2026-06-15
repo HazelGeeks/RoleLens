@@ -6,8 +6,8 @@ import {
 } from "@/lib/feed-platform";
 
 const D1_RECOVERY_GUIDE = [
-  "Run the Python Scrape Now workflow so it posts crawler output to /api/jobs/ingest and stores the latest snapshot in D1.",
-  "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET for D1 ingestion.",
+  "Post a normalized feed snapshot to /api/jobs/ingest so D1 stores the latest snapshot.",
+  "Confirm the ingest client uses CRON_SECRET or SYNC_ADMIN_SECRET for D1 ingestion.",
   "Confirm D1 migrations are applied and feed_import_snapshots exists.",
   "Call /api/jobs/import, then retry Sync All Feeds in the Jobs page.",
 ];
@@ -22,7 +22,7 @@ export function buildMissingD1FeedSnapshot(): FeedImportSnapshot {
       {
         source: "d1",
         message:
-          "No D1-ingested feed snapshot is available. Run the Python Scrape Now workflow first.",
+          "No D1-ingested feed snapshot is available. Ingest a feed snapshot into D1 first.",
       },
     ],
     sourceResults: [],
