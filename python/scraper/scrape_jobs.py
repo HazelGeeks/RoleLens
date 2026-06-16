@@ -219,10 +219,18 @@ def is_likely_job_url(url: str) -> bool:
         return "/recruit/gi_read/" in path
     if "saramin.co.kr" in host:
         return "/zf_user/jobs/relay/view" in path or "/zf_user/jobs/view" in path
+    if "rocketpunch.com" in host:
+        if host == "enterprise.rocketpunch.com":
+            return False
+        return bool(re.search(r"/jobs/\d+", path))
+    if "rememberapp.co.kr" in host:
+        return bool(re.search(r"/job/postings/\d+", path))
     if "weworkremotely.com" in host:
         if "/remote-jobs/" not in path:
             return False
         return not path.rstrip("/").endswith("/remote-jobs")
+    if "remotive.com" in host:
+        return bool(re.search(r"/remote-jobs/[^/]+/[^/]+-\d+$", path))
 
     return True
 

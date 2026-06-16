@@ -39,16 +39,25 @@ Each source entry uses:
 Install dependencies first:
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
 python3 -m pip install -r python/scraper/requirements.txt
 ```
 
 Indeed note: `source_type=INDEED` now uses `python-jobspy` as the first strategy to reduce 403/Cloudflare challenge failures.
+Run the scraper from an environment where `python-jobspy` is installed; otherwise Indeed falls back to direct page requests, which are commonly blocked with 403.
 
 Use default site catalog:
 
 ```bash
 python3 python/scraper/scrape_jobs.py \
   --output python-scraped-jobs.json
+```
+
+Verify the generated snapshot before ingesting it:
+
+```bash
+jq '{sourceCount, jobs: (.jobs | length), errors, failed: [.sourceResults[] | select(.ok == false)]}' python-scraped-jobs.json
 ```
 
 Add ad-hoc sources on top of catalog:

@@ -79,7 +79,7 @@
   },
   {
     "name": "Remember Career Frontend Search",
-    "url": "https://career.rememberapp.co.kr/job/postings/search?search=frontend",
+    "url": "https://career.rememberapp.co.kr/job/postings?search=frontend",
     "company": "Remember",
     "source_type": "MANUAL"
   },
@@ -97,7 +97,7 @@
   },
   {
     "name": "Remotive Software Jobs",
-    "url": "https://remotive.com/remote-jobs/software-dev",
+    "url": "https://remotive.com/remote-jobs/software-development",
     "company": "Remotive",
     "source_type": "MANUAL"
   },

@@ -1,7 +1,4 @@
-import type { FeedImportSnapshot } from "@/lib/feed-types";
-import {
-  buildFeedImportSnapshotFromImportedJobs,
-} from "@/lib/feed-import";
+import { parseFeedSnapshotPayload } from "@/lib/feed-snapshot-payload";
 import { writeLatestFeedSnapshotToD1 } from "@/lib/feed-snapshot-store";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
@@ -46,31 +43,6 @@ function isAuthorized(request: Request, env: RuntimeEnv) {
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
-function parseSnapshot(value: unknown): FeedImportSnapshot | null {
-  if (!isRecord(value)) return null;
-  if (typeof value.sourceCount !== "number") return null;
-  if (!Array.isArray(value.jobs)) return null;
-  if (!Array.isArray(value.errors)) return null;
-  if (!Array.isArray(value.sourceResults)) return null;
-  if (typeof value.generatedAt !== "string") return null;
-
-  if (!isRecord(value.diagnostics) || !Array.isArray(value.recoveryGuide)) {
-    return buildFeedImportSnapshotFromImportedJobs({
-      generatedAt: value.generatedAt,
-      sourceCount: value.sourceCount,
-      jobs: value.jobs as FeedImportSnapshot["jobs"],
-      errors: value.errors as FeedImportSnapshot["errors"],
-      sourceResults: value.sourceResults as FeedImportSnapshot["sourceResults"],
-    });
-  }
-
-  return value as FeedImportSnapshot;
-}
-
 export async function POST(request: Request) {
   const env = await getRuntimeEnv();
   const auth = isAuthorized(request, env);
@@ -89,7 +61,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const snapshot = parseSnapshot(payload);
+  const snapshot = parseFeedSnapshotPayload(payload);
   if (!snapshot) {
     return Response.json(
       {

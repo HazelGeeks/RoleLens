@@ -7,6 +7,7 @@ vi.mock("@/lib/feed-snapshot-cache", () => ({
 
 vi.mock("@/lib/feed-snapshot-store", () => ({
   readLatestFeedSnapshotFromD1: vi.fn(),
+  writeLatestFeedSnapshotToD1: vi.fn(),
 }));
 
 vi.mock("@/lib/auth-server", () => ({
@@ -15,16 +16,21 @@ vi.mock("@/lib/auth-server", () => ({
 
 import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
 import { writeFeedSnapshotToCache } from "@/lib/feed-snapshot-cache";
-import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
+import {
+  readLatestFeedSnapshotFromD1,
+  writeLatestFeedSnapshotToD1,
+} from "@/lib/feed-snapshot-store";
 import { POST } from "./route";
 
 const mockedWriteFeedSnapshotToCache = vi.mocked(writeFeedSnapshotToCache);
 const mockedReadLatestFeedSnapshotFromD1 = vi.mocked(readLatestFeedSnapshotFromD1);
+const mockedWriteLatestFeedSnapshotToD1 = vi.mocked(writeLatestFeedSnapshotToD1);
 const mockedGetAuthSessionUserFromRequest = vi.mocked(getAuthSessionUserFromRequest);
 
 const ORIGINAL_CRON_SECRET = process.env.CRON_SECRET;
 const ORIGINAL_SYNC_ADMIN_EMAIL = process.env.SYNC_ADMIN_EMAIL;
 const ORIGINAL_SYNC_ADMIN_EMAILS = process.env.SYNC_ADMIN_EMAILS;
+const ORIGINAL_PYTHON_SCRAPED_FEED_URL = process.env.PYTHON_SCRAPED_FEED_URL;
 
 function buildSnapshot(): FeedImportSnapshot {
   return {
@@ -92,9 +98,12 @@ describe("/api/jobs/sync route", () => {
     process.env.CRON_SECRET = "test-cron-secret";
     delete process.env.SYNC_ADMIN_EMAIL;
     process.env.SYNC_ADMIN_EMAILS = "admin@example.com";
+    delete process.env.PYTHON_SCRAPED_FEED_URL;
     mockedGetAuthSessionUserFromRequest.mockResolvedValue(null);
     mockedReadLatestFeedSnapshotFromD1.mockResolvedValue(buildSnapshot());
+    mockedWriteLatestFeedSnapshotToD1.mockResolvedValue(true);
     mockedWriteFeedSnapshotToCache.mockResolvedValue(undefined);
+    vi.unstubAllGlobals();
   });
 
   afterAll(() => {
@@ -114,6 +123,12 @@ describe("/api/jobs/sync route", () => {
       delete process.env.SYNC_ADMIN_EMAIL;
     } else {
       process.env.SYNC_ADMIN_EMAIL = ORIGINAL_SYNC_ADMIN_EMAIL;
+    }
+
+    if (ORIGINAL_PYTHON_SCRAPED_FEED_URL == null) {
+      delete process.env.PYTHON_SCRAPED_FEED_URL;
+    } else {
+      process.env.PYTHON_SCRAPED_FEED_URL = ORIGINAL_PYTHON_SCRAPED_FEED_URL;
     }
   });
 
@@ -212,7 +227,91 @@ describe("/api/jobs/sync route", () => {
     expect(typeof payload.requestId).toBe("string");
     expect(typeof payload.latencyMs).toBe("number");
     expect(mockedReadLatestFeedSnapshotFromD1).toHaveBeenCalledTimes(1);
+    expect(mockedWriteLatestFeedSnapshotToD1).not.toHaveBeenCalled();
     expect(mockedWriteFeedSnapshotToCache).toHaveBeenCalledWith(request, snapshot);
+  });
+
+  it("refreshes D1 from the configured scraped feed before returning sync results", async () => {
+    const snapshot = buildSnapshot();
+    process.env.PYTHON_SCRAPED_FEED_URL =
+      "https://feeds.example.com/rolelens/latest.json";
+    mockedGetAuthSessionUserFromRequest.mockResolvedValue({
+      id: "user-1",
+      email: "admin@example.com",
+      name: "Admin User",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue(snapshot),
+      }),
+    );
+
+    const request = new Request("https://rolelens.pages.dev/api/jobs/sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ platform: "all" }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as {
+      refreshed: boolean;
+      jobs: unknown[];
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.refreshed).toBe(true);
+    expect(payload.jobs).toHaveLength(2);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://feeds.example.com/rolelens/latest.json",
+      {
+        cache: "no-store",
+        headers: {
+          accept: "application/json",
+        },
+      },
+    );
+    expect(mockedWriteLatestFeedSnapshotToD1).toHaveBeenCalledWith(snapshot);
+    expect(mockedReadLatestFeedSnapshotFromD1).not.toHaveBeenCalled();
+    expect(mockedWriteFeedSnapshotToCache).toHaveBeenCalledWith(request, snapshot);
+  });
+
+  it("returns a refresh error when the configured scraped feed cannot be loaded", async () => {
+    process.env.PYTHON_SCRAPED_FEED_URL =
+      "https://feeds.example.com/rolelens/latest.json";
+    mockedGetAuthSessionUserFromRequest.mockResolvedValue({
+      id: "user-1",
+      email: "admin@example.com",
+      name: "Admin User",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+      }),
+    );
+
+    const request = new Request("https://rolelens.pages.dev/api/jobs/sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ platform: "all" }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as {
+      ok: boolean;
+      message: string;
+    };
+
+    expect(response.status).toBe(502);
+    expect(payload.ok).toBe(false);
+    expect(payload.message).toBe("Feed refresh failed: feed source returned 503");
+    expect(mockedWriteLatestFeedSnapshotToD1).not.toHaveBeenCalled();
+    expect(mockedReadLatestFeedSnapshotFromD1).not.toHaveBeenCalled();
   });
 
   it("accepts singular sync admin email env for deployed configuration compatibility", async () => {

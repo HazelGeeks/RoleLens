@@ -36,15 +36,16 @@ Why this mode exists:
 
 RoleLens uses D1 as the canonical feed snapshot store:
 
-1. Authorized ingest clients can POST normalized feed JSON to `/api/jobs/ingest`
-2. `/api/jobs/ingest` stores the latest snapshot in D1 (`feed_import_snapshots`)
-3. `/api/jobs/import` and `/api/jobs/sync` read the latest snapshot from D1
+1. An external scraper publishes normalized feed JSON at `PYTHON_SCRAPED_FEED_URL`, or authorized ingest clients POST that JSON to `/api/jobs/ingest`
+2. Browser-triggered `/api/jobs/sync` fetches `PYTHON_SCRAPED_FEED_URL` when configured and stores the latest snapshot in D1 (`feed_import_snapshots`)
+3. `/api/jobs/import` reads the latest snapshot from D1
 4. Client sync merges imported postings into local storage while preserving status/notes/follow-up
 
 ### Feed Source Environment Variables
 
 Feed ingestion:
 
+- `PYTHON_SCRAPED_FEED_URL` (recommended; JSON snapshot URL fetched by `/api/jobs/sync` before D1 is read)
 - `CRON_SECRET` (required; `/api/jobs/cron` rejects all calls without `x-cron-secret`)
 - `SYNC_ADMIN_SECRET` (optional; protects manual import refresh via `x-rolelens-sync-secret`, falls back to `CRON_SECRET` when unset)
 - `SYNC_ADMIN_EMAILS` (required for browser-triggered manual sync in production; comma-separated admin account emails; `SYNC_ADMIN_EMAIL` is also accepted for one admin)
@@ -59,7 +60,18 @@ Auth security:
 
 ### D1 Feed Refresh
 
-The app no longer runs GitHub-based scraping. D1 is the source of truth for imported feed snapshots.
+The app does not run Python inside Cloudflare Pages. Instead, the Python scraper should publish its generated JSON to a stable URL, then `PYTHON_SCRAPED_FEED_URL` lets `Sync All Feeds` refresh D1 automatically from that JSON.
+
+`POST /api/jobs/sync` refreshes D1 from `PYTHON_SCRAPED_FEED_URL` when configured, then returns the latest D1 snapshot:
+
+```bash
+curl --fail --silent --show-error \
+  --request POST \
+  --header "content-type: application/json" \
+  --header "x-rolelens-sync-secret: $SYNC_ADMIN_SECRET" \
+  --data '{"platform":"all"}' \
+  "https://rolelens.pages.dev/api/jobs/sync"
+```
 
 `POST /api/jobs/ingest` accepts a normalized feed snapshot and stores it in D1:
 
@@ -81,15 +93,15 @@ curl --fail --silent --show-error \
   "https://rolelens.pages.dev/api/jobs/cron"
 ```
 
-On the app list screen, `Sync All Feeds` reads the latest D1-ingested snapshot and merges it into the browser workspace. Platform-scoped sync buttons (`Sync Indeed`, `Sync LinkedIn`, `Sync Saramin`, `Sync JobKorea`) filter the same D1 snapshot by platform. In production, browser-triggered manual sync requires the signed-in account email to be listed in `SYNC_ADMIN_EMAILS`; cron/secret-triggered sync still uses `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
+On the app list screen, `Sync All Feeds` calls `/api/jobs/sync`, which refreshes D1 from `PYTHON_SCRAPED_FEED_URL` when configured and then merges the resulting D1 snapshot into the browser workspace. Platform-scoped sync buttons (`Sync Indeed`, `Sync LinkedIn`, `Sync Saramin`, `Sync JobKorea`) use the same refreshed D1 snapshot filtered by platform. In production, browser-triggered manual sync requires the signed-in account email to be listed in `SYNC_ADMIN_EMAILS`; cron/secret-triggered sync still uses `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
 
 ### Troubleshooting Feed Source Configuration
 
 If you see "No valid feed source is configured", run this checklist:
 
 1. Confirm D1 migrations are applied and `feed_import_snapshots` exists.
-2. Confirm your ingest client can call `/api/jobs/ingest` with `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
-3. Call `GET /api/jobs/import` and verify it returns the latest D1-ingested snapshot.
+2. Confirm `PYTHON_SCRAPED_FEED_URL` points to a normalized JSON snapshot, or confirm your ingest client can call `/api/jobs/ingest` with `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
+3. Call `POST /api/jobs/sync` and verify it returns `refreshed: true` when `PYTHON_SCRAPED_FEED_URL` is configured.
 4. Open Jobs page and run `Sync All Feeds` (or a platform-specific sync button) again.
 
 Notes:

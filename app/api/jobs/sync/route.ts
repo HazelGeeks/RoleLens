@@ -1,12 +1,16 @@
 import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
 import { writeFeedSnapshotToCache } from "@/lib/feed-snapshot-cache";
-import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
+import {
+  readLatestFeedSnapshotFromD1,
+  writeLatestFeedSnapshotToD1,
+} from "@/lib/feed-snapshot-store";
 import { parseFeedPlatform } from "@/lib/feed-platform";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 import {
   buildMissingD1FeedSnapshot,
   filterFeedSnapshotByPlatform,
 } from "@/lib/feed-snapshot";
+import { parseFeedSnapshotPayload } from "@/lib/feed-snapshot-payload";
 
 export const runtime = "edge";
 
@@ -111,6 +115,39 @@ function parsePayload(value: unknown): SyncRequestPayload {
   return value as SyncRequestPayload;
 }
 
+function getScrapedFeedUrl(env: RuntimeEnv) {
+  return env.PYTHON_SCRAPED_FEED_URL?.trim() || "";
+}
+
+async function refreshD1SnapshotFromFeed(env: RuntimeEnv) {
+  const feedUrl = getScrapedFeedUrl(env);
+  if (!feedUrl) return null;
+
+  const response = await fetch(feedUrl, {
+    cache: "no-store",
+    headers: {
+      accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`feed source returned ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const snapshot = parseFeedSnapshotPayload(payload);
+  if (!snapshot) {
+    throw new Error("feed source returned an invalid snapshot payload");
+  }
+
+  const stored = await writeLatestFeedSnapshotToD1(snapshot);
+  if (!stored) {
+    throw new Error("D1 feed snapshot store is unavailable");
+  }
+
+  return snapshot;
+}
+
 export async function POST(request: Request) {
   const env = await getRuntimeEnv();
   const requestId = crypto.randomUUID();
@@ -147,7 +184,27 @@ export async function POST(request: Request) {
   }
 
   const platform = parseFeedPlatform(payload.platform);
-  const d1Snapshot = await readLatestFeedSnapshotFromD1();
+  let refreshedSnapshot = null;
+  try {
+    refreshedSnapshot = await refreshD1SnapshotFromFeed(env);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    return Response.json(
+      {
+        ok: false,
+        message: `Feed refresh failed: ${message}`,
+        requestId,
+      },
+      {
+        status: 502,
+        headers: {
+          "cache-control": "no-store",
+        },
+      },
+    );
+  }
+
+  const d1Snapshot = refreshedSnapshot || (await readLatestFeedSnapshotFromD1());
   const snapshot = d1Snapshot
     ? filterFeedSnapshotByPlatform(d1Snapshot, platform)
     : buildMissingD1FeedSnapshot();
@@ -165,6 +222,7 @@ export async function POST(request: Request) {
     sourceCount: snapshot.sourceCount,
     importedJobs: snapshot.jobs.length,
     errorCount: snapshot.errors.length,
+    refreshed: Boolean(refreshedSnapshot),
     latencyMs,
   });
 
@@ -173,6 +231,7 @@ export async function POST(request: Request) {
       ...snapshot,
       cached: false,
       platform,
+      refreshed: Boolean(refreshedSnapshot),
       requestId,
       latencyMs,
     },
