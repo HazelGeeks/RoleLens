@@ -16,7 +16,9 @@ import {
 } from "@/lib/feed-platform";
 import {
   DEFAULT_RECOVERY_GUIDE,
+  hasUserTrackedImportedJob,
   isAutoImportedJob,
+  isImportedJobFresh,
   mergeImportedJob,
   normalizeDiagnostics,
   resolveImportedSourceCount,
@@ -111,8 +113,11 @@ export async function syncJobsFromFeeds(options?: {
     Array.isArray(payload.recoveryGuide) && payload.recoveryGuide.length > 0
       ? payload.recoveryGuide
       : DEFAULT_RECOVERY_GUIDE;
+  const freshImportedJobs = payload.jobs.filter((job) =>
+    isImportedJobFresh(job),
+  );
   const incomingIdentities = new Set(
-    payload.jobs.map((job) =>
+    freshImportedJobs.map((job) =>
       toImportIdentity({
         source: job.source,
         company: job.company,
@@ -125,6 +130,7 @@ export async function syncJobsFromFeeds(options?: {
   const shouldPruneStale = payload.errors.length === 0;
   const retainedJobs = existingJobs.filter((job) => {
     if (!isAutoImportedJob(job)) return true;
+    if (hasUserTrackedImportedJob(job)) return true;
     if (!shouldPruneStale) return true;
     if (platform !== "all" && !matchesFeedPlatform(job, platform)) return true;
 
@@ -143,7 +149,7 @@ export async function syncJobsFromFeeds(options?: {
   let updated = 0;
   const importedJobIds = new Set<string>();
 
-  for (const imported of payload.jobs) {
+  for (const imported of freshImportedJobs) {
     const { merged, existing } = mergeImportedJob(imported, retainedJobs);
     nextMap.set(merged.id, merged);
     importedJobIds.add(merged.id);
@@ -186,7 +192,7 @@ export async function syncJobsFromFeeds(options?: {
     syncedAt,
     sourceCount: payload.sourceCount,
     importedSourceCount,
-    totalImported: payload.jobs.length,
+    totalImported: freshImportedJobs.length,
     added,
     updated,
     errors,
@@ -202,7 +208,7 @@ export async function syncJobsFromFeeds(options?: {
   return {
     added,
     updated,
-    totalImported: payload.jobs.length,
+    totalImported: freshImportedJobs.length,
     sourceCount: payload.sourceCount,
     importedSourceCount,
     cached: payload.cached === true,

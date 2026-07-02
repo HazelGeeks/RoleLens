@@ -42,6 +42,8 @@ const AUTO_IMPORT_TAG_PREFIXES = [
 
 const PERSISTENCE_TAG_MAX_LENGTH = 32;
 const PERSISTENCE_TAG_MAX_COUNT = 20;
+export const IMPORTED_JOB_MAX_AGE_DAYS = 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object") return null;
@@ -142,6 +144,31 @@ function shouldResetLegacyImportedSaveStatus(existing: LocalJobPosting | undefin
   return (initialHistory.note || "")
     .toLowerCase()
     .includes("imported from external feed");
+}
+
+function hasLegacyImportedDefaultStatus(existing: LocalJobPosting) {
+  return shouldResetLegacyImportedSaveStatus(existing);
+}
+
+export function hasUserTrackedImportedJob(job: LocalJobPosting) {
+  if (job.status !== "NONE" && !hasLegacyImportedDefaultStatus(job)) {
+    return true;
+  }
+
+  return Boolean(job.nextAction || job.followUpDate || job.notes.length > 0);
+}
+
+export function isImportedJobFresh(
+  job: ImportedFeedJob,
+  referenceDate = new Date(),
+) {
+  if (!job.publishedAt) return true;
+
+  const publishedAt = new Date(job.publishedAt).getTime();
+  if (Number.isNaN(publishedAt)) return true;
+
+  const ageMs = referenceDate.getTime() - publishedAt;
+  return ageMs <= IMPORTED_JOB_MAX_AGE_DAYS * MS_PER_DAY;
 }
 
 function buildImportedDefaultStatusState(

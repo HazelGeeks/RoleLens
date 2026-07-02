@@ -32,6 +32,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   uninstallMockWindow();
@@ -635,6 +636,142 @@ describe("feed sync observability", () => {
     const savedIds = saved.map((job) => job.id);
     expect(savedIds).toContain("linkedin-1");
     expect(savedIds).toContain("indeed-1");
+  });
+
+  it("hides imported postings older than 30 days while preserving saved stale postings", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-02T00:00:00.000Z"));
+
+    const oldDate = "2026-05-15T00:00:00.000Z";
+    const savedStaleImported: LocalJobPosting = {
+      id: "saved-stale-imported",
+      source: "LINKEDIN",
+      sourceUrl: "https://www.linkedin.com/jobs/view/saved-stale",
+      company: "Saved Co",
+      title: "Saved Old Posting",
+      remoteType: "REMOTE",
+      descriptionRaw: "Saved old imported posting",
+      extractedSkills: ["React"],
+      fitScore: 72,
+      status: "SAVE",
+      statusHistory: [
+        {
+          id: "h-saved",
+          status: "SAVE",
+          changedAt: "2026-06-01T00:00:00.000Z",
+          note: "Saved by user",
+        },
+      ],
+      tags: ["python-scraper", "linkedin-frontend-search"],
+      notes: [],
+      createdAt: oldDate,
+      updatedAt: oldDate,
+      publishedAt: oldDate,
+    };
+    const untouchedStaleImported: LocalJobPosting = {
+      id: "untouched-stale-imported",
+      source: "LINKEDIN",
+      sourceUrl: "https://www.linkedin.com/jobs/view/untouched-stale",
+      company: "Untouched Co",
+      title: "Untouched Old Posting",
+      remoteType: "REMOTE",
+      descriptionRaw: "Untouched old imported posting",
+      extractedSkills: ["React"],
+      fitScore: 70,
+      status: "NONE",
+      statusHistory: [
+        {
+          id: "h-untouched",
+          status: "NONE",
+          changedAt: oldDate,
+          note: "Imported from external feed",
+        },
+      ],
+      tags: ["python-scraper", "linkedin-frontend-search"],
+      notes: [],
+      createdAt: oldDate,
+      updatedAt: oldDate,
+      publishedAt: oldDate,
+    };
+    mockedGetJobsFromStorage.mockReturnValue([
+      savedStaleImported,
+      untouchedStaleImported,
+    ]);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              generatedAt: "2026-07-02T00:00:00.000Z",
+              sourceCount: 1,
+              jobs: [
+                {
+                  externalId: "py:linkedin:old",
+                  source: "LINKEDIN",
+                  sourceLabel: "PythonScraper:LinkedIn Frontend Search",
+                  sourceUrl: "https://www.linkedin.com/jobs/view/untouched-stale",
+                  company: "Untouched Co",
+                  title: "Untouched Old Posting",
+                  descriptionRaw: "React old posting",
+                  extractedSkills: ["React"],
+                  tags: ["python-scraper", "linkedin-frontend-search"],
+                  publishedAt: oldDate,
+                },
+                {
+                  externalId: "py:linkedin:fresh",
+                  source: "LINKEDIN",
+                  sourceLabel: "PythonScraper:LinkedIn Frontend Search",
+                  sourceUrl: "https://www.linkedin.com/jobs/view/fresh",
+                  company: "Fresh Co",
+                  title: "Fresh Frontend Engineer",
+                  descriptionRaw: "React TypeScript fresh posting",
+                  extractedSkills: ["React", "TypeScript"],
+                  tags: ["python-scraper", "linkedin-frontend-search"],
+                  publishedAt: "2026-06-20T00:00:00.000Z",
+                },
+              ],
+              errors: [],
+              sourceResults: [
+                {
+                  source: "PythonScraper:LinkedIn Frontend Search",
+                  ok: true,
+                  importedJobs: 2,
+                },
+              ],
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          ),
+      ),
+    );
+
+    const result = await syncJobsFromFeeds({ refresh: true, persistToDb: false });
+
+    expect(result.totalImported).toBe(1);
+    expect(mockedSaveJobsToStorage).toHaveBeenCalledTimes(1);
+
+    const saved = mockedSaveJobsToStorage.mock.calls[0]?.[0] ?? [];
+    const savedIds = saved.map((job) => job.id);
+    expect(savedIds).toContain("saved-stale-imported");
+    expect(savedIds).not.toContain("untouched-stale-imported");
+    expect(saved.some((job) => job.sourceUrl === "https://www.linkedin.com/jobs/view/fresh")).toBe(
+      true,
+    );
+    expect(
+      saved.some(
+        (job) =>
+          job.sourceUrl === "https://www.linkedin.com/jobs/view/untouched-stale",
+      ),
+    ).toBe(false);
+
+    const summary = getLastFeedSyncSummary();
+    expect(summary?.totalImported).toBe(1);
   });
 
   it("sanitizes overlength feed tags before persistence writes", async () => {
