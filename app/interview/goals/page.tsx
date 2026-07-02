@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ProtectedRoute } from "@/components/auth/protected-route";
 import { GoalsPageClient } from "@/components/interview/goals-page-client";
 
 function Loading() {
@@ -7,8 +8,10 @@ function Loading() {
 
 export default function InterviewGoalsPage() {
   return (
-    <Suspense fallback={<Loading />}>
-      <GoalsPageClient />
-    </Suspense>
+    <ProtectedRoute featureName="interview goals">
+      <Suspense fallback={<Loading />}>
+        <GoalsPageClient />
+      </Suspense>
+    </ProtectedRoute>
   );
 }

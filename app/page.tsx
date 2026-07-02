@@ -1,14 +1,5 @@
-import { Suspense } from "react";
-import { JobsPageClient } from "@/components/jobs/jobs-page-client";
-
-function Loading() {
-  return <p className="text-sm text-slate-500">Loading jobs...</p>;
-}
+import { LandingPage } from "@/components/landing/landing-page";
 
 export default function Home() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <JobsPageClient />
-    </Suspense>
-  );
+  return <LandingPage />;
 }

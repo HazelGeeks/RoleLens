@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ProtectedRoute } from "@/components/auth/protected-route";
 import { ResumePageClient } from "@/components/resume/resume-page-client";
 
 function Loading() {
@@ -7,8 +8,10 @@ function Loading() {
 
 export default function ResumePage() {
   return (
-    <Suspense fallback={<Loading />}>
-      <ResumePageClient />
-    </Suspense>
+    <ProtectedRoute featureName="resume review">
+      <Suspense fallback={<Loading />}>
+        <ResumePageClient />
+      </Suspense>
+    </ProtectedRoute>
   );
 }

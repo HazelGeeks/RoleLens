@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ProtectedRoute } from "@/components/auth/protected-route";
 import { JobsRouteClient } from "@/components/jobs/jobs-route-client";
 
 
@@ -8,8 +9,10 @@ function Loading() {
 
 export default function JobsPage() {
   return (
-    <Suspense fallback={<Loading />}>
-      <JobsRouteClient />
-    </Suspense>
+    <ProtectedRoute featureName="the job workspace">
+      <Suspense fallback={<Loading />}>
+        <JobsRouteClient />
+      </Suspense>
+    </ProtectedRoute>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   BarChart3,
   ClipboardList,
@@ -28,7 +29,12 @@ const navigationItems = [
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
   const { status, user, signOut } = useAuth();
+  const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  if (pathname === "/") {
+    return <>{children}</>;
+  }
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);

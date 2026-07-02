@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ProtectedRoute } from "@/components/auth/protected-route";
 import { InterviewPageClient } from "@/components/interview/interview-page-client";
 
 function Loading() {
@@ -9,9 +10,10 @@ function Loading() {
 
 export default function InterviewPage() {
   return (
-    <Suspense fallback={<Loading />}>
-      <InterviewPageClient />
-    </Suspense>
+    <ProtectedRoute featureName="interview prep">
+      <Suspense fallback={<Loading />}>
+        <InterviewPageClient />
+      </Suspense>
+    </ProtectedRoute>
   );
 }
-
