@@ -77,7 +77,7 @@ curl --fail --silent --show-error \
   --header "content-type: application/json" \
   --header "x-rolelens-sync-secret: $SYNC_ADMIN_SECRET" \
   --data '{"platform":"all"}' \
-  "https://rolelens.pages.dev/api/jobs/sync"
+  "https://rolelens.pages.dev/api/jobs/sync/"
 ```
 
 `POST /api/jobs/ingest` accepts a normalized feed snapshot and stores it in D1:
@@ -88,7 +88,7 @@ curl --fail --silent --show-error \
   --header "content-type: application/json" \
   --header "x-cron-secret: $CRON_SECRET" \
   --data-binary "@feed-snapshot.json" \
-  "https://rolelens.pages.dev/api/jobs/ingest"
+  "https://rolelens.pages.dev/api/jobs/ingest/"
 ```
 
 `POST /api/jobs/cron` refreshes the edge cache from the latest D1 snapshot:
@@ -97,7 +97,7 @@ curl --fail --silent --show-error \
 curl --fail --silent --show-error \
   --request POST \
   --header "x-cron-secret: $CRON_SECRET" \
-  "https://rolelens.pages.dev/api/jobs/cron"
+  "https://rolelens.pages.dev/api/jobs/cron/"
 ```
 
 On the app list screen, `Sync All Feeds` calls `/api/jobs/sync`, which refreshes D1 from `PYTHON_SCRAPED_FEED_URL` when configured and then merges the resulting D1 snapshot into the browser workspace. Platform-scoped sync buttons (`Sync Indeed`, `Sync LinkedIn`, `Sync Saramin`, `Sync JobKorea`) use the same refreshed D1 snapshot filtered by platform. In production, browser-triggered manual sync requires the signed-in account email to be listed in `SYNC_ADMIN_EMAILS`; cron/secret-triggered sync still uses `CRON_SECRET` or `SYNC_ADMIN_SECRET`.

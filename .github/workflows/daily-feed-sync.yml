@@ -89,20 +89,22 @@ jobs:
 
       - name: Ingest feed snapshot into D1
         run: |
+          ROLELENS_SYNC_BASE="${ROLELENS_SYNC_URL%/}"
           curl --fail --silent --show-error \
             --request POST \
             --header "content-type: application/json" \
             --header "x-cron-secret: $ROLELENS_CRON_SECRET" \
             --data-binary "@$FEED_SNAPSHOT_PATH" \
-            "$ROLELENS_SYNC_URL/api/jobs/ingest"
+            "$ROLELENS_SYNC_BASE/api/jobs/ingest/"
         env:
           ROLELENS_CRON_SECRET: ${{ secrets.ROLELENS_CRON_SECRET }}
 
       - name: Warm feed snapshot cache
         run: |
+          ROLELENS_SYNC_BASE="${ROLELENS_SYNC_URL%/}"
           curl --fail --silent --show-error \
             --request POST \
             --header "x-cron-secret: $ROLELENS_CRON_SECRET" \
-            "$ROLELENS_SYNC_URL/api/jobs/cron"
+            "$ROLELENS_SYNC_BASE/api/jobs/cron/"
         env:
           ROLELENS_CRON_SECRET: ${{ secrets.ROLELENS_CRON_SECRET }}
