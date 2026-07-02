@@ -28,11 +28,13 @@ Each source entry uses:
   "name": "Wanted Frontend Search",
   "url": "https://www.wanted.co.kr/search?query=...",
   "company": "Wanted",
-  "source_type": "MANUAL"
+  "source_type": "MANUAL",
+  "optional": false
 }
 ```
 
 `source_type` can be `LINKEDIN`, `INDEED`, `SARAMIN`, `JOBKOREA`, or `MANUAL`.
+Set `optional` to `true` for opportunistic sources that are useful when available but should not surface a user-facing partial-sync warning when the site blocks crawler requests.
 
 ## Local run
 
@@ -96,7 +98,9 @@ python3 python/scraper/scrape_jobkorea.py
 
 ## Connect to RoleLens import
 
-RoleLens no longer runs this scraper from GitHub Actions. If you run the scraper manually or from another scheduler, post the generated JSON to:
+RoleLens runs this scraper from the `Daily Feed Sync` GitHub Actions workflow. The workflow generates `python-scraped-jobs.json`, uploads it as a short-lived artifact, posts it to `/api/jobs/ingest`, then calls `/api/jobs/cron` to warm the edge cache from the latest D1 snapshot.
+
+For local debugging or another scheduler, post the generated JSON to:
 
 ```text
 POST /api/jobs/ingest

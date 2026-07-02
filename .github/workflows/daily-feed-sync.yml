@@ -16,14 +16,89 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ROLELENS_SYNC_URL: ${{ secrets.ROLELENS_SYNC_URL || 'https://rolelens.pages.dev' }}
+      FEED_SNAPSHOT_PATH: python-scraped-jobs.json
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Validate required secret
         run: |
           test -n "$ROLELENS_CRON_SECRET" || (echo "Missing ROLELENS_CRON_SECRET" && exit 1)
         env:
           ROLELENS_CRON_SECRET: ${{ secrets.ROLELENS_CRON_SECRET }}
 
-      - name: Trigger daily feed snapshot refresh
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: python/scraper/requirements.txt
+
+      - name: Install scraper dependencies
+        run: python -m pip install -r python/scraper/requirements.txt
+
+      - name: Scrape feed snapshot
+        run: |
+          python python/scraper/scrape_jobs.py \
+            --output "$FEED_SNAPSHOT_PATH" \
+            --timeout 20 \
+            --limit-per-source 150
+
+      - name: Inspect generated snapshot
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          path = os.environ["FEED_SNAPSHOT_PATH"]
+          with open(path, encoding="utf-8") as handle:
+              snapshot = json.load(handle)
+
+          failed = [
+              result
+              for result in snapshot.get("sourceResults", [])
+              if not result.get("ok")
+          ]
+          print(
+              json.dumps(
+                  {
+                      "generatedAt": snapshot.get("generatedAt"),
+                      "sourceCount": snapshot.get("sourceCount"),
+                      "jobs": len(snapshot.get("jobs", [])),
+                      "failedSources": [
+                          result.get("source") for result in failed
+                      ],
+                  },
+                  ensure_ascii=False,
+                  indent=2,
+              )
+          )
+
+          if not snapshot.get("jobs"):
+              raise SystemExit("Generated snapshot contains no jobs")
+          PY
+
+      - name: Upload feed snapshot artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rolelens-feed-snapshot
+          path: ${{ env.FEED_SNAPSHOT_PATH }}
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Ingest feed snapshot into D1
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "content-type: application/json" \
+            --header "x-cron-secret: $ROLELENS_CRON_SECRET" \
+            --data-binary "@$FEED_SNAPSHOT_PATH" \
+            "$ROLELENS_SYNC_URL/api/jobs/ingest"
+        env:
+          ROLELENS_CRON_SECRET: ${{ secrets.ROLELENS_CRON_SECRET }}
+
+      - name: Warm feed snapshot cache
         run: |
           curl --fail --silent --show-error \
             --request POST \

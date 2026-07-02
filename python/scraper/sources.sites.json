@@ -75,13 +75,15 @@
     "name": "RocketPunch Frontend Jobs",
     "url": "https://www.rocketpunch.com/jobs?keywords=frontend",
     "company": "RocketPunch",
-    "source_type": "MANUAL"
+    "source_type": "MANUAL",
+    "optional": true
   },
   {
     "name": "Remember Career Frontend Search",
     "url": "https://career.rememberapp.co.kr/job/postings?search=frontend",
     "company": "Remember",
-    "source_type": "MANUAL"
+    "source_type": "MANUAL",
+    "optional": true
   },
   {
     "name": "WeWorkRemotely Frontend Search",
@@ -99,7 +101,8 @@
     "name": "Remotive Software Jobs",
     "url": "https://remotive.com/remote-jobs/software-development",
     "company": "Remotive",
-    "source_type": "MANUAL"
+    "source_type": "MANUAL",
+    "optional": true
   },
   {
     "name": "Indeed Frontend Search",

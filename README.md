@@ -36,7 +36,7 @@ Why this mode exists:
 
 RoleLens uses D1 as the canonical feed snapshot store:
 
-1. An external scraper publishes normalized feed JSON at `PYTHON_SCRAPED_FEED_URL`, or authorized ingest clients POST that JSON to `/api/jobs/ingest`
+1. The `Daily Feed Sync` GitHub Actions workflow runs the Python scraper and POSTs normalized JSON to `/api/jobs/ingest`
 2. Browser-triggered `/api/jobs/sync` fetches `PYTHON_SCRAPED_FEED_URL` when configured and stores the latest snapshot in D1 (`feed_import_snapshots`)
 3. `/api/jobs/import` reads the latest snapshot from D1
 4. Client sync merges imported postings into local storage while preserving status/notes/follow-up
@@ -45,11 +45,16 @@ RoleLens uses D1 as the canonical feed snapshot store:
 
 Feed ingestion:
 
-- `PYTHON_SCRAPED_FEED_URL` (recommended; JSON snapshot URL fetched by `/api/jobs/sync` before D1 is read)
+- `PYTHON_SCRAPED_FEED_URL` (optional; JSON snapshot URL fetched by `/api/jobs/sync` before D1 is read)
 - `CRON_SECRET` (required; `/api/jobs/cron` rejects all calls without `x-cron-secret`)
 - `SYNC_ADMIN_SECRET` (optional; protects manual import refresh via `x-rolelens-sync-secret`, falls back to `CRON_SECRET` when unset)
 - `SYNC_ADMIN_EMAILS` (required for browser-triggered manual sync in production; comma-separated admin account emails; `SYNC_ADMIN_EMAIL` is also accepted for one admin)
 - `IMPORT_PUBLIC_RATE_LIMIT_PER_MIN` (optional; default `60`, anonymous import-route request budget per IP)
+
+GitHub Actions feed sync:
+
+- `ROLELENS_CRON_SECRET` (required repository secret; must match the deployed Cloudflare `CRON_SECRET`)
+- `ROLELENS_SYNC_URL` (optional repository secret; defaults to `https://rolelens.pages.dev`)
 
 Auth security:
 
@@ -60,7 +65,9 @@ Auth security:
 
 ### D1 Feed Refresh
 
-The app does not run Python inside Cloudflare Pages. Instead, the Python scraper should publish its generated JSON to a stable URL, then `PYTHON_SCRAPED_FEED_URL` lets `Sync All Feeds` refresh D1 automatically from that JSON.
+The app does not run Python inside Cloudflare Pages. Instead, `.github/workflows/daily-feed-sync.yml` runs the Python scraper on a schedule, uploads the generated JSON as a short-lived artifact, POSTs it to `/api/jobs/ingest`, then calls `/api/jobs/cron` to warm the edge cache from the new D1 snapshot.
+
+`PYTHON_SCRAPED_FEED_URL` remains available for debugging or alternate external schedulers, but the default production automation path is the scheduled GitHub Actions scrape-and-ingest workflow.
 
 `POST /api/jobs/sync` refreshes D1 from `PYTHON_SCRAPED_FEED_URL` when configured, then returns the latest D1 snapshot:
 
@@ -100,9 +107,10 @@ On the app list screen, `Sync All Feeds` calls `/api/jobs/sync`, which refreshes
 If you see "No valid feed source is configured", run this checklist:
 
 1. Confirm D1 migrations are applied and `feed_import_snapshots` exists.
-2. Confirm `PYTHON_SCRAPED_FEED_URL` points to a normalized JSON snapshot, or confirm your ingest client can call `/api/jobs/ingest` with `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
-3. Call `POST /api/jobs/sync` and verify it returns `refreshed: true` when `PYTHON_SCRAPED_FEED_URL` is configured.
-4. Open Jobs page and run `Sync All Feeds` (or a platform-specific sync button) again.
+2. Confirm the `Daily Feed Sync` workflow has `ROLELENS_CRON_SECRET` and can POST to `/api/jobs/ingest`.
+3. Confirm `ROLELENS_CRON_SECRET` matches the deployed Cloudflare `CRON_SECRET`.
+4. If `PYTHON_SCRAPED_FEED_URL` is intentionally configured, call `POST /api/jobs/sync` and verify it returns `refreshed: true`.
+5. Open Jobs page and run `Sync All Feeds` (or a platform-specific sync button) again.
 
 Notes:
 - Do not use comma-only or whitespace-only values (for example: `, ,`).

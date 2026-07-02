@@ -241,8 +241,20 @@ def to_source_name_from_url(url: str) -> str:
     return host or "source"
 
 
-def load_sources(sources_file: Path | None, inline_urls: list[str]) -> list[dict[str, str]]:
-    sources: list[dict[str, str]] = []
+def is_truthy_config_value(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y"}
+    return False
+
+
+def is_optional_source(source: dict[str, Any]) -> bool:
+    return is_truthy_config_value(source.get("optional"))
+
+
+def load_sources(sources_file: Path | None, inline_urls: list[str]) -> list[dict[str, Any]]:
+    sources: list[dict[str, Any]] = []
 
     if sources_file and sources_file.exists():
         raw = json.loads(sources_file.read_text(encoding="utf-8"))
@@ -264,11 +276,12 @@ def load_sources(sources_file: Path | None, inline_urls: list[str]) -> list[dict
             if source_type not in ALLOWED_SOURCES:
                 source_type = "MANUAL"
 
-            source: dict[str, str] = {
+            source: dict[str, Any] = {
                 "name": name,
                 "url": url,
                 "company": clean_text(str(entry.get("company", ""))) or name,
                 "source_type": source_type,
+                "optional": is_truthy_config_value(entry.get("optional")),
             }
             sources.append(source)
 
@@ -285,7 +298,7 @@ def load_sources(sources_file: Path | None, inline_urls: list[str]) -> list[dict
             }
         )
 
-    deduped: list[dict[str, str]] = []
+    deduped: list[dict[str, Any]] = []
     seen = set()
     for source in sources:
         key = source["url"].lower()
@@ -365,7 +378,7 @@ def normalize_indeed_posted_at(value: Any) -> str:
 
 
 def scrape_source_with_jobspy_indeed(
-    source: dict[str, str],
+    source: dict[str, Any],
     limit_per_source: int,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, str] | None] | None:
     try:
@@ -436,7 +449,7 @@ def scrape_source_with_jobspy_indeed(
     return jobs, {"source": label, "ok": True, "importedJobs": len(jobs)}, None
 
 
-def scrape_source(source: dict[str, str], timeout_seconds: int, limit_per_source: int) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, str] | None]:
+def scrape_source(source: dict[str, Any], timeout_seconds: int, limit_per_source: int) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, str] | None]:
     label = f"PythonScraper:{source['name']}"
 
     if source.get("source_type") == "INDEED":
@@ -464,6 +477,17 @@ def scrape_source(source: dict[str, str], timeout_seconds: int, limit_per_source
             message = (
                 f"{message}. Indeed is blocking direct crawler requests (Cloudflare challenge). "
                 "Use platform-scoped runs and refresh later, or provide an alternate feed source."
+            )
+        if is_optional_source(source):
+            return (
+                [],
+                {
+                    "source": label,
+                    "ok": True,
+                    "importedJobs": 0,
+                    "message": f"Optional source skipped: {message}",
+                },
+                None,
             )
         return (
             [],
@@ -542,7 +566,7 @@ def build_output_payload(
     }
 
 
-def source_matches_platform(source: dict[str, str], platform: str) -> bool:
+def source_matches_platform(source: dict[str, Any], platform: str) -> bool:
     if platform == "all":
         return True
 
@@ -561,7 +585,7 @@ def source_matches_platform(source: dict[str, str], platform: str) -> bool:
     return any(marker in searchable for marker in markers)
 
 
-def filter_sources_by_platform(sources: list[dict[str, str]], platform: str) -> list[dict[str, str]]:
+def filter_sources_by_platform(sources: list[dict[str, Any]], platform: str) -> list[dict[str, Any]]:
     return [source for source in sources if source_matches_platform(source, platform)]
 
 
