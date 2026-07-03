@@ -48,10 +48,15 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
       <div className={styles.grid}>
         <aside className={styles.sidebar}>
           <div className={styles.brandRow}>
-            <div>
+            <Link
+              href="/"
+              className={styles.brandLink}
+              aria-label="Go to RoleLens home"
+              onClick={closeMobileMenu}
+            >
               <p className={styles.eyebrow}>Career Ops</p>
               <h1 className={styles.brandTitle}>RoleLens</h1>
-            </div>
+            </Link>
             <div className={styles.brandActions}>
               <ThemeToggle />
               <button

@@ -45,6 +45,16 @@
   margin-bottom: 12px;
 }
 
+.brandLink {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.brandLink:hover .brandTitle {
+  color: var(--brand);
+}
+
 .brandActions {
   display: flex;
   align-items: center;
