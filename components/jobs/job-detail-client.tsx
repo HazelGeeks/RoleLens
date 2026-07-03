@@ -34,7 +34,6 @@ export function JobDetailClient() {
     [id, jobs],
   );
   const [newNote, setNewNote] = useState("");
-  const [status, setStatus] = useState<(typeof statusOptions)[number] | "">("");
   const [nextActionInput, setNextActionInput] = useState("");
   const [followUpDateInput, setFollowUpDateInput] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
@@ -114,11 +113,9 @@ export function JobDetailClient() {
     }
   };
 
-  const saveStatus = async () => {
+  const saveStatus = async (nextStatus: (typeof statusOptions)[number]) => {
     setActionError(null);
-    const nextStatus = status || job.status;
     updateLocalStatus(job.id, nextStatus);
-    setStatus("");
     await refreshJobs();
 
     try {
@@ -189,10 +186,8 @@ export function JobDetailClient() {
       <JobDetailHeader job={job} />
       <JobOverviewCard
         job={job}
-        statusValue={status}
-        onStatusChange={setStatus}
-        onSaveStatus={() => {
-          void saveStatus().catch((error) => {
+        onSaveStatus={(nextStatus) => {
+          void saveStatus(nextStatus).catch((error) => {
             setActionError(
               error instanceof Error
                 ? error.message

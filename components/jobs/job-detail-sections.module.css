@@ -184,8 +184,7 @@
 .statusControl {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  align-items: end;
+  gap: 6px;
 }
 
 .followUpGrid {
@@ -214,6 +213,46 @@
   color: var(--foreground);
   font-size: 13px;
   font-weight: 800;
+}
+
+.statusButtonGrid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.statusButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 14%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface), transparent 6%);
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 9px;
+  text-align: center;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.statusButton:hover {
+  border-color: color-mix(in srgb, var(--brand), transparent 54%);
+  background: color-mix(in srgb, var(--brand), transparent 92%);
+  transform: translateY(-1px);
+}
+
+.statusButton[data-active="true"] {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: white;
 }
 
 .dueText {

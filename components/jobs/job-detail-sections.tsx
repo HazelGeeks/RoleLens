@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { sourceLabels, statusLabels, statusOptions } from "@/lib/constants";
 import {
@@ -88,9 +87,7 @@ export function JobDetailHeader({ job }: JobDetailHeaderProps) {
 
 type JobOverviewCardProps = {
   job: LocalJobPosting;
-  statusValue: (typeof statusOptions)[number] | "";
-  onStatusChange: (value: (typeof statusOptions)[number]) => void;
-  onSaveStatus: () => void;
+  onSaveStatus: (value: (typeof statusOptions)[number]) => void;
   nextActionInput: string;
   onNextActionChange: (value: string) => void;
   followUpDateInput: string;
@@ -102,8 +99,6 @@ type JobOverviewCardProps = {
 
 export function JobOverviewCard({
   job,
-  statusValue,
-  onStatusChange,
   onSaveStatus,
   nextActionInput,
   onNextActionChange,
@@ -179,28 +174,24 @@ export function JobOverviewCard({
           <div className={styles.statusControl}>
             <div className={styles.fieldGroup}>
               <label className={styles.label}>Update Status</label>
-              <Select
-                value={statusValue || job.status}
-                onChange={(event) =>
-                  onStatusChange(
-                    event.target.value as (typeof statusOptions)[number],
-                  )
-                }
-              >
-                {statusOptions.map((item) => (
-                  <option key={item} value={item}>
-                    {statusLabels[item]}
-                  </option>
-                ))}
-              </Select>
+              <div className={styles.statusButtonGrid}>
+                {statusOptions.map((item) => {
+                  const isActive = item === job.status;
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      className={styles.statusButton}
+                      data-active={isActive}
+                      aria-pressed={isActive}
+                      onClick={() => onSaveStatus(item)}
+                    >
+                      {statusLabels[item]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <Button
-              variant="secondary"
-              className={styles.inlineAction}
-              onClick={onSaveStatus}
-            >
-              Save Status
-            </Button>
           </div>
         </div>
 
