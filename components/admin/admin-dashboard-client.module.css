@@ -1,0 +1,405 @@
+.page {
+  display: grid;
+  gap: 18px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header h2 {
+  margin: 2px 0 6px;
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.header p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.94rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--brand);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.primaryButton,
+.secondaryButton,
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  padding: 8px 12px;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.primaryButton {
+  border: 1px solid var(--brand);
+  background: var(--brand);
+  color: white;
+}
+
+.secondaryButton,
+.linkButton {
+  border: 1px solid color-mix(in srgb, var(--border), transparent 12%);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.linkButton:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton:disabled {
+  cursor: wait;
+  opacity: 0.68;
+  transform: none;
+}
+
+.notice,
+.error {
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 10px 12px;
+}
+
+.notice {
+  border: 1px solid rgba(16, 185, 129, 0.24);
+  background: rgba(16, 185, 129, 0.08);
+  color: #047857;
+}
+
+.error {
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+}
+
+.healthGrid,
+.metricGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metricGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.healthCard,
+.metricGrid article,
+.panel,
+.accessDenied,
+.loading {
+  border: 1px solid color-mix(in srgb, var(--border), transparent 12%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface), transparent 3%);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.07);
+}
+
+.healthCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 82px;
+  padding: 14px;
+}
+
+.healthCard svg {
+  color: var(--brand);
+}
+
+.healthCard[data-tone="healthy"] svg {
+  color: #059669;
+}
+
+.healthCard[data-tone="warning"] svg {
+  color: #d97706;
+}
+
+.healthCard[data-tone="danger"] svg {
+  color: #dc2626;
+}
+
+.healthCard span,
+.metricGrid span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.healthCard strong,
+.metricGrid strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.metricGrid article {
+  padding: 14px;
+}
+
+.metricGrid p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.twoColumn {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+}
+
+.panel {
+  padding: 16px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panelHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.panelHeader span,
+.panelHeader a {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sourceList,
+.statusList,
+.issueList {
+  display: grid;
+  gap: 8px;
+}
+
+.sourceRow,
+.statusList div {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 20%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface), transparent 8%);
+  padding: 10px;
+}
+
+.sourceRow {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.sourceRow strong {
+  display: block;
+  overflow: hidden;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sourceRow p {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.sourceRow em {
+  color: var(--text);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.okDot,
+.failDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.okDot {
+  background: #10b981;
+}
+
+.failDot {
+  background: #ef4444;
+}
+
+.statusList div {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.statusList span {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.statusList strong {
+  font-size: 0.96rem;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 680px;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid color-mix(in srgb, var(--border), transparent 16%);
+  padding: 10px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.table td {
+  font-size: 0.9rem;
+}
+
+.issueList {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.issueList li,
+.empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.loading,
+.accessDenied {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  min-height: 260px;
+  padding: 24px;
+  text-align: center;
+}
+
+.loadingBar {
+  display: block;
+  width: min(240px, 80vw);
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand), transparent 84%);
+}
+
+.loadingBar::before {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+  content: "";
+  animation: admin-loading 1.15s ease-in-out infinite;
+}
+
+.accessDenied svg {
+  color: var(--brand);
+}
+
+.accessDenied h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.accessDenied p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+@keyframes admin-loading {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(240%);
+  }
+}
+
+@media (max-width: 920px) {
+  .header {
+    display: grid;
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+
+  .healthGrid,
+  .metricGrid,
+  .twoColumn {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .actions,
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+}

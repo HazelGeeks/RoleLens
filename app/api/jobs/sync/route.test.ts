@@ -28,6 +28,8 @@ const mockedWriteLatestFeedSnapshotToD1 = vi.mocked(writeLatestFeedSnapshotToD1)
 const mockedGetAuthSessionUserFromRequest = vi.mocked(getAuthSessionUserFromRequest);
 
 const ORIGINAL_CRON_SECRET = process.env.CRON_SECRET;
+const ORIGINAL_ADMIN_EMAILS = process.env.ADMIN_EMAILS;
+const ORIGINAL_ROLELENS_ADMIN_EMAILS = process.env.ROLELENS_ADMIN_EMAILS;
 const ORIGINAL_SYNC_ADMIN_EMAIL = process.env.SYNC_ADMIN_EMAIL;
 const ORIGINAL_SYNC_ADMIN_EMAILS = process.env.SYNC_ADMIN_EMAILS;
 const ORIGINAL_PYTHON_SCRAPED_FEED_URL = process.env.PYTHON_SCRAPED_FEED_URL;
@@ -96,6 +98,8 @@ describe("/api/jobs/sync route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.CRON_SECRET = "test-cron-secret";
+    delete process.env.ADMIN_EMAILS;
+    delete process.env.ROLELENS_ADMIN_EMAILS;
     delete process.env.SYNC_ADMIN_EMAIL;
     process.env.SYNC_ADMIN_EMAILS = "admin@example.com";
     delete process.env.PYTHON_SCRAPED_FEED_URL;
@@ -111,6 +115,18 @@ describe("/api/jobs/sync route", () => {
       delete process.env.CRON_SECRET;
     } else {
       process.env.CRON_SECRET = ORIGINAL_CRON_SECRET;
+    }
+
+    if (ORIGINAL_ADMIN_EMAILS == null) {
+      delete process.env.ADMIN_EMAILS;
+    } else {
+      process.env.ADMIN_EMAILS = ORIGINAL_ADMIN_EMAILS;
+    }
+
+    if (ORIGINAL_ROLELENS_ADMIN_EMAILS == null) {
+      delete process.env.ROLELENS_ADMIN_EMAILS;
+    } else {
+      process.env.ROLELENS_ADMIN_EMAILS = ORIGINAL_ROLELENS_ADMIN_EMAILS;
     }
 
     if (ORIGINAL_SYNC_ADMIN_EMAILS == null) {

@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  ShieldCheck,
   Target,
   UserPlus,
   X,
@@ -25,6 +26,7 @@ const navigationItems = [
   { href: "/interview", label: "Interview", icon: MessageSquare },
   { href: "/interview/goals", label: "Goals", icon: Target },
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
+  { href: "/admin", label: "Admin", icon: ShieldCheck },
 ];
 
 export function AppFrame({ children }: { children: React.ReactNode }) {

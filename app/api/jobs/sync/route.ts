@@ -1,4 +1,5 @@
 import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
+import { getConfiguredAdminEmails } from "@/lib/admin-auth";
 import { writeFeedSnapshotToCache } from "@/lib/feed-snapshot-cache";
 import {
   readLatestFeedSnapshotFromD1,
@@ -28,20 +29,6 @@ function isLocalhostRequest(url: URL) {
 
 function getExpectedSyncSecret(env: RuntimeEnv) {
   return env.SYNC_ADMIN_SECRET?.trim() || env.CRON_SECRET?.trim();
-}
-
-function getSyncAdminEmails(env: RuntimeEnv) {
-  const configuredEmails = [
-    env.SYNC_ADMIN_EMAILS || "",
-    env.SYNC_ADMIN_EMAIL || "",
-  ].join(",");
-
-  return new Set(
-    configuredEmails
-      .split(",")
-      .map((email) => email.trim().replace(/^["']|["']$/g, "").toLowerCase())
-      .filter(Boolean),
-  );
 }
 
 function hasValidSyncSecret(request: Request, env: RuntimeEnv) {
@@ -165,7 +152,7 @@ export async function POST(request: Request) {
   }
 
   if (!localRequest && !syncSecretAuthorized && sessionUser) {
-    const syncAdminEmails = getSyncAdminEmails(env);
+    const syncAdminEmails = getConfiguredAdminEmails(env);
     if (syncAdminEmails.size === 0) {
       return forbidden("Sync admin emails are not configured");
     }
