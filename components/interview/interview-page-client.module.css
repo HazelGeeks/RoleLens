@@ -1,0 +1,686 @@
+.page {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 1440px;
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 4px 4px 0;
+}
+
+.headerCopy {
+  min-width: 0;
+}
+
+.eyebrow,
+.panelEyebrow {
+  margin: 0;
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.headerCopy h1 {
+  margin: 4px 0 0;
+  color: var(--foreground);
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.headerCopy > p:not(.eyebrow) {
+  max-width: 720px;
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.workspaceStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.workspaceStats span,
+.questionMeta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 10%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-muted), transparent 18%);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 9px;
+}
+
+.headerActions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.practiceCard {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px !important;
+  overflow: hidden;
+}
+
+.practiceCard:hover {
+  transform: none;
+}
+
+.practiceCardHeader,
+.questionStageHeader,
+.panelHeading,
+.answerEditorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.attemptCountButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand), transparent 90%);
+  color: var(--brand);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 11px;
+}
+
+.attemptCountButton:hover {
+  background: color-mix(in srgb, var(--brand), transparent 84%);
+}
+
+.questionStage {
+  display: grid;
+  gap: 13px;
+  border: 1px solid color-mix(in srgb, var(--brand), transparent 68%);
+  border-radius: 14px;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in srgb, var(--brand), transparent 84%),
+      transparent 24rem
+    ),
+    color-mix(in srgb, var(--brand), var(--surface) 94%);
+  padding: 17px 18px;
+}
+
+.questionMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.questionPrompt {
+  max-width: 980px;
+  margin: 0;
+  color: var(--foreground);
+  font-size: clamp(18px, 2.2vw, 26px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+}
+
+.practiceGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.answerPanel,
+.feedbackPanel {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 8%);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface), transparent 2%);
+  padding: 16px;
+}
+
+.answerPanel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.feedbackPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: color-mix(in srgb, var(--surface-muted), transparent 32%);
+}
+
+.panelHeading h2 {
+  margin: 3px 0 0;
+  color: var(--foreground);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.listeningIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #ef4444, transparent 90%);
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 9px;
+}
+
+:global(html.dark) .listeningIndicator {
+  color: #fca5a5;
+}
+
+.listeningIndicator > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 4px color-mix(in srgb, #ef4444, transparent 78%);
+}
+
+.practiceControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.answerEditor {
+  display: grid;
+  gap: 8px;
+}
+
+.answerEditorHeader label {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.answerEditorHeader span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.answerTextarea {
+  min-height: 210px !important;
+  max-height: 360px;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.feedbackLevel {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, #f59e0b, transparent 86%);
+  color: #b45309;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 6px 9px;
+}
+
+.feedbackLevel[data-level="Good"] {
+  background: color-mix(in srgb, #3b82f6, transparent 86%);
+  color: #1d4ed8;
+}
+
+.feedbackLevel[data-level="Strong"] {
+  background: color-mix(in srgb, #10b981, transparent 86%);
+  color: #047857;
+}
+
+:global(html.dark) .feedbackLevel {
+  color: #fcd34d;
+}
+
+:global(html.dark) .feedbackLevel[data-level="Good"] {
+  color: #93c5fd;
+}
+
+:global(html.dark) .feedbackLevel[data-level="Strong"] {
+  color: #6ee7b7;
+}
+
+.feedbackSummary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  color: var(--brand);
+}
+
+.feedbackSummary p {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.feedbackTips {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feedbackTips li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+}
+
+.feedbackTips li > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--brand), transparent 90%);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.feedbackTips p {
+  margin: 1px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.feedbackFooter {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+  border-top: 1px solid color-mix(in srgb, var(--border), transparent 20%);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+  padding-top: 12px;
+}
+
+.noticeMessage,
+.errorMessage {
+  margin: 0;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  padding: 9px 10px;
+}
+
+.noticeMessage {
+  background: color-mix(in srgb, #10b981, transparent 90%);
+  color: #047857;
+}
+
+.errorMessage {
+  background: color-mix(in srgb, #ef4444, transparent 90%);
+  color: #b91c1c;
+}
+
+:global(html.dark) .noticeMessage {
+  color: #6ee7b7;
+}
+
+:global(html.dark) .errorMessage {
+  color: #fca5a5;
+}
+
+.modalBody {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+}
+
+.modalIntro {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.addQuestionPanel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--brand), transparent 75%);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand), transparent 94%);
+  padding: 12px;
+}
+
+.addQuestionPanel > label {
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.addQuestionForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.questionList,
+.attemptList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(46vh, 440px);
+  margin: 0;
+  overscroll-behavior: contain;
+  overflow-y: auto;
+  padding: 1px 4px 1px 1px;
+  scrollbar-gutter: stable;
+  list-style: none;
+}
+
+.questionList > li {
+  flex: 0 0 auto;
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 8%);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.questionList > li:hover {
+  border-color: color-mix(in srgb, var(--brand), transparent 58%);
+}
+
+.questionList > .selectedQuestionItem {
+  border-color: color-mix(in srgb, var(--brand), transparent 30%);
+  background: color-mix(in srgb, var(--brand), var(--surface) 94%);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.questionSelectButton {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 64px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 12px;
+}
+
+.questionNumber {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.selectedQuestionItem .questionNumber {
+  background: var(--brand);
+  color: white;
+}
+
+.questionListCopy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.questionListCopy strong {
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.questionListCopy > span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.questionSelectLabel {
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.removeQuestionButton {
+  position: absolute;
+  right: 12px;
+  bottom: 7px;
+  border: 0;
+  background: transparent;
+  color: #be123c;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px;
+}
+
+:global(html.dark) .removeQuestionButton {
+  color: #fda4af;
+}
+
+.emptyState {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  border: 1px dashed color-mix(in srgb, var(--border), transparent 4%);
+  border-radius: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px;
+}
+
+.emptyState p {
+  max-width: 480px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.attemptsQuestion {
+  display: grid;
+  gap: 5px;
+  border: 1px solid color-mix(in srgb, var(--brand), transparent 75%);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand), transparent 94%);
+  padding: 12px 14px;
+}
+
+.attemptsQuestion span {
+  color: var(--brand);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.attemptsQuestion p {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.attemptList > li {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 8%);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 13px;
+}
+
+.attemptMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.attemptMeta span {
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 7px;
+}
+
+.attemptTranscript,
+.attemptSummary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.attemptTranscript {
+  color: var(--foreground);
+}
+
+.attemptSummary {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.attemptTips {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  padding-left: 18px;
+}
+
+@media (max-width: 980px) {
+  .pageHeader {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .headerActions {
+    justify-content: flex-start;
+  }
+
+  .practiceGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .answerTextarea {
+    min-height: 180px !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .page {
+    gap: 12px;
+  }
+
+  .pageHeader {
+    gap: 15px;
+    padding: 2px 2px 0;
+  }
+
+  .headerActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .practiceCard {
+    padding: 12px !important;
+  }
+
+  .practiceCardHeader,
+  .questionStageHeader,
+  .panelHeading,
+  .answerEditorHeader {
+    align-items: flex-start;
+  }
+
+  .questionStage {
+    padding: 14px;
+  }
+
+  .questionStageHeader {
+    display: grid;
+  }
+
+  .questionPrompt {
+    font-size: 18px;
+  }
+
+  .answerPanel,
+  .feedbackPanel {
+    padding: 13px;
+  }
+
+  .practiceControls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .addQuestionForm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .questionSelectButton {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .questionSelectLabel {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attemptCountButton {
+    transition: none;
+  }
+}
