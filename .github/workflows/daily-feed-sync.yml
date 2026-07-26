@@ -15,7 +15,7 @@ jobs:
   refresh-feed-snapshot:
     runs-on: ubuntu-latest
     env:
-      ROLELENS_SYNC_URL: ${{ secrets.ROLELENS_SYNC_URL || 'https://rolelens.pages.dev' }}
+      ROLELENS_SYNC_URL: ${{ secrets.ROLELENS_SYNC_URL || vars.ROLELENS_PRODUCTION_URL }}
       FEED_SNAPSHOT_PATH: python-scraped-jobs.json
     steps:
       - name: Checkout
@@ -24,6 +24,7 @@ jobs:
       - name: Validate required secret
         run: |
           test -n "$ROLELENS_CRON_SECRET" || (echo "Missing ROLELENS_CRON_SECRET" && exit 1)
+          test -n "$ROLELENS_SYNC_URL" || (echo "Missing ROLELENS_SYNC_URL secret or ROLELENS_PRODUCTION_URL variable" && exit 1)
         env:
           ROLELENS_CRON_SECRET: ${{ secrets.ROLELENS_CRON_SECRET }}
 

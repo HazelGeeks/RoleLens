@@ -4,8 +4,6 @@ import { createGoal, listGoals } from "@/lib/goals/store";
 import { createGoalSchema } from "@/lib/goals/validators";
 import { toPublicServerError } from "@/lib/server-config-errors";
 
-export const runtime = "edge";
-
 function badRequest(message: string, details?: unknown) {
   return Response.json(
     {

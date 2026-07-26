@@ -2,8 +2,6 @@ import { requireGoalUser } from "@/app/api/goals/auth";
 import { deleteGoal } from "@/lib/goals/store";
 import { toPublicServerError } from "@/lib/server-config-errors";
 
-export const runtime = "edge";
-
 type RouteContext = {
   params: Promise<{ id: string }>;
 };

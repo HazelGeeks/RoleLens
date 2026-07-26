@@ -3,8 +3,6 @@ import {
   POST as createPersistentJob,
 } from "@/app/api/persistence/jobs/route";
 
-export const runtime = "edge";
-
 export async function GET(request: Request) {
   return listPersistentJobs(request);
 }

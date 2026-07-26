@@ -4,8 +4,6 @@ import { createGoalFollowUp } from "@/lib/goals/store";
 import { createGoalFollowUpSchema } from "@/lib/goals/validators";
 import { toPublicServerError } from "@/lib/server-config-errors";
 
-export const runtime = "edge";
-
 type RouteContext = {
   params: Promise<{ id: string }>;
 };

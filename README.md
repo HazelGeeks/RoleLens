@@ -1,20 +1,17 @@
-# RoleLens MVP (Pages Mode)
+# RoleLens MVP
 
 RoleLens is a personal frontend-job tracking app focused on manual capture, structured storage, analysis, and status tracking.
 
-This branch is configured for **Cloudflare Pages deployment** (`rolelens.pages.dev`).
+Production is configured for **Cloudflare Workers** through the OpenNext adapter.
 
-## Current Architecture (Pages-compatible)
+## Current Architecture
 
-- Next.js 15 + App Router
+- Next.js 16 + App Router
 - TypeScript + Tailwind CSS
+- Cloudflare Workers + OpenNext
+- Cloudflare D1 for shared server-side persistence
 - Client-side local persistence (`localStorage`)
 - TanStack Table + Recharts
-
-Why this mode exists:
-
-- Cloudflare Pages + `next-on-pages` is Edge-runtime oriented.
-- To ensure stable Pages deployment, this mode avoids Node-only server runtime patterns.
 
 ## Features
 
@@ -54,7 +51,8 @@ Feed ingestion:
 GitHub Actions feed sync:
 
 - `ROLELENS_CRON_SECRET` (required repository secret; must match the deployed Cloudflare `CRON_SECRET`)
-- `ROLELENS_SYNC_URL` (optional repository secret; defaults to `https://rolelens.pages.dev`)
+- `ROLELENS_SYNC_URL` (optional repository secret; falls back to the `ROLELENS_PRODUCTION_URL` repository variable)
+  - When Cloudflare Access protects the Worker URL, point this secret to a public, secret-protected ingestion endpoint until an Access service token is configured.
 
 Auth security:
 
@@ -65,7 +63,7 @@ Auth security:
 
 ### D1 Feed Refresh
 
-The app does not run Python inside Cloudflare Pages. Instead, `.github/workflows/daily-feed-sync.yml` runs the Python scraper on a schedule, uploads the generated JSON as a short-lived artifact, POSTs it to `/api/jobs/ingest`, then calls `/api/jobs/cron` to warm the edge cache from the new D1 snapshot.
+The app does not run Python inside Cloudflare Workers. Instead, `.github/workflows/daily-feed-sync.yml` runs the Python scraper on a schedule, uploads the generated JSON as a short-lived artifact, POSTs it to `/api/jobs/ingest`, then calls `/api/jobs/cron` to warm the cache from the new D1 snapshot.
 
 `PYTHON_SCRAPED_FEED_URL` remains available for debugging or alternate external schedulers, but the default production automation path is the scheduled GitHub Actions scrape-and-ingest workflow.
 
@@ -77,7 +75,7 @@ curl --fail --silent --show-error \
   --header "content-type: application/json" \
   --header "x-rolelens-sync-secret: $SYNC_ADMIN_SECRET" \
   --data '{"platform":"all"}' \
-  "https://rolelens.pages.dev/api/jobs/sync/"
+  "${ROLELENS_PRODUCTION_URL%/}/api/jobs/sync/"
 ```
 
 `POST /api/jobs/ingest` accepts a normalized feed snapshot and stores it in D1:
@@ -88,7 +86,7 @@ curl --fail --silent --show-error \
   --header "content-type: application/json" \
   --header "x-cron-secret: $CRON_SECRET" \
   --data-binary "@feed-snapshot.json" \
-  "https://rolelens.pages.dev/api/jobs/ingest/"
+  "${ROLELENS_PRODUCTION_URL%/}/api/jobs/ingest/"
 ```
 
 `POST /api/jobs/cron` refreshes the edge cache from the latest D1 snapshot:
@@ -97,7 +95,7 @@ curl --fail --silent --show-error \
 curl --fail --silent --show-error \
   --request POST \
   --header "x-cron-secret: $CRON_SECRET" \
-  "https://rolelens.pages.dev/api/jobs/cron/"
+  "${ROLELENS_PRODUCTION_URL%/}/api/jobs/cron/"
 ```
 
 On the app list screen, `Sync All Feeds` calls `/api/jobs/sync`, which refreshes D1 from `PYTHON_SCRAPED_FEED_URL` when configured and then merges the resulting D1 snapshot into the browser workspace. Platform-scoped sync buttons (`Sync Indeed`, `Sync LinkedIn`, `Sync Saramin`, `Sync JobKorea`) use the same refreshed D1 snapshot filtered by platform. In production, browser-triggered manual sync requires the signed-in account email to be listed in `SYNC_ADMIN_EMAILS`; cron/secret-triggered sync still uses `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
@@ -227,19 +225,20 @@ npm run dev
 ## Scripts
 
 - `npm run dev` - local dev (memory fallback)
-- `npm run dev:cloudflare` - local Cloudflare Pages runtime + D1 binding (loads `.env.local` via `--env-file`)
+- `npm run dev:cloudflare` - build and preview the Cloudflare Worker runtime with local D1
 - `npm run build` - production build
 - `npm run lint` - lint
 - `npm run test` - unit tests (cron security, persistence PoC, local data reliability)
 - `npm run verify` - lint + tests
-- `npm run cf:build` - alias for Cloudflare Pages output build
-- `npm run pages:build` - Cloudflare Pages output build
-- `npm run pages:deploy` - deploy `.vercel/output/static` to Cloudflare Pages
+- `npm run cf:build` - build the OpenNext Worker output
+- `npm run cf:deploy` - deploy a previously built Worker output
+- `npm run preview` - build and preview the Worker locally
+- `npm run deploy` - build and deploy the Worker
 - `npm run db:schema:local` - apply database schema changes locally
 - `npm run db:schema:preview` - apply database schema changes to preview D1
 - `npm run db:schema:prod` - apply database schema changes to production D1
 
-## Cloudflare Pages Deployment
+## Cloudflare Workers Deployment
 
 Workflow: `.github/workflows/deploy-cloudflare.yml`
 
@@ -247,14 +246,19 @@ Required GitHub Secrets:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_PROJECT_NAME`
+- `ROLELENS_CRON_SECRET` (for the scheduled feed workflow)
 
-Deploy target should be your Pages project, e.g. `rolelens`.
+Required GitHub repository variable:
 
-Important:
+- `ROLELENS_PRODUCTION_URL` (the deployed Worker base URL)
 
-- `CLOUDFLARE_PROJECT_NAME` must match the Cloudflare Pages project name.
-- If your project URL is `https://rolelens.pages.dev`, project name should be `rolelens`.
+Required Cloudflare Worker secrets:
+
+- `AUTH_PASSWORD_PEPPER`
+- `CRON_SECRET`
+- `SYNC_ADMIN_EMAILS`
+
+The Worker name and D1 bindings are defined in `wrangler.toml`. Run `npm run deploy` for a manual deployment, or merge to `main` to run the deployment workflow.
 
 ## D1 Persistence Setup
 

@@ -7,8 +7,6 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export const runtime = "edge";
-
 async function getNormalizedContext(context: RouteContext): Promise<RouteContext> {
   const params = await context.params;
   return {

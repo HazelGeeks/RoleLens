@@ -20,8 +20,8 @@ function getRuntimeEnvValueFromGlobalScope(name: string) {
 
 async function getCloudflareRuntimeEnv() {
   try {
-    const { getRequestContext } = await import("@cloudflare/next-on-pages");
-    const context = getRequestContext();
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    const context = await getCloudflareContext({ async: true });
     const env = context.env as Record<string, unknown> | undefined;
     if (env && typeof env === "object") return env;
   } catch {

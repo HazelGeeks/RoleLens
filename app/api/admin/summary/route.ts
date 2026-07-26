@@ -2,8 +2,6 @@ import { getAdminAccessForRequest } from "@/lib/admin-auth";
 import { getD1DatabaseFromContext, type D1DatabaseLike } from "@/lib/d1";
 import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
 
-export const runtime = "edge";
-
 type CountRow = {
   count?: number | string;
 };

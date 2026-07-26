@@ -1,8 +1,6 @@
 import { resetPasswordAuth } from "@/lib/auth-server";
 import { toPublicServerError } from "@/lib/server-config-errors";
 
-export const runtime = "edge";
-
 export async function POST(request: Request) {
   let payload: unknown;
   try {

@@ -42,8 +42,8 @@ export async function getD1DatabaseFromContext(
   bindingName = process.env.PERSISTENCE_D1_BINDING?.trim() || DEFAULT_D1_BINDING,
 ): Promise<D1DatabaseLike | undefined> {
   try {
-    const { getRequestContext } = await import("@cloudflare/next-on-pages");
-    const context = getRequestContext();
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    const context = await getCloudflareContext({ async: true });
     const env = context.env as Record<string, unknown> | undefined;
     const candidate = env?.[bindingName];
     if (isD1DatabaseLike(candidate)) {

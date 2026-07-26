@@ -1,6 +1,6 @@
 const GENERIC_ERROR_MESSAGE = "Internal server error";
 const D1_ERROR_MESSAGE =
-  "Server database binding is unavailable. Ensure Cloudflare Pages Functions has D1 binding 'DB'.";
+  "Server database binding is unavailable. Ensure the Cloudflare Worker has D1 binding 'DB'.";
 const D1_SCHEMA_ERROR_MESSAGE =
   "Server database schema is missing. Apply database schema changes (npm run db:schema:prod) and redeploy.";
 const PEPPER_ERROR_MESSAGE =

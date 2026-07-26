@@ -4,8 +4,6 @@ import { getPersistentJob, patchPersistentJob } from "@/lib/persistence/store";
 import { patchPersistentJobSchema } from "@/lib/persistence/validators";
 import { toPublicServerError } from "@/lib/server-config-errors";
 
-export const runtime = "edge";
-
 type RouteContext = {
   params: Promise<{ id: string }>;
 };

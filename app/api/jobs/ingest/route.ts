@@ -2,8 +2,6 @@ import { parseFeedSnapshotPayload } from "@/lib/feed-snapshot-payload";
 import { writeLatestFeedSnapshotToD1 } from "@/lib/feed-snapshot-store";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
-export const runtime = "edge";
-
 const CRON_SECRET_HEADER = "x-cron-secret";
 const SYNC_SECRET_HEADER = "x-rolelens-sync-secret";
 

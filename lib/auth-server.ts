@@ -98,8 +98,8 @@ async function getRuntimeEnvValue(name: string) {
   if (processValue) return processValue;
 
   try {
-    const { getRequestContext } = await import("@cloudflare/next-on-pages");
-    const context = getRequestContext();
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    const context = await getCloudflareContext({ async: true });
     const env = context.env as Record<string, unknown> | undefined;
     const value = env?.[name];
     if (typeof value === "string" && value.trim()) {

@@ -13,8 +13,6 @@ import {
 } from "@/lib/feed-snapshot";
 import { parseFeedSnapshotPayload } from "@/lib/feed-snapshot-payload";
 
-export const runtime = "edge";
-
 const SYNC_SECRET_HEADER = "x-rolelens-sync-secret";
 const CRON_SECRET_HEADER = "x-cron-secret";
 
