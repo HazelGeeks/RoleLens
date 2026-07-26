@@ -10,8 +10,6 @@ import {
   filterFeedSnapshotByPlatform,
 } from "@/lib/feed-snapshot";
 
-export const runtime = "edge";
-
 const SYNC_SECRET_HEADER = "x-rolelens-sync-secret";
 const CRON_SECRET_HEADER = "x-cron-secret";
 const DEFAULT_PUBLIC_RATE_LIMIT_PER_MIN = 60;

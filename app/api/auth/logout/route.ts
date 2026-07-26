@@ -1,7 +1,5 @@
 import { buildAuthSessionClearCookie, signOutAuth } from "@/lib/auth-server";
 
-export const runtime = "edge";
-
 export async function POST(request: Request) {
   await signOutAuth(request);
 

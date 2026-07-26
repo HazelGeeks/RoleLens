@@ -3,8 +3,6 @@ import { buildMissingD1FeedSnapshot } from "@/lib/feed-snapshot";
 import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
-export const runtime = "edge";
-
 const CRON_SECRET_HEADER = "x-cron-secret";
 
 function isAuthorized(request: Request, env: RuntimeEnv) {
