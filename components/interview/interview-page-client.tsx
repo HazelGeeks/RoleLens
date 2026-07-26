@@ -1,5 +1,15 @@
 "use client";
 
+import { Modal } from "@mantine/core";
+import {
+  BookOpenText,
+  Clock3,
+  Headphones,
+  History,
+  Mic,
+  Square,
+  Volume2,
+} from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -20,6 +30,7 @@ import {
   type InterviewQuestion,
 } from "@/lib/interview-practice";
 import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
+import styles from "./interview-page-client.module.css";
 
 type InterviewAttempt = {
   id: string;
@@ -122,6 +133,8 @@ export function InterviewPageClient() {
   const [isListening, setIsListening] = useState(false);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [isAttemptsModalOpen, setIsAttemptsModalOpen] = useState(false);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recordingStartedAtRef = useRef<number | null>(null);
@@ -152,6 +165,14 @@ export function InterviewPageClient() {
     if (!selectedQuestion) return [];
     return attempts.filter((attempt) => attempt.questionId === selectedQuestion.id);
   }, [attempts, selectedQuestion]);
+
+  const selectedQuestionIndex = useMemo(
+    () =>
+      selectedQuestion
+        ? allQuestions.findIndex((question) => question.id === selectedQuestion.id)
+        : -1,
+    [allQuestions, selectedQuestion],
+  );
 
   const liveFeedback = useMemo(
     () =>
@@ -473,9 +494,21 @@ export function InterviewPageClient() {
     setManualQuestions((current) => [nextQuestion, ...current]);
     setManualQuestionInput("");
     setSelectedQuestionId(nextQuestion.id);
+    setAnswerDraft("");
+    answerDraftRef.current = "";
+    setIsQuestionModalOpen(false);
     setErrorMessage(null);
     setNoticeMessage("Custom interview question added.");
   }, [manualQuestionInput]);
+
+  const selectQuestion = useCallback((questionId: string) => {
+    setSelectedQuestionId(questionId);
+    setAnswerDraft("");
+    answerDraftRef.current = "";
+    setNoticeMessage(null);
+    setErrorMessage(null);
+    setIsQuestionModalOpen(false);
+  }, []);
 
   const removeManualQuestion = useCallback((questionId: string) => {
     setManualQuestions((current) =>
@@ -508,211 +541,363 @@ export function InterviewPageClient() {
   }
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-semibold">Interview Studio</h1>
-        <p className="text-sm text-slate-500">
-          Prepare expected questions and practice answering out loud with instant
-          transcript-based feedback.
-        </p>
+    <div className={styles.page}>
+      <header className={styles.pageHeader}>
+        <div className={styles.headerCopy}>
+          <p className={styles.eyebrow}>Focused practice</p>
+          <h1>Interview Studio</h1>
+          <p>
+            Stay with one question at a time, shape a concise answer, and use
+            feedback without leaving the practice view.
+          </p>
+          <div className={styles.workspaceStats} aria-label="Interview workspace summary">
+            <span>{allQuestions.length} questions</span>
+            <span>{attempts.length} saved attempts</span>
+            <span>{candidateJobs.length} active jobs</span>
+          </div>
+        </div>
+        <div className={styles.headerActions}>
+          <Button
+            type="button"
+            leftSection={<BookOpenText size={16} aria-hidden="true" />}
+            onClick={() => setIsQuestionModalOpen(true)}
+          >
+            Browse questions
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            leftSection={<History size={16} aria-hidden="true" />}
+            onClick={() => setIsAttemptsModalOpen(true)}
+            disabled={!selectedQuestion}
+          >
+            Review attempts
+          </Button>
+        </div>
       </header>
 
-      <Card className="space-y-3">
-        <CardTitle>Expected interview questions</CardTitle>
-        <CardDescription>
-          Questions are predicted from your tracked jobs. Add custom prompts for
-          role-specific prep.
-        </CardDescription>
-
-        <label htmlFor="manual-interview-question" className="text-sm font-medium">
-          Add custom interview question
-        </label>
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <Input
-            id="manual-interview-question"
-            value={manualQuestionInput}
-            onChange={(event) => setManualQuestionInput(event.target.value)}
-            placeholder="Add your own question (e.g., Explain your API caching strategy.)"
-          />
-          <Button onClick={addManualQuestion}>Add question</Button>
-        </div>
-
-        {allQuestions.length === 0 ? (
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            No interview questions yet. Save jobs first from the Jobs page to get
-            predictions.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {allQuestions.map((question) => {
-              const selected = question.id === selectedQuestionId;
-              return (
-                <li key={question.id}>
-                  <div
-                    className={`rounded-xl border p-3 ${
-                      selected
-                        ? "border-blue-500 bg-blue-50/60 dark:border-blue-400 dark:bg-blue-950/40"
-                        : "border-slate-200 dark:border-slate-800"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedQuestionId(question.id)}
-                        className="text-left text-sm font-medium leading-6 text-slate-900 hover:underline dark:text-slate-100"
-                        aria-pressed={selected}
-                      >
-                        {question.prompt}
-                      </button>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full border border-slate-300 px-2 py-0.5 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
-                          {question.source === "manual" ? "Custom" : "Predicted"}
-                        </span>
-                        {question.source === "manual" ? (
-                          <button
-                            type="button"
-                            onClick={() => removeManualQuestion(question.id)}
-                            className="text-xs text-rose-700 underline dark:text-rose-300"
-                            aria-label={`Remove question: ${question.prompt}`}
-                          >
-                            Remove
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
-
-      <Card className="space-y-3">
-        <CardTitle>Speaking practice</CardTitle>
-        <CardDescription>
-          Practice with microphone capture or typed answers. Audio and transcripts
-          stay on your browser.
-        </CardDescription>
-
-        <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Selected question</p>
-          <p className="mt-1 text-sm leading-6">
-            {selectedQuestion?.prompt || "Select a question to start practice."}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={speakQuestion}
-            disabled={!selectedQuestion || !speechSynthesisSupported}
-          >
-            Play question audio
-          </Button>
-          <Button
-            type="button"
-            onClick={startListening}
-            disabled={!selectedQuestion || isListening || !speechRecognitionSupported}
-          >
-            Start speaking
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={stopListening}
-            disabled={!isListening}
-          >
-            Stop speaking
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => saveAttempt(answerDraft)}
-            disabled={!selectedQuestion || !answerDraft.trim()}
-          >
-            Save typed answer
-          </Button>
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="interview-answer" className="text-sm font-medium">
-            Answer transcript
-          </label>
-          <Textarea
-            id="interview-answer"
-            className="min-h-[170px]"
-            value={answerDraft}
-            onChange={(event) => {
-              setAnswerDraft(event.target.value);
-              answerDraftRef.current = event.target.value;
-            }}
-            placeholder="Your spoken transcript (or typed answer) appears here..."
-          />
-        </div>
-
-        <div className="rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-800">
-          <p className="font-medium">Live feedback</p>
-          <p className="mt-1 text-slate-600 dark:text-slate-300">
-            {liveFeedback?.summary || "Start answering to see feedback."}
-          </p>
-          {liveFeedback?.tips.length ? (
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-600 dark:text-slate-300">
-              {liveFeedback.tips.map((tip) => (
-                <li key={tip}>{tip}</li>
-              ))}
-            </ul>
+      <Card className={styles.practiceCard}>
+        <div className={styles.practiceCardHeader}>
+          <div>
+            <CardTitle>Speaking practice</CardTitle>
+            <CardDescription>
+              Audio and transcripts stay in this browser.
+            </CardDescription>
+          </div>
+          {selectedQuestionAttempts.length > 0 ? (
+            <button
+              type="button"
+              className={styles.attemptCountButton}
+              onClick={() => setIsAttemptsModalOpen(true)}
+            >
+              <History size={15} aria-hidden="true" />
+              {selectedQuestionAttempts.length} attempt
+              {selectedQuestionAttempts.length === 1 ? "" : "s"}
+            </button>
           ) : null}
         </div>
 
-        {noticeMessage ? (
-          <p className="text-sm text-green-700 dark:text-green-300">{noticeMessage}</p>
-        ) : null}
-        {errorMessage ? (
-          <p className="text-sm text-rose-700 dark:text-rose-300">{errorMessage}</p>
-        ) : null}
-      </Card>
-
-      <Card className="space-y-3">
-        <CardTitle>Recent answer attempts</CardTitle>
-        <CardDescription>
-          Review your recent responses and repeat until your message is concise and
-          specific.
-        </CardDescription>
-
-        {selectedQuestionAttempts.length === 0 ? (
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            No attempts yet for this question.
+        <section className={styles.questionStage} aria-labelledby="selected-question-label">
+          <div className={styles.questionStageHeader}>
+            <div className={styles.questionMeta}>
+              <span id="selected-question-label">
+                {selectedQuestionIndex >= 0
+                  ? `Question ${selectedQuestionIndex + 1} of ${allQuestions.length}`
+                  : "No question selected"}
+              </span>
+              {selectedQuestion ? (
+                <span>
+                  {selectedQuestion.source === "manual" ? "Custom" : "Predicted"}
+                </span>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsQuestionModalOpen(true)}
+            >
+              Change question
+            </Button>
+          </div>
+          <p className={styles.questionPrompt}>
+            {selectedQuestion?.prompt ||
+              "Choose a question from the library to start focused practice."}
           </p>
-        ) : (
-          <ul className="space-y-2">
-            {selectedQuestionAttempts.map((attempt) => (
-              <li
-                key={attempt.id}
-                className="rounded-xl border border-slate-200 p-3 dark:border-slate-800"
+        </section>
+
+        <div className={styles.practiceGrid}>
+          <section className={styles.answerPanel} aria-labelledby="answer-panel-title">
+            <div className={styles.panelHeading}>
+              <div>
+                <p className={styles.panelEyebrow}>Your response</p>
+                <h2 id="answer-panel-title">Answer naturally</h2>
+              </div>
+              {isListening ? (
+                <span className={styles.listeningIndicator}>
+                  <span aria-hidden="true" />
+                  Listening
+                </span>
+              ) : null}
+            </div>
+
+            <div className={styles.practiceControls}>
+              <Button
+                type="button"
+                variant="secondary"
+                leftSection={<Volume2 size={16} aria-hidden="true" />}
+                onClick={speakQuestion}
+                disabled={!selectedQuestion || !speechSynthesisSupported}
               >
-                <p className="text-xs text-slate-500">
-                  {formatAttemptDate(attempt.createdAt)} · {attempt.durationSeconds}s ·
-                  {" "}
-                  {attempt.feedback.level}
-                </p>
-                <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
-                  {attempt.transcript}
-                </p>
-                <p className="mt-2 text-sm font-medium">{attempt.feedback.summary}</p>
-                {attempt.feedback.tips.length > 0 ? (
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-600 dark:text-slate-300">
-                    {attempt.feedback.tips.map((tip) => (
-                      <li key={tip}>{tip}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
+                Play question
+              </Button>
+              {isListening ? (
+                <Button
+                  type="button"
+                  leftSection={<Square size={14} aria-hidden="true" />}
+                  onClick={stopListening}
+                >
+                  Stop & save
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  leftSection={<Mic size={16} aria-hidden="true" />}
+                  onClick={startListening}
+                  disabled={!selectedQuestion || !speechRecognitionSupported}
+                >
+                  Start speaking
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => saveAttempt(answerDraft)}
+                disabled={!selectedQuestion || !answerDraft.trim()}
+              >
+                Save typed answer
+              </Button>
+            </div>
+
+            <div className={styles.answerEditor}>
+              <div className={styles.answerEditorHeader}>
+                <label htmlFor="interview-answer">Answer transcript</label>
+                <span>Aim for 45–90 seconds</span>
+              </div>
+              <Textarea
+                id="interview-answer"
+                className={styles.answerTextarea}
+                value={answerDraft}
+                onChange={(event) => {
+                  setAnswerDraft(event.target.value);
+                  answerDraftRef.current = event.target.value;
+                }}
+                placeholder="Type your answer here, or use Start speaking to capture it..."
+              />
+            </div>
+          </section>
+
+          <aside className={styles.feedbackPanel} aria-labelledby="feedback-panel-title">
+            <div className={styles.panelHeading}>
+              <div>
+                <p className={styles.panelEyebrow}>Instant coaching</p>
+                <h2 id="feedback-panel-title">Live feedback</h2>
+              </div>
+              {liveFeedback ? (
+                <span
+                  className={styles.feedbackLevel}
+                  data-level={liveFeedback.level}
+                >
+                  {liveFeedback.level}
+                </span>
+              ) : null}
+            </div>
+
+            <div className={styles.feedbackSummary}>
+              <Headphones size={20} aria-hidden="true" />
+              <p>
+                {liveFeedback?.summary ||
+                  "Start answering to see feedback on clarity and structure."}
+              </p>
+            </div>
+
+            {liveFeedback?.tips.length ? (
+              <ol className={styles.feedbackTips}>
+                {liveFeedback.tips.map((tip, index) => (
+                  <li key={tip}>
+                    <span>{index + 1}</span>
+                    <p>{tip}</p>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            <div className={styles.feedbackFooter}>
+              <Clock3 size={15} aria-hidden="true" />
+              <span>Saved answers can be reviewed from the attempts modal.</span>
+            </div>
+
+            {noticeMessage ? (
+              <p className={styles.noticeMessage} role="status">
+                {noticeMessage}
+              </p>
+            ) : null}
+            {errorMessage ? (
+              <p className={styles.errorMessage} role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
+          </aside>
+        </div>
       </Card>
+
+      <Modal
+        opened={isQuestionModalOpen}
+        onClose={() => setIsQuestionModalOpen(false)}
+        title="Question library"
+        size="lg"
+        centered
+        overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+      >
+        <div className={styles.modalBody}>
+          <p className={styles.modalIntro}>
+            Pick one question and return directly to practice. Predicted questions
+            come from your active jobs.
+          </p>
+
+          <div className={styles.addQuestionPanel}>
+            <label htmlFor="manual-interview-question">
+              Add a role-specific question
+            </label>
+            <div className={styles.addQuestionForm}>
+              <Input
+                id="manual-interview-question"
+                value={manualQuestionInput}
+                onChange={(event) => setManualQuestionInput(event.target.value)}
+                placeholder="e.g., Explain your API caching strategy."
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addManualQuestion();
+                  }
+                }}
+              />
+              <Button type="button" onClick={addManualQuestion}>
+                Add question
+              </Button>
+            </div>
+          </div>
+
+          {allQuestions.length === 0 ? (
+            <div className={styles.emptyState}>
+              <BookOpenText size={22} aria-hidden="true" />
+              <p>
+                No questions yet. Save jobs first for predictions, or add your own
+                question above.
+              </p>
+            </div>
+          ) : (
+            <ul className={styles.questionList}>
+              {allQuestions.map((question, index) => {
+                const selected = question.id === selectedQuestionId;
+                const questionAttempts = attempts.filter(
+                  (attempt) => attempt.questionId === question.id,
+                ).length;
+
+                return (
+                  <li
+                    key={question.id}
+                    className={selected ? styles.selectedQuestionItem : undefined}
+                  >
+                    <button
+                      type="button"
+                      className={styles.questionSelectButton}
+                      onClick={() => selectQuestion(question.id)}
+                      aria-pressed={selected}
+                    >
+                      <span className={styles.questionNumber}>
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <span className={styles.questionListCopy}>
+                        <strong>{question.prompt}</strong>
+                        <span>
+                          {question.source === "manual" ? "Custom" : "Predicted"}
+                          {" · "}
+                          {questionAttempts} saved attempt
+                          {questionAttempts === 1 ? "" : "s"}
+                        </span>
+                      </span>
+                      <span className={styles.questionSelectLabel}>
+                        {selected ? "Selected" : "Practice"}
+                      </span>
+                    </button>
+                    {question.source === "manual" ? (
+                      <button
+                        type="button"
+                        onClick={() => removeManualQuestion(question.id)}
+                        className={styles.removeQuestionButton}
+                        aria-label={`Remove question: ${question.prompt}`}
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        opened={isAttemptsModalOpen}
+        onClose={() => setIsAttemptsModalOpen(false)}
+        title="Answer attempts"
+        size="lg"
+        centered
+        overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+      >
+        <div className={styles.modalBody}>
+          <div className={styles.attemptsQuestion}>
+            <span>Current question</span>
+            <p>
+              {selectedQuestion?.prompt ||
+                "Choose a question before reviewing attempts."}
+            </p>
+          </div>
+
+          {selectedQuestionAttempts.length === 0 ? (
+            <div className={styles.emptyState}>
+              <History size={22} aria-hidden="true" />
+              <p>
+                No attempts yet for this question. Save an answer, then review it
+                here without extending the practice page.
+              </p>
+            </div>
+          ) : (
+            <ul className={styles.attemptList}>
+              {selectedQuestionAttempts.map((attempt) => (
+                <li key={attempt.id}>
+                  <div className={styles.attemptMeta}>
+                    <span>{formatAttemptDate(attempt.createdAt)}</span>
+                    <span>{attempt.durationSeconds}s</span>
+                    <span>{attempt.feedback.level}</span>
+                  </div>
+                  <p className={styles.attemptTranscript}>{attempt.transcript}</p>
+                  <p className={styles.attemptSummary}>{attempt.feedback.summary}</p>
+                  {attempt.feedback.tips.length > 0 ? (
+                    <ul className={styles.attemptTips}>
+                      {attempt.feedback.tips.map((tip) => (
+                        <li key={tip}>{tip}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
