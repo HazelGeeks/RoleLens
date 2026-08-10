@@ -5,11 +5,33 @@ export type FeedSyncAlert = {
   message: string;
 };
 
-type FeedSyncHealthInput = {
+export type FeedSyncHealthInput = {
   sourceCount: number;
   errors: FeedImportError[];
   sourceResults: FeedSourceResult[];
 };
+
+export function buildFeedSyncWarningFingerprint(
+  input: FeedSyncHealthInput,
+): string | null {
+  const alert = buildFeedSyncAlert(input);
+  if (alert?.level !== "warning") return null;
+
+  const failedSources = input.sourceResults
+    .filter((result) => !result.ok)
+    .map((result) => ({
+      source: result.source,
+      message: result.message || "",
+    }))
+    .sort((left, right) => {
+      const sourceOrder = left.source.localeCompare(right.source);
+      return sourceOrder !== 0
+        ? sourceOrder
+        : left.message.localeCompare(right.message);
+    });
+
+  return JSON.stringify(failedSources);
+}
 
 export function buildFeedSyncAlert(
   input: FeedSyncHealthInput,
