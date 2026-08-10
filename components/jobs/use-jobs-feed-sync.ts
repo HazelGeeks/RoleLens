@@ -6,7 +6,11 @@ import {
   getLastFeedSyncSummary,
   syncJobsFromFeeds,
 } from "@/lib/feed-sync";
-import { buildFeedSyncAlert } from "@/lib/feed-sync-alert";
+import {
+  buildFeedSyncAlert,
+  buildFeedSyncWarningFingerprint,
+  type FeedSyncHealthInput,
+} from "@/lib/feed-sync-alert";
 import type { FeedImportDiagnostics, FeedSourceResult } from "@/lib/feed-types";
 import { feedPlatformLabels, type FeedPlatform } from "@/lib/feed-platform";
 import { EMPTY_DIAGNOSTICS } from "@/components/jobs/jobs-page-utils";
@@ -22,6 +26,8 @@ type SyncOptions = {
   platform?: FeedPlatform;
   persistToDb?: boolean;
 };
+
+const LAST_SHOWN_SYNC_WARNING_KEY = "rolelens.feed.lastShownWarning";
 
 function buildRecoveryMessage(message: string) {
   const safeMessage = message.endsWith(".") ? message.slice(0, -1) : message;
@@ -60,6 +66,40 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
   const dismissSyncToast = useCallback(() => {
     setSyncToast(null);
   }, []);
+
+  const applySyncAlert = useCallback(
+    (input: FeedSyncHealthInput) => {
+      const alert = buildFeedSyncAlert(input);
+      const warningFingerprint = buildFeedSyncWarningFingerprint(input);
+
+      if (alert?.level === "error") {
+        window.localStorage.removeItem(LAST_SHOWN_SYNC_WARNING_KEY);
+        setSyncError(alert.message);
+        return;
+      }
+
+      setSyncError(null);
+
+      if (!alert || !warningFingerprint) {
+        window.localStorage.removeItem(LAST_SHOWN_SYNC_WARNING_KEY);
+        return;
+      }
+
+      if (
+        window.localStorage.getItem(LAST_SHOWN_SYNC_WARNING_KEY) ===
+        warningFingerprint
+      ) {
+        return;
+      }
+
+      window.localStorage.setItem(
+        LAST_SHOWN_SYNC_WARNING_KEY,
+        warningFingerprint,
+      );
+      showSyncToast(alert.message);
+    },
+    [showSyncToast],
+  );
 
   const runFeedSync = useCallback(
     async (options?: SyncOptions) => {
@@ -107,18 +147,11 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
             ".",
         );
 
-        const alert = buildFeedSyncAlert({
+        applySyncAlert({
           sourceCount: result.sourceCount,
           errors: result.errors,
           sourceResults: result.sourceResults,
         });
-
-        if (alert?.level === "error") {
-          setSyncError(alert.message);
-        } else if (alert?.level === "warning") {
-          showSyncToast(alert.message);
-          setSyncError(null);
-        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to sync crawled feed";
@@ -176,7 +209,7 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
         setActiveSyncPlatform(null);
       }
     },
-    [refreshJobs, showSyncToast],
+    [applySyncAlert, refreshJobs, showSyncToast],
   );
 
   const runManualSyncAll = useCallback(() => {
@@ -222,19 +255,11 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
         `Last sync imported ${rawImportPrefix}${lastSummary.totalImported} postings from ${lastSummary.importedSourceCount} source(s).`,
       );
 
-      const alert = buildFeedSyncAlert({
+      applySyncAlert({
         sourceCount: lastSummary.sourceCount,
         errors: lastSummary.errors,
         sourceResults: lastSummary.sourceResults,
       });
-
-      if (alert?.level === "error") {
-        setSyncError(alert.message);
-      } else if (alert?.level === "warning") {
-        showSyncToast(alert.message);
-        setSyncError(null);
-      }
-
     }
 
     void runFeedSync({
@@ -242,7 +267,7 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
       refresh: false,
       persistToDb: false,
     });
-  }, [runFeedSync, showSyncToast]);
+  }, [applySyncAlert, runFeedSync]);
 
   return {
     isSyncing,

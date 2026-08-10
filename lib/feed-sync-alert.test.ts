@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildFeedSyncAlert } from "@/lib/feed-sync-alert";
+import {
+  buildFeedSyncAlert,
+  buildFeedSyncWarningFingerprint,
+} from "@/lib/feed-sync-alert";
 
 describe("buildFeedSyncAlert", () => {
   it("returns an error when no D1 snapshot is available", () => {
@@ -82,5 +85,88 @@ describe("buildFeedSyncAlert", () => {
     expect(alert).not.toBeNull();
     expect(alert?.level).toBe("error");
     expect(alert?.message).toContain("all configured sources");
+  });
+
+  it("builds the same warning fingerprint regardless of source result order", () => {
+    const first = buildFeedSyncWarningFingerprint({
+      sourceCount: 3,
+      errors: [],
+      sourceResults: [
+        {
+          source: "Wanted:Backend",
+          ok: false,
+          importedJobs: 0,
+          message: "403",
+        },
+        { source: "Indeed", ok: true, importedJobs: 5 },
+        {
+          source: "Wanted:Frontend",
+          ok: false,
+          importedJobs: 0,
+          message: "403",
+        },
+      ],
+    });
+    const second = buildFeedSyncWarningFingerprint({
+      sourceCount: 3,
+      errors: [],
+      sourceResults: [
+        {
+          source: "Wanted:Frontend",
+          ok: false,
+          importedJobs: 0,
+          message: "403",
+        },
+        {
+          source: "Wanted:Backend",
+          ok: false,
+          importedJobs: 0,
+          message: "403",
+        },
+        { source: "Indeed", ok: true, importedJobs: 5 },
+      ],
+    });
+
+    expect(first).not.toBeNull();
+    expect(second).toBe(first);
+  });
+
+  it("changes the warning fingerprint when the failure changes", () => {
+    const timedOut = buildFeedSyncWarningFingerprint({
+      sourceCount: 2,
+      errors: [],
+      sourceResults: [
+        { source: "Indeed", ok: true, importedJobs: 5 },
+        { source: "Wanted", ok: false, importedJobs: 0, message: "Timed out" },
+      ],
+    });
+    const blocked = buildFeedSyncWarningFingerprint({
+      sourceCount: 2,
+      errors: [],
+      sourceResults: [
+        { source: "Indeed", ok: true, importedJobs: 5 },
+        { source: "Wanted", ok: false, importedJobs: 0, message: "403" },
+      ],
+    });
+
+    expect(blocked).not.toBe(timedOut);
+  });
+
+  it("does not fingerprint healthy or fully failed syncs as warnings", () => {
+    expect(
+      buildFeedSyncWarningFingerprint({
+        sourceCount: 1,
+        errors: [],
+        sourceResults: [{ source: "Indeed", ok: true, importedJobs: 5 }],
+      }),
+    ).toBeNull();
+
+    expect(
+      buildFeedSyncWarningFingerprint({
+        sourceCount: 1,
+        errors: [],
+        sourceResults: [{ source: "Wanted", ok: false, importedJobs: 0 }],
+      }),
+    ).toBeNull();
   });
 });
