@@ -5,14 +5,14 @@ import {
   parseFeedPlatform,
 } from "@/lib/feed-platform";
 
-const D1_RECOVERY_GUIDE = [
-  "Post a normalized feed snapshot to /api/jobs/ingest so D1 stores the latest snapshot.",
-  "Confirm the ingest client uses CRON_SECRET or SYNC_ADMIN_SECRET for D1 ingestion.",
-  "Confirm D1 migrations are applied and feed_import_snapshots exists.",
+const DATABASE_RECOVERY_GUIDE = [
+  "Post a normalized feed snapshot to /api/jobs/ingest so Supabase stores the latest snapshot.",
+  "Confirm the ingest client uses CRON_SECRET or SYNC_ADMIN_SECRET for Supabase ingestion.",
+  "Confirm Supabase migrations are applied and feed_import_snapshots exists.",
   "Call /api/jobs/import, then retry Sync All Feeds in the Jobs page.",
 ];
 
-export function buildMissingD1FeedSnapshot(): FeedImportSnapshot {
+export function buildMissingDatabaseFeedSnapshot(): FeedImportSnapshot {
   return {
     generatedAt: new Date().toISOString(),
     sourceCount: 0,
@@ -20,9 +20,9 @@ export function buildMissingD1FeedSnapshot(): FeedImportSnapshot {
     jobs: [],
     errors: [
       {
-        source: "d1",
+        source: "postgres",
         message:
-          "No D1-ingested feed snapshot is available. Ingest a feed snapshot into D1 first.",
+          "No Postgres-ingested feed snapshot is available. Ingest a feed snapshot into Supabase Postgres first.",
       },
     ],
     sourceResults: [],
@@ -46,7 +46,7 @@ export function buildMissingD1FeedSnapshot(): FeedImportSnapshot {
       },
       sourceCount: 0,
     },
-    recoveryGuide: D1_RECOVERY_GUIDE,
+    recoveryGuide: DATABASE_RECOVERY_GUIDE,
   };
 }
 

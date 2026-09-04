@@ -1,6 +1,6 @@
 name = "rolelens"
 main = ".open-next/worker.js"
-compatibility_date = "2026-07-26"
+compatibility_date = "2026-09-03"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 
 [assets]
@@ -11,13 +11,12 @@ binding = "ASSETS"
 binding = "WORKER_SELF_REFERENCE"
 service = "rolelens"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "rolelens-db"
-database_id = "bb959e06-5523-4c26-a12d-55113fac9cc2"
-preview_database_id = "bb959e06-5523-4c26-a12d-55113fac9cc2"
+# Credentials remain encrypted in Hyperdrive and are never stored here.
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "2c0633de6ecb4e90aa7de666ceeb66c6"
 
 [vars]
-PERSISTENCE_BACKEND = "d1"
-PERSISTENCE_D1_BINDING = "DB"
-AUTH_BACKEND = "d1"
+PERSISTENCE_BACKEND = "postgres"
+PERSISTENCE_DATABASE_BINDING = "HYPERDRIVE"
+AUTH_BACKEND = "postgres"

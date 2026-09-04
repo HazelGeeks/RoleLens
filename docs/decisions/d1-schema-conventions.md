@@ -1,5 +1,8 @@
 # D1 Schema Conventions
 
+> Superseded on 2026-09-03 by `supabase-postgres-migration.md`. This document is
+> retained as the schema contract for exporting and validating the legacy D1 data.
+
 RoleLens uses Cloudflare D1 as the canonical relational store. This document defines the naming and shape rules for current and future tables.
 
 ## Current Table Inventory

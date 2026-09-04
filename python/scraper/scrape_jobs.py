@@ -2,7 +2,7 @@
 """Site-centric job scraping utility for RoleLens.
 
 This script scrapes job-like links from job boards or careers pages and writes a
-normalized JSON payload that RoleLens can ingest into D1 via `/api/jobs/ingest`.
+normalized JSON payload that RoleLens can ingest into Supabase Postgres via `/api/jobs/ingest`.
 """
 
 from __future__ import annotations
@@ -604,7 +604,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--output",
         default="python-scraped-jobs.json",
-        help="Temporary output JSON path posted to RoleLens D1 ingestion.",
+        help="Temporary output JSON path posted to RoleLens feed ingestion.",
     )
     parser.add_argument("--timeout", type=int, default=20, help="HTTP timeout per source.")
     parser.add_argument(

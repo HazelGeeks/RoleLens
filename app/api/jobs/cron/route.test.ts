@@ -6,15 +6,15 @@ vi.mock("@/lib/feed-snapshot-cache", () => ({
 }));
 
 vi.mock("@/lib/feed-snapshot-store", () => ({
-  readLatestFeedSnapshotFromD1: vi.fn(),
+  readLatestFeedSnapshot: vi.fn(),
 }));
 
 import { writeFeedSnapshotToCache } from "@/lib/feed-snapshot-cache";
-import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
+import { readLatestFeedSnapshot } from "@/lib/feed-snapshot-store";
 import { GET, POST } from "./route";
 
 const mockedWriteFeedSnapshotToCache = vi.mocked(writeFeedSnapshotToCache);
-const mockedReadLatestFeedSnapshotFromD1 = vi.mocked(readLatestFeedSnapshotFromD1);
+const mockedReadLatestFeedSnapshot = vi.mocked(readLatestFeedSnapshot);
 
 const ORIGINAL_CRON_SECRET = process.env.CRON_SECRET;
 
@@ -54,7 +54,7 @@ describe("/api/jobs/cron route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.CRON_SECRET = "test-cron-secret";
-    mockedReadLatestFeedSnapshotFromD1.mockResolvedValue(buildSnapshot());
+    mockedReadLatestFeedSnapshot.mockResolvedValue(buildSnapshot());
     mockedWriteFeedSnapshotToCache.mockResolvedValue(undefined);
   });
 
@@ -67,7 +67,7 @@ describe("/api/jobs/cron route", () => {
     process.env.CRON_SECRET = ORIGINAL_CRON_SECRET;
   });
 
-  it("accepts authenticated POST and warms cache from D1", async () => {
+  it("accepts authenticated POST and warms cache from Supabase Postgres", async () => {
     const request = new Request("https://rolelens.pages.dev/api/jobs/cron", {
       method: "POST",
       headers: {
@@ -87,13 +87,13 @@ describe("/api/jobs/cron route", () => {
     expect(payload.ok).toBe(true);
     expect(payload.importedJobs).toBe(0);
     expect(payload.sourceCount).toBe(2);
-    expect(payload.cacheSource).toBe("d1");
-    expect(mockedReadLatestFeedSnapshotFromD1).toHaveBeenCalledTimes(1);
+    expect(payload.cacheSource).toBe("postgres");
+    expect(mockedReadLatestFeedSnapshot).toHaveBeenCalledTimes(1);
     expect(mockedWriteFeedSnapshotToCache).toHaveBeenCalledTimes(1);
   });
 
-  it("returns a missing-D1 result when no ingested snapshot exists", async () => {
-    mockedReadLatestFeedSnapshotFromD1.mockResolvedValue(null);
+  it("returns a missing-database result when no ingested snapshot exists", async () => {
+    mockedReadLatestFeedSnapshot.mockResolvedValue(null);
     const request = new Request("https://rolelens.pages.dev/api/jobs/cron", {
       method: "POST",
       headers: {
@@ -113,7 +113,7 @@ describe("/api/jobs/cron route", () => {
     expect(payload.ok).toBe(true);
     expect(payload.sourceCount).toBe(0);
     expect(payload.cacheSource).toBe("none");
-    expect(payload.errors[0]?.source).toBe("d1");
+    expect(payload.errors[0]?.source).toBe("postgres");
     expect(mockedWriteFeedSnapshotToCache).not.toHaveBeenCalled();
   });
 
@@ -131,7 +131,7 @@ describe("/api/jobs/cron route", () => {
     expect(response.status).toBe(401);
     expect(payload.ok).toBe(false);
     expect(payload.message).toBe("Unauthorized");
-    expect(mockedReadLatestFeedSnapshotFromD1).toHaveBeenCalledTimes(0);
+    expect(mockedReadLatestFeedSnapshot).toHaveBeenCalledTimes(0);
   });
 
   it("rejects GET requests with 405", async () => {

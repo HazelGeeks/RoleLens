@@ -2,11 +2,11 @@ import {
   readFeedSnapshotFromCache,
   writeFeedSnapshotToCache,
 } from "@/lib/feed-snapshot-cache";
-import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
+import { readLatestFeedSnapshot } from "@/lib/feed-snapshot-store";
 import { parseFeedPlatform } from "@/lib/feed-platform";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 import {
-  buildMissingD1FeedSnapshot,
+  buildMissingDatabaseFeedSnapshot,
   filterFeedSnapshotByPlatform,
 } from "@/lib/feed-snapshot";
 
@@ -137,17 +137,17 @@ export async function GET(request: Request) {
     }
   }
 
-  const d1Snapshot = await readLatestFeedSnapshotFromD1();
-  if (d1Snapshot) {
-    const snapshot = filterFeedSnapshotByPlatform(d1Snapshot, platform);
+  const databaseSnapshot = await readLatestFeedSnapshot();
+  if (databaseSnapshot) {
+    const snapshot = filterFeedSnapshotByPlatform(databaseSnapshot, platform);
     if (!platformScoped) {
-      await writeFeedSnapshotToCache(request, d1Snapshot);
+      await writeFeedSnapshotToCache(request, databaseSnapshot);
     }
     return Response.json(
       {
         ...snapshot,
         cached: true,
-        cacheSource: "d1",
+        cacheSource: "postgres",
         platform,
       },
       {
@@ -178,7 +178,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const snapshot = buildMissingD1FeedSnapshot();
+  const snapshot = buildMissingDatabaseFeedSnapshot();
 
   return Response.json(
     {

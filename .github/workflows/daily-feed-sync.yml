@@ -88,7 +88,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Ingest feed snapshot into D1
+      - name: Ingest feed snapshot into Supabase Postgres
         run: |
           ROLELENS_SYNC_BASE="${ROLELENS_SYNC_URL%/}"
           curl --fail --silent --show-error \

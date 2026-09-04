@@ -4,7 +4,7 @@ import type {
   Goal,
   GoalFollowUp,
 } from "@/lib/goals/types";
-import { getD1DatabaseFromContext, type D1DatabaseLike } from "@/lib/d1";
+import { getDatabaseFromContext, type DatabaseLike } from "@/lib/database";
 
 const userGoalsStore = new Map<string, Map<string, Goal>>();
 
@@ -13,8 +13,8 @@ type PersistenceBackend =
       kind: "memory";
     }
   | {
-      kind: "d1";
-      db: D1DatabaseLike;
+      kind: "postgres";
+      db: DatabaseLike;
     };
 
 type GoalRow = {
@@ -42,10 +42,11 @@ function clone<T>(value: T): T {
 
 async function resolvePersistenceBackend(): Promise<PersistenceBackend> {
   const configured = process.env.PERSISTENCE_BACKEND?.trim().toLowerCase();
+  const isProduction = process.env.NODE_ENV?.trim().toLowerCase() === "production";
 
-  if (configured && configured !== "memory" && configured !== "d1") {
+  if (configured && configured !== "memory" && configured !== "postgres") {
     throw new Error(
-      `Invalid PERSISTENCE_BACKEND value: ${configured}. Expected memory or d1.`,
+      `Invalid PERSISTENCE_BACKEND value: ${configured}. Expected memory or postgres.`,
     );
   }
 
@@ -53,30 +54,30 @@ async function resolvePersistenceBackend(): Promise<PersistenceBackend> {
     return { kind: "memory" };
   }
 
-  const db = await getD1DatabaseFromContext();
+  const db = await getDatabaseFromContext();
 
-  if (configured !== "d1" && db) {
-    return { kind: "d1", db };
+  if (db) {
+    return { kind: "postgres", db };
   }
 
-  if (configured !== "d1") {
+  if (configured !== "postgres" && !isProduction) {
     return { kind: "memory" };
   }
 
   if (!db) {
-    if (process.env.NODE_ENV !== "production") {
+    if (!isProduction) {
       console.warn(
-        "PERSISTENCE_BACKEND=d1 is configured but D1 binding is unavailable in this runtime; falling back to memory backend.",
+        "PERSISTENCE_BACKEND=postgres is configured but Hyperdrive binding is unavailable in this runtime; falling back to memory backend.",
       );
       return { kind: "memory" };
     }
 
     throw new Error(
-      "PERSISTENCE_BACKEND=d1 is set, but no D1 binding is available in request context.",
+      "Production persistence requires postgres, but no Hyperdrive binding is available in request context.",
     );
   }
 
-  return { kind: "d1", db };
+  return { kind: "postgres", db };
 }
 
 function toNullableValue(value: string | undefined): string | null {
@@ -174,8 +175,8 @@ async function createGoalFollowUpInMemory(args: {
   return clone(next);
 }
 
-async function listFollowUpsByGoalIdInD1(
-  db: D1DatabaseLike,
+async function listFollowUpsByGoalIdInPostgres(
+  db: DatabaseLike,
   userId: string,
 ): Promise<Map<string, GoalFollowUp[]>> {
   const result = await db
@@ -215,8 +216,8 @@ async function listFollowUpsByGoalIdInD1(
   return followUpsByGoalId;
 }
 
-async function listFollowUpsForGoalInD1(
-  db: D1DatabaseLike,
+async function listFollowUpsForGoalInPostgres(
+  db: DatabaseLike,
   userId: string,
   goalId: string,
 ): Promise<GoalFollowUp[]> {
@@ -245,8 +246,8 @@ async function listFollowUpsForGoalInD1(
   }));
 }
 
-async function getGoalInD1(
-  db: D1DatabaseLike,
+async function getGoalInPostgres(
+  db: DatabaseLike,
   userId: string,
   goalId: string,
 ): Promise<Goal | undefined> {
@@ -266,11 +267,11 @@ async function getGoalInD1(
     .first<GoalRow>();
 
   if (!row) return undefined;
-  const followUps = await listFollowUpsForGoalInD1(db, userId, goalId);
+  const followUps = await listFollowUpsForGoalInPostgres(db, userId, goalId);
   return toGoal(row, followUps);
 }
 
-async function listGoalsInD1(db: D1DatabaseLike, userId: string): Promise<Goal[]> {
+async function listGoalsInPostgres(db: DatabaseLike, userId: string): Promise<Goal[]> {
   const goalsResult = await db
     .prepare(
       `SELECT id,
@@ -287,17 +288,17 @@ async function listGoalsInD1(db: D1DatabaseLike, userId: string): Promise<Goal[]
     .bind(userId)
     .all<GoalRow>();
 
-  const followUpsByGoalId = await listFollowUpsByGoalIdInD1(db, userId);
+  const followUpsByGoalId = await listFollowUpsByGoalIdInPostgres(db, userId);
 
   return goalsResult.results.map((row) =>
     toGoal(row, followUpsByGoalId.get(row.id) ?? []),
   );
 }
 
-async function createGoalInD1(args: {
+async function createGoalInPostgres(args: {
   userId: string;
   input: CreateGoalInput;
-  db: D1DatabaseLike;
+  db: DatabaseLike;
 }): Promise<Goal> {
   const now = new Date().toISOString();
   const goalId = crypto.randomUUID();
@@ -319,7 +320,7 @@ async function createGoalInD1(args: {
     )
     .run();
 
-  const created = await getGoalInD1(args.db, args.userId, goalId);
+  const created = await getGoalInPostgres(args.db, args.userId, goalId);
   if (!created) {
     throw new Error(`Failed to load created goal ${goalId}.`);
   }
@@ -327,10 +328,10 @@ async function createGoalInD1(args: {
   return created;
 }
 
-async function deleteGoalInD1(args: {
+async function deleteGoalInPostgres(args: {
   userId: string;
   goalId: string;
-  db: D1DatabaseLike;
+  db: DatabaseLike;
 }): Promise<boolean> {
   const result = await args.db
     .prepare("DELETE FROM persistent_goals WHERE user_id = ? AND id = ?")
@@ -340,13 +341,13 @@ async function deleteGoalInD1(args: {
   return getChangedCount(result) === 1;
 }
 
-async function createGoalFollowUpInD1(args: {
+async function createGoalFollowUpInPostgres(args: {
   userId: string;
   goalId: string;
   input: CreateGoalFollowUpInput;
-  db: D1DatabaseLike;
+  db: DatabaseLike;
 }): Promise<Goal | undefined> {
-  const goal = await getGoalInD1(args.db, args.userId, args.goalId);
+  const goal = await getGoalInPostgres(args.db, args.userId, args.goalId);
   if (!goal) return undefined;
 
   const now = new Date().toISOString();
@@ -373,13 +374,13 @@ async function createGoalFollowUpInD1(args: {
     .bind(now, args.userId, args.goalId)
     .run();
 
-  return getGoalInD1(args.db, args.userId, args.goalId);
+  return getGoalInPostgres(args.db, args.userId, args.goalId);
 }
 
 export async function listGoals(userId: string): Promise<Goal[]> {
   const backend = await resolvePersistenceBackend();
-  if (backend.kind === "d1") {
-    return listGoalsInD1(backend.db, userId);
+  if (backend.kind === "postgres") {
+    return listGoalsInPostgres(backend.db, userId);
   }
   return listGoalsInMemory(userId);
 }
@@ -389,8 +390,8 @@ export async function createGoal(args: {
   input: CreateGoalInput;
 }): Promise<Goal> {
   const backend = await resolvePersistenceBackend();
-  if (backend.kind === "d1") {
-    return createGoalInD1({
+  if (backend.kind === "postgres") {
+    return createGoalInPostgres({
       ...args,
       db: backend.db,
     });
@@ -403,8 +404,8 @@ export async function deleteGoal(args: {
   goalId: string;
 }): Promise<boolean> {
   const backend = await resolvePersistenceBackend();
-  if (backend.kind === "d1") {
-    return deleteGoalInD1({
+  if (backend.kind === "postgres") {
+    return deleteGoalInPostgres({
       ...args,
       db: backend.db,
     });
@@ -418,8 +419,8 @@ export async function createGoalFollowUp(args: {
   input: CreateGoalFollowUpInput;
 }): Promise<Goal | undefined> {
   const backend = await resolvePersistenceBackend();
-  if (backend.kind === "d1") {
-    return createGoalFollowUpInD1({
+  if (backend.kind === "postgres") {
+    return createGoalFollowUpInPostgres({
       ...args,
       db: backend.db,
     });

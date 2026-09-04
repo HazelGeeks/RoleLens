@@ -1,27 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { D1DatabaseLike } from "@/lib/d1";
+import type { DatabaseLike } from "@/lib/database";
 import type { FeedImportSnapshot } from "@/lib/feed-types";
 
 vi.mock("@/lib/auth-server", () => ({
   getAuthSessionUserFromRequest: vi.fn(),
 }));
 
-vi.mock("@/lib/d1", () => ({
-  getD1DatabaseFromContext: vi.fn(),
+vi.mock("@/lib/database", () => ({
+  getDatabaseFromContext: vi.fn(),
 }));
 
 vi.mock("@/lib/feed-snapshot-store", () => ({
-  readLatestFeedSnapshotFromD1: vi.fn(),
+  readLatestFeedSnapshot: vi.fn(),
 }));
 
 import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
-import { getD1DatabaseFromContext } from "@/lib/d1";
-import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
+import { getDatabaseFromContext } from "@/lib/database";
+import { readLatestFeedSnapshot } from "@/lib/feed-snapshot-store";
 import { GET } from "./route";
 
 const mockedGetAuthSessionUserFromRequest = vi.mocked(getAuthSessionUserFromRequest);
-const mockedGetD1DatabaseFromContext = vi.mocked(getD1DatabaseFromContext);
-const mockedReadLatestFeedSnapshotFromD1 = vi.mocked(readLatestFeedSnapshotFromD1);
+const mockedGetDatabaseFromContext = vi.mocked(getDatabaseFromContext);
+const mockedReadLatestFeedSnapshot = vi.mocked(readLatestFeedSnapshot);
 
 function buildSnapshot(): FeedImportSnapshot {
   return {
@@ -72,7 +72,7 @@ function buildSnapshot(): FeedImportSnapshot {
   };
 }
 
-function buildMockD1(): D1DatabaseLike {
+function buildMockDatabase(): DatabaseLike {
   const firstResults = new Map<string, { count: number }>([
     ["auth_users", { count: 3 }],
     ["auth_sessions", { count: 2 }],
@@ -130,8 +130,8 @@ describe("/api/admin/summary route", () => {
     delete process.env.ROLELENS_ADMIN_EMAILS;
     delete process.env.SYNC_ADMIN_EMAILS;
     delete process.env.SYNC_ADMIN_EMAIL;
-    mockedReadLatestFeedSnapshotFromD1.mockResolvedValue(buildSnapshot());
-    mockedGetD1DatabaseFromContext.mockResolvedValue(buildMockD1());
+    mockedReadLatestFeedSnapshot.mockResolvedValue(buildSnapshot());
+    mockedGetDatabaseFromContext.mockResolvedValue(buildMockDatabase());
   });
 
   it("requires a logged-in session", async () => {
@@ -143,7 +143,7 @@ describe("/api/admin/summary route", () => {
     expect(response.status).toBe(401);
     expect(payload.ok).toBe(false);
     expect(payload.message).toBe("Login required");
-    expect(mockedGetD1DatabaseFromContext).not.toHaveBeenCalled();
+    expect(mockedGetDatabaseFromContext).not.toHaveBeenCalled();
   });
 
   it("rejects signed-in non-admin users", async () => {
@@ -160,7 +160,7 @@ describe("/api/admin/summary route", () => {
     expect(response.status).toBe(403);
     expect(payload.ok).toBe(false);
     expect(payload.message).toBe("Admin access required");
-    expect(mockedGetD1DatabaseFromContext).not.toHaveBeenCalled();
+    expect(mockedGetDatabaseFromContext).not.toHaveBeenCalled();
   });
 
   it("returns operations summary for configured admins", async () => {

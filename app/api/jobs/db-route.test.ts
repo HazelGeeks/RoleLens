@@ -72,8 +72,8 @@ describe("/api/jobs DB persistence API", () => {
     });
   });
 
-  it("falls back to memory backend when d1 is configured without binding", async () => {
-    process.env.PERSISTENCE_BACKEND = "d1";
+  it("falls back to memory backend when Postgres is configured without a binding", async () => {
+    process.env.PERSISTENCE_BACKEND = "postgres";
 
     const headers = buildHeaders("user-fallback", "device-a");
     const createResponse = await POST(

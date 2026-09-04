@@ -1,6 +1,6 @@
 # Python Site Scraper
 
-This scraper is intended for **site-centric crawling**: scrape multiple job-board pages, generate normalized JSON, and ingest that output into RoleLens D1 through `/api/jobs/ingest`.
+This scraper is intended for **site-centric crawling**: scrape multiple job-board pages, generate normalized JSON, and ingest that output into RoleLens Supabase Postgres through `/api/jobs/ingest`.
 
 ## Output format
 
@@ -13,7 +13,7 @@ The script writes:
 - `sourceResults[]`
 - `errors[]`
 
-RoleLens ingests this payload into D1. The app then reads the latest D1-ingested snapshot through `/api/jobs/import`.
+RoleLens ingests this payload into Supabase Postgres. The app then reads the latest stored snapshot through `/api/jobs/import`.
 
 ## Source catalogs
 
@@ -98,7 +98,7 @@ python3 python/scraper/scrape_jobkorea.py
 
 ## Connect to RoleLens import
 
-RoleLens runs this scraper from the `Daily Feed Sync` GitHub Actions workflow. The workflow generates `python-scraped-jobs.json`, uploads it as a short-lived artifact, posts it to `/api/jobs/ingest`, then calls `/api/jobs/cron` to warm the edge cache from the latest D1 snapshot.
+RoleLens runs this scraper from the `Daily Feed Sync` GitHub Actions workflow. The workflow generates `python-scraped-jobs.json`, uploads it as a short-lived artifact, posts it to `/api/jobs/ingest`, then calls `/api/jobs/cron` to warm the edge cache from the latest Supabase Postgres snapshot.
 
 For local debugging or another scheduler, post the generated JSON to:
 
@@ -107,7 +107,7 @@ POST /api/jobs/ingest
 Header: x-cron-secret: $CRON_SECRET
 ```
 
-For local debugging, post a generated JSON file to a local or deployed `/api/jobs/ingest` endpoint with the matching `x-cron-secret` header. The app reads the latest ingested snapshot from D1.
+For local debugging, post a generated JSON file to a local or deployed `/api/jobs/ingest` endpoint with the matching `x-cron-secret` header. The app reads the latest ingested snapshot from Supabase Postgres.
 
 Then inspect the current app feed:
 

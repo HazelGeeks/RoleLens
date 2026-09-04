@@ -1,5 +1,5 @@
 import { parseFeedSnapshotPayload } from "@/lib/feed-snapshot-payload";
-import { writeLatestFeedSnapshotToD1 } from "@/lib/feed-snapshot-store";
+import { writeLatestFeedSnapshot } from "@/lib/feed-snapshot-store";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
 const CRON_SECRET_HEADER = "x-cron-secret";
@@ -70,12 +70,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const stored = await writeLatestFeedSnapshotToD1(snapshot);
+  const stored = await writeLatestFeedSnapshot(snapshot);
   if (!stored) {
     return Response.json(
       {
         ok: false,
-        message: "D1 feed snapshot store is unavailable",
+        message: "Postgres feed snapshot store is unavailable",
       },
       { status: 500 },
     );

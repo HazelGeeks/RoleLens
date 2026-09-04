@@ -5,7 +5,7 @@ import type {
   PersistentJobNote,
   PersistentJobPatch,
 } from "@/lib/persistence/types";
-import { getD1DatabaseFromContext, type D1DatabaseLike } from "@/lib/d1";
+import { getDatabaseFromContext, type DatabaseLike } from "@/lib/database";
 
 const userJobStore = new Map<string, Map<string, PersistentJob>>();
 const createRequestIndex = new Map<string, Map<string, string>>();
@@ -23,8 +23,8 @@ type PersistenceBackend =
       kind: "memory";
     }
   | {
-      kind: "d1";
-      db: D1DatabaseLike;
+      kind: "postgres";
+      db: DatabaseLike;
     };
 
 type JobRow = {
@@ -118,10 +118,11 @@ function hasOwn<T extends object>(value: T, key: string) {
 
 async function resolvePersistenceBackend(): Promise<PersistenceBackend> {
   const configured = process.env.PERSISTENCE_BACKEND?.trim().toLowerCase();
+  const isProduction = process.env.NODE_ENV?.trim().toLowerCase() === "production";
 
-  if (configured && configured !== "memory" && configured !== "d1") {
+  if (configured && configured !== "memory" && configured !== "postgres") {
     throw new Error(
-      `Invalid PERSISTENCE_BACKEND value: ${configured}. Expected memory or d1.`,
+      `Invalid PERSISTENCE_BACKEND value: ${configured}. Expected memory or postgres.`,
     );
   }
 
@@ -129,30 +130,30 @@ async function resolvePersistenceBackend(): Promise<PersistenceBackend> {
     return { kind: "memory" };
   }
 
-  const db = await getD1DatabaseFromContext();
+  const db = await getDatabaseFromContext();
 
-  if (configured !== "d1" && db) {
-    return { kind: "d1", db };
+  if (db) {
+    return { kind: "postgres", db };
   }
 
-  if (configured !== "d1") {
+  if (configured !== "postgres" && !isProduction) {
     return { kind: "memory" };
   }
 
   if (!db) {
-    if (process.env.NODE_ENV !== "production") {
+    if (!isProduction) {
       console.warn(
-        "PERSISTENCE_BACKEND=d1 is configured but D1 binding is unavailable in this runtime; falling back to memory backend.",
+        "PERSISTENCE_BACKEND=postgres is configured but Hyperdrive binding is unavailable in this runtime; falling back to memory backend.",
       );
       return { kind: "memory" };
     }
 
     throw new Error(
-      "PERSISTENCE_BACKEND=d1 is set, but no D1 binding is available in request context.",
+      "Production persistence requires postgres, but no Hyperdrive binding is available in request context.",
     );
   }
 
-  return { kind: "d1", db };
+  return { kind: "postgres", db };
 }
 
 function parseTagsJson(raw: string, jobId: string): string[] {
@@ -342,8 +343,8 @@ async function patchPersistentJobInMemory(
   };
 }
 
-async function listNotesByJobIdInD1(
-  db: D1DatabaseLike,
+async function listNotesByJobIdInPostgres(
+  db: DatabaseLike,
   userId: string,
 ): Promise<Map<string, PersistentJobNote[]>> {
   const result = await db
@@ -382,8 +383,8 @@ async function listNotesByJobIdInD1(
   return notesByJobId;
 }
 
-async function listNotesForJobInD1(
-  db: D1DatabaseLike,
+async function listNotesForJobInPostgres(
+  db: DatabaseLike,
   userId: string,
   jobId: string,
 ): Promise<PersistentJobNote[]> {
@@ -409,8 +410,8 @@ async function listNotesForJobInD1(
   }));
 }
 
-async function getCreateRequestJobIdInD1(
-  db: D1DatabaseLike,
+async function getCreateRequestJobIdInPostgres(
+  db: DatabaseLike,
   userId: string,
   clientRequestId: string,
 ): Promise<string | undefined> {
@@ -426,8 +427,8 @@ async function getCreateRequestJobIdInD1(
   return row?.jobId;
 }
 
-async function getPersistentJobInD1(
-  db: D1DatabaseLike,
+async function getPersistentJobInPostgres(
+  db: DatabaseLike,
   userId: string,
   jobId: string,
 ): Promise<PersistentJob | undefined> {
@@ -455,12 +456,12 @@ async function getPersistentJobInD1(
 
   if (!row) return undefined;
 
-  const notes = await listNotesForJobInD1(db, userId, jobId);
+  const notes = await listNotesForJobInPostgres(db, userId, jobId);
   return toPersistentJob(row, notes);
 }
 
-async function listPersistentJobsInD1(
-  db: D1DatabaseLike,
+async function listPersistentJobsInPostgres(
+  db: DatabaseLike,
   userId: string,
 ): Promise<PersistentJob[]> {
   const jobsResult = await db
@@ -486,15 +487,15 @@ async function listPersistentJobsInD1(
     .bind(userId)
     .all<JobRow>();
 
-  const notesByJobId = await listNotesByJobIdInD1(db, userId);
+  const notesByJobId = await listNotesByJobIdInPostgres(db, userId);
 
   return jobsResult.results.map((row) =>
     toPersistentJob(row, notesByJobId.get(row.id) ?? []),
   );
 }
 
-async function insertPersistentNoteInD1(
-  db: D1DatabaseLike,
+async function insertPersistentNoteInPostgres(
+  db: DatabaseLike,
   userId: string,
   jobId: string,
   note: PersistentJobNote,
@@ -522,23 +523,23 @@ function isLikelyUniqueConstraintError(error: unknown) {
   return error.message.toLowerCase().includes("unique");
 }
 
-async function createPersistentJobInD1(args: {
+async function createPersistentJobInPostgres(args: {
   userId: string;
   deviceId: string;
   actor: string;
   input: CreatePersistentJobInput;
-  db: D1DatabaseLike;
+  db: DatabaseLike;
 }): Promise<PersistentJob> {
   const requestId = args.input.clientRequestId?.trim();
 
   if (requestId) {
-    const mappedJobId = await getCreateRequestJobIdInD1(
+    const mappedJobId = await getCreateRequestJobIdInPostgres(
       args.db,
       args.userId,
       requestId,
     );
     if (mappedJobId) {
-      const replayed = await getPersistentJobInD1(args.db, args.userId, mappedJobId);
+      const replayed = await getPersistentJobInPostgres(args.db, args.userId, mappedJobId);
       if (replayed) return replayed;
     }
   }
@@ -572,7 +573,7 @@ async function createPersistentJobInD1(args: {
     .run();
 
   if (args.input.initialNote) {
-    await insertPersistentNoteInD1(args.db, args.userId, createdJobId, {
+    await insertPersistentNoteInPostgres(args.db, args.userId, createdJobId, {
       id: crypto.randomUUID(),
       content: args.input.initialNote,
       actor: args.actor,
@@ -595,7 +596,7 @@ async function createPersistentJobInD1(args: {
         throw error;
       }
 
-      const mappedJobId = await getCreateRequestJobIdInD1(
+      const mappedJobId = await getCreateRequestJobIdInPostgres(
         args.db,
         args.userId,
         requestId,
@@ -614,7 +615,7 @@ async function createPersistentJobInD1(args: {
         .bind(args.userId, createdJobId)
         .run();
 
-      const replayed = await getPersistentJobInD1(args.db, args.userId, mappedJobId);
+      const replayed = await getPersistentJobInPostgres(args.db, args.userId, mappedJobId);
       if (replayed) return replayed;
 
       throw new Error(
@@ -623,7 +624,7 @@ async function createPersistentJobInD1(args: {
     }
   }
 
-  const created = await getPersistentJobInD1(args.db, args.userId, createdJobId);
+  const created = await getPersistentJobInPostgres(args.db, args.userId, createdJobId);
   if (!created) {
     throw new Error(`Failed to load created persistent job ${createdJobId}.`);
   }
@@ -631,10 +632,10 @@ async function createPersistentJobInD1(args: {
   return created;
 }
 
-async function patchPersistentJobInD1(
-  args: PatchArgs & { db: D1DatabaseLike },
+async function patchPersistentJobInPostgres(
+  args: PatchArgs & { db: DatabaseLike },
 ): Promise<PatchPersistentJobResult> {
-  const current = await getPersistentJobInD1(args.db, args.userId, args.jobId);
+  const current = await getPersistentJobInPostgres(args.db, args.userId, args.jobId);
 
   if (!current) {
     return {
@@ -719,7 +720,7 @@ async function patchPersistentJobInD1(
   const updateResult = await statement.bind(...values).run();
   if (getChangedCount(updateResult) !== 1) {
     if (args.operation.expectedVersion != null) {
-      const latest = await getPersistentJobInD1(args.db, args.userId, args.jobId);
+      const latest = await getPersistentJobInPostgres(args.db, args.userId, args.jobId);
       if (!latest) {
         return {
           ok: false,
@@ -741,10 +742,10 @@ async function patchPersistentJobInD1(
   }
 
   if (appendedNote) {
-    await insertPersistentNoteInD1(args.db, args.userId, args.jobId, appendedNote);
+    await insertPersistentNoteInPostgres(args.db, args.userId, args.jobId, appendedNote);
   }
 
-  const updated = await getPersistentJobInD1(args.db, args.userId, args.jobId);
+  const updated = await getPersistentJobInPostgres(args.db, args.userId, args.jobId);
   if (!updated) {
     throw new Error(`Failed to load updated persistent job ${args.jobId}.`);
   }
@@ -759,8 +760,8 @@ export async function listPersistentJobs(
   userId: string,
 ): Promise<PersistentJob[]> {
   const backend = await resolvePersistenceBackend();
-  if (backend.kind === "d1") {
-    return listPersistentJobsInD1(backend.db, userId);
+  if (backend.kind === "postgres") {
+    return listPersistentJobsInPostgres(backend.db, userId);
   }
 
   return listPersistentJobsInMemory(userId);
@@ -771,8 +772,8 @@ export async function getPersistentJob(
   jobId: string,
 ): Promise<PersistentJob | undefined> {
   const backend = await resolvePersistenceBackend();
-  if (backend.kind === "d1") {
-    return getPersistentJobInD1(backend.db, userId, jobId);
+  if (backend.kind === "postgres") {
+    return getPersistentJobInPostgres(backend.db, userId, jobId);
   }
 
   return getPersistentJobInMemory(userId, jobId);
@@ -785,8 +786,8 @@ export async function createPersistentJob(args: {
   input: CreatePersistentJobInput;
 }): Promise<PersistentJob> {
   const backend = await resolvePersistenceBackend();
-  if (backend.kind === "d1") {
-    return createPersistentJobInD1({
+  if (backend.kind === "postgres") {
+    return createPersistentJobInPostgres({
       ...args,
       db: backend.db,
     });
@@ -799,8 +800,8 @@ export async function patchPersistentJob(
   args: PatchArgs,
 ): Promise<PatchPersistentJobResult> {
   const backend = await resolvePersistenceBackend();
-  if (backend.kind === "d1") {
-    return patchPersistentJobInD1({
+  if (backend.kind === "postgres") {
+    return patchPersistentJobInPostgres({
       ...args,
       db: backend.db,
     });

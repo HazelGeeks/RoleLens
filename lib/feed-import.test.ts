@@ -58,7 +58,7 @@ describe("feed import snapshots", () => {
     ).resolves.toBeNull();
   });
 
-  it("normalizes ingested Python scraper payloads for D1 snapshots", async () => {
+  it("normalizes ingested Python scraper payloads for Postgres snapshots", async () => {
     const result = buildFeedImportSnapshotFromImportedJobs({
       generatedAt: "2026-06-14T20:53:41.459Z",
       sourceCount: 1,

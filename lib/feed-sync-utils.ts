@@ -25,7 +25,7 @@ const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
 
 export const DEFAULT_RECOVERY_GUIDE = [
   "Production: run the Daily Feed Sync workflow so the Python scraper posts a fresh snapshot to /api/jobs/ingest.",
-  "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET for D1 ingestion.",
+  "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET for Supabase ingestion.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
   "Call /api/jobs/import, then retry Sync All Feeds in the Jobs page.",
 ];

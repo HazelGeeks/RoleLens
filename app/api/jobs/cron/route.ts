@@ -1,6 +1,6 @@
 import { writeFeedSnapshotToCache } from "@/lib/feed-snapshot-cache";
-import { buildMissingD1FeedSnapshot } from "@/lib/feed-snapshot";
-import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
+import { buildMissingDatabaseFeedSnapshot } from "@/lib/feed-snapshot";
+import { readLatestFeedSnapshot } from "@/lib/feed-snapshot-store";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 
 const CRON_SECRET_HEADER = "x-cron-secret";
@@ -44,11 +44,11 @@ async function runCronImport(request: Request) {
     return auth.error;
   }
 
-  const d1Snapshot = await readLatestFeedSnapshotFromD1();
-  const snapshot = d1Snapshot || buildMissingD1FeedSnapshot();
+  const databaseSnapshot = await readLatestFeedSnapshot();
+  const snapshot = databaseSnapshot || buildMissingDatabaseFeedSnapshot();
 
-  if (d1Snapshot) {
-    await writeFeedSnapshotToCache(request, d1Snapshot);
+  if (databaseSnapshot) {
+    await writeFeedSnapshotToCache(request, databaseSnapshot);
   }
 
   return Response.json({
@@ -58,7 +58,7 @@ async function runCronImport(request: Request) {
     importedJobs: snapshot.jobs.length,
     errors: snapshot.errors,
     sourceResults: snapshot.sourceResults,
-    cacheSource: d1Snapshot ? "d1" : "none",
+    cacheSource: databaseSnapshot ? "postgres" : "none",
   });
 }
 

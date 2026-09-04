@@ -1,8 +1,8 @@
 const GENERIC_ERROR_MESSAGE = "Internal server error";
-const D1_ERROR_MESSAGE =
-  "Server database binding is unavailable. Ensure the Cloudflare Worker has D1 binding 'DB'.";
-const D1_SCHEMA_ERROR_MESSAGE =
-  "Server database schema is missing. Apply database schema changes (npm run db:schema:prod) and redeploy.";
+const DATABASE_ERROR_MESSAGE =
+  "Server database binding is unavailable. Ensure the Cloudflare Worker has the HYPERDRIVE binding.";
+const DATABASE_SCHEMA_ERROR_MESSAGE =
+  "Server database schema is missing. Apply the Supabase migrations and redeploy.";
 const PEPPER_ERROR_MESSAGE =
   "Server auth configuration is incomplete. Set AUTH_PASSWORD_PEPPER for Production.";
 
@@ -22,19 +22,25 @@ export function toPublicServerError(error: unknown) {
   }
 
   if (
-    message.includes("auth backend is configured for d1") ||
-    message.includes("persistence_backend=d1 is set")
+    message.includes("auth backend is configured for postgres") ||
+    message.includes("auth requires postgres") ||
+    message.includes("persistence_backend=postgres is set") ||
+    message.includes("production persistence requires postgres")
   ) {
     return {
       status: 500,
-      message: D1_ERROR_MESSAGE,
+      message: DATABASE_ERROR_MESSAGE,
     };
   }
 
-  if (message.includes("no such table") || message.includes("sqlite_error")) {
+  if (
+    message.includes("does not exist") ||
+    message.includes("undefined_table") ||
+    message.includes("42p01")
+  ) {
     return {
       status: 500,
-      message: D1_SCHEMA_ERROR_MESSAGE,
+      message: DATABASE_SCHEMA_ERROR_MESSAGE,
     };
   }
 

@@ -1,5 +1,5 @@
 import type { FeedImportSnapshot } from "@/lib/feed-types";
-import { getD1DatabaseFromContext } from "@/lib/d1";
+import { getDatabaseFromContext } from "@/lib/database";
 
 const LATEST_SNAPSHOT_KEY = "latest";
 
@@ -18,8 +18,8 @@ function parseSnapshot(value: string | undefined) {
   }
 }
 
-export async function readLatestFeedSnapshotFromD1() {
-  const db = await getD1DatabaseFromContext();
+export async function readLatestFeedSnapshot() {
+  const db = await getDatabaseFromContext();
   if (!db) return null;
 
   const row = await db
@@ -35,8 +35,8 @@ export async function readLatestFeedSnapshotFromD1() {
   return parseSnapshot(row?.snapshotJson || row?.snapshot_json);
 }
 
-export async function writeLatestFeedSnapshotToD1(snapshot: FeedImportSnapshot) {
-  const db = await getD1DatabaseFromContext();
+export async function writeLatestFeedSnapshot(snapshot: FeedImportSnapshot) {
+  const db = await getDatabaseFromContext();
   if (!db) return false;
 
   const now = new Date().toISOString();

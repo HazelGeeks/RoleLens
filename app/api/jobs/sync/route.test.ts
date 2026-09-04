@@ -6,8 +6,8 @@ vi.mock("@/lib/feed-snapshot-cache", () => ({
 }));
 
 vi.mock("@/lib/feed-snapshot-store", () => ({
-  readLatestFeedSnapshotFromD1: vi.fn(),
-  writeLatestFeedSnapshotToD1: vi.fn(),
+  readLatestFeedSnapshot: vi.fn(),
+  writeLatestFeedSnapshot: vi.fn(),
 }));
 
 vi.mock("@/lib/auth-server", () => ({
@@ -17,14 +17,14 @@ vi.mock("@/lib/auth-server", () => ({
 import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
 import { writeFeedSnapshotToCache } from "@/lib/feed-snapshot-cache";
 import {
-  readLatestFeedSnapshotFromD1,
-  writeLatestFeedSnapshotToD1,
+  readLatestFeedSnapshot,
+  writeLatestFeedSnapshot,
 } from "@/lib/feed-snapshot-store";
 import { POST } from "./route";
 
 const mockedWriteFeedSnapshotToCache = vi.mocked(writeFeedSnapshotToCache);
-const mockedReadLatestFeedSnapshotFromD1 = vi.mocked(readLatestFeedSnapshotFromD1);
-const mockedWriteLatestFeedSnapshotToD1 = vi.mocked(writeLatestFeedSnapshotToD1);
+const mockedReadLatestFeedSnapshot = vi.mocked(readLatestFeedSnapshot);
+const mockedWriteLatestFeedSnapshot = vi.mocked(writeLatestFeedSnapshot);
 const mockedGetAuthSessionUserFromRequest = vi.mocked(getAuthSessionUserFromRequest);
 
 const ORIGINAL_CRON_SECRET = process.env.CRON_SECRET;
@@ -104,8 +104,8 @@ describe("/api/jobs/sync route", () => {
     process.env.SYNC_ADMIN_EMAILS = "admin@example.com";
     delete process.env.PYTHON_SCRAPED_FEED_URL;
     mockedGetAuthSessionUserFromRequest.mockResolvedValue(null);
-    mockedReadLatestFeedSnapshotFromD1.mockResolvedValue(buildSnapshot());
-    mockedWriteLatestFeedSnapshotToD1.mockResolvedValue(true);
+    mockedReadLatestFeedSnapshot.mockResolvedValue(buildSnapshot());
+    mockedWriteLatestFeedSnapshot.mockResolvedValue(true);
     mockedWriteFeedSnapshotToCache.mockResolvedValue(undefined);
     vi.unstubAllGlobals();
   });
@@ -161,7 +161,7 @@ describe("/api/jobs/sync route", () => {
     expect(response.status).toBe(401);
     expect(payload.ok).toBe(false);
     expect(payload.message).toBe("Login required");
-    expect(mockedReadLatestFeedSnapshotFromD1).not.toHaveBeenCalled();
+    expect(mockedReadLatestFeedSnapshot).not.toHaveBeenCalled();
   });
 
   it("rejects authenticated non-admin sessions", async () => {
@@ -184,7 +184,7 @@ describe("/api/jobs/sync route", () => {
     expect(response.status).toBe(403);
     expect(payload.ok).toBe(false);
     expect(payload.message).toBe("Admin access required to sync feeds");
-    expect(mockedReadLatestFeedSnapshotFromD1).not.toHaveBeenCalled();
+    expect(mockedReadLatestFeedSnapshot).not.toHaveBeenCalled();
   });
 
   it("rejects session sync when admin emails are not configured", async () => {
@@ -208,12 +208,12 @@ describe("/api/jobs/sync route", () => {
     expect(response.status).toBe(403);
     expect(payload.ok).toBe(false);
     expect(payload.message).toBe("Sync admin emails are not configured");
-    expect(mockedReadLatestFeedSnapshotFromD1).not.toHaveBeenCalled();
+    expect(mockedReadLatestFeedSnapshot).not.toHaveBeenCalled();
   });
 
-  it("syncs from the latest D1 snapshot for authenticated admins", async () => {
+  it("syncs from the latest Postgres snapshot for authenticated admins", async () => {
     const snapshot = buildSnapshot();
-    mockedReadLatestFeedSnapshotFromD1.mockResolvedValue(snapshot);
+    mockedReadLatestFeedSnapshot.mockResolvedValue(snapshot);
     mockedGetAuthSessionUserFromRequest.mockResolvedValue({
       id: "user-1",
       email: "ADMIN@example.com",
@@ -242,12 +242,12 @@ describe("/api/jobs/sync route", () => {
     expect(payload.jobs).toHaveLength(2);
     expect(typeof payload.requestId).toBe("string");
     expect(typeof payload.latencyMs).toBe("number");
-    expect(mockedReadLatestFeedSnapshotFromD1).toHaveBeenCalledTimes(1);
-    expect(mockedWriteLatestFeedSnapshotToD1).not.toHaveBeenCalled();
+    expect(mockedReadLatestFeedSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockedWriteLatestFeedSnapshot).not.toHaveBeenCalled();
     expect(mockedWriteFeedSnapshotToCache).toHaveBeenCalledWith(request, snapshot);
   });
 
-  it("refreshes D1 from the configured scraped feed before returning sync results", async () => {
+  it("refreshes Postgres from the configured scraped feed before returning sync results", async () => {
     const snapshot = buildSnapshot();
     process.env.PYTHON_SCRAPED_FEED_URL =
       "https://feeds.example.com/rolelens/latest.json";
@@ -289,8 +289,8 @@ describe("/api/jobs/sync route", () => {
         },
       },
     );
-    expect(mockedWriteLatestFeedSnapshotToD1).toHaveBeenCalledWith(snapshot);
-    expect(mockedReadLatestFeedSnapshotFromD1).not.toHaveBeenCalled();
+    expect(mockedWriteLatestFeedSnapshot).toHaveBeenCalledWith(snapshot);
+    expect(mockedReadLatestFeedSnapshot).not.toHaveBeenCalled();
     expect(mockedWriteFeedSnapshotToCache).toHaveBeenCalledWith(request, snapshot);
   });
 
@@ -326,8 +326,8 @@ describe("/api/jobs/sync route", () => {
     expect(response.status).toBe(502);
     expect(payload.ok).toBe(false);
     expect(payload.message).toBe("Feed refresh failed: feed source returned 503");
-    expect(mockedWriteLatestFeedSnapshotToD1).not.toHaveBeenCalled();
-    expect(mockedReadLatestFeedSnapshotFromD1).not.toHaveBeenCalled();
+    expect(mockedWriteLatestFeedSnapshot).not.toHaveBeenCalled();
+    expect(mockedReadLatestFeedSnapshot).not.toHaveBeenCalled();
   });
 
   it("accepts singular sync admin email env for deployed configuration compatibility", async () => {
@@ -349,10 +349,10 @@ describe("/api/jobs/sync route", () => {
     const response = await POST(request);
 
     expect(response.status).toBe(200);
-    expect(mockedReadLatestFeedSnapshotFromD1).toHaveBeenCalledTimes(1);
+    expect(mockedReadLatestFeedSnapshot).toHaveBeenCalledTimes(1);
   });
 
-  it("supports platform-scoped sync from D1 without cache writes", async () => {
+  it("supports platform-scoped sync from Supabase Postgres without cache writes", async () => {
     mockedGetAuthSessionUserFromRequest.mockResolvedValue({
       id: "user-2",
       email: "admin@example.com",
@@ -393,6 +393,6 @@ describe("/api/jobs/sync route", () => {
 
     expect(response.status).toBe(200);
     expect(mockedGetAuthSessionUserFromRequest).not.toHaveBeenCalled();
-    expect(mockedReadLatestFeedSnapshotFromD1).toHaveBeenCalledTimes(1);
+    expect(mockedReadLatestFeedSnapshot).toHaveBeenCalledTimes(1);
   });
 });

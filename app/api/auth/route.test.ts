@@ -286,6 +286,7 @@ describe("auth API routes", () => {
   it("reads AUTH_PASSWORD_PEPPER from Cloudflare runtime env in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("AUTH_PASSWORD_PEPPER", "");
+    vi.stubEnv("AUTH_BACKEND", "memory");
     testGlobal.__env__ = {
       AUTH_PASSWORD_PEPPER: "cloudflare-runtime-pepper",
     };
@@ -311,5 +312,30 @@ describe("auth API routes", () => {
     expect(response.status).toBe(201);
     expect(payload.ok).toBe(true);
     expect(payload.user?.email).toBe("cloudflare@example.com");
+  });
+
+  it("fails closed when production has no Hyperdrive binding", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AUTH_PASSWORD_PEPPER", "production-pepper");
+
+    const response = await SIGNUP(
+      new Request("https://rolelens.workers.dev/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Prod",
+          email: "prod-db@example.com",
+          password: "password123",
+        }),
+      }),
+    );
+
+    const payload = (await response.json()) as { message: string };
+    expect(response.status).toBe(500);
+    expect(payload.message).toBe(
+      "Server database binding is unavailable. Ensure the Cloudflare Worker has the HYPERDRIVE binding.",
+    );
   });
 });

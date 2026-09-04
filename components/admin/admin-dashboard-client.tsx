@@ -253,7 +253,7 @@ export function AdminDashboardClient() {
         <article className={styles.healthCard}>
           <Database size={20} />
           <div>
-            <span>D1 database</span>
+            <span>Supabase Postgres</span>
             <strong>{summary.database.available ? "Connected" : "Unavailable"}</strong>
           </div>
         </article>

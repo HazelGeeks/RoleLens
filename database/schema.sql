@@ -2,6 +2,7 @@
 -- Keep this file in sync whenever SQL query/schema changes are introduced.
 -- Source baseline: migrations/0001_persistence.sql, 0002_auth.sql, 0003_goals.sql, 0004_feed_snapshots.sql
 -- Cleanup baseline: migrations/0005_drop_legacy_scraped_feed_snapshots.sql removes obsolete scraped_feed_* tables.
+-- LEGACY D1 schema snapshot. New production migrations live under supabase/migrations/.
 -- Naming rules: see docs/decisions/d1-schema-conventions.md.
 -- Table namespaces:
 --   auth_*       authentication and session records
@@ -106,7 +107,7 @@ CREATE TABLE IF NOT EXISTS persistent_goal_followups (
 CREATE INDEX IF NOT EXISTS idx_persistent_goal_followups_goal_created
   ON persistent_goal_followups (user_id, goal_id, created_at DESC);
 
--- Imported feed snapshots. D1 is the source of truth; GitHub scraping artifacts are not used.
+-- Imported feed snapshots. This file is retained only for source-data migration and rollback.
 CREATE TABLE IF NOT EXISTS feed_import_snapshots (
   key TEXT PRIMARY KEY,
   generated_at TEXT NOT NULL,

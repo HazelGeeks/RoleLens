@@ -2,13 +2,13 @@ import { getAuthSessionUserFromRequest } from "@/lib/auth-server";
 import { getConfiguredAdminEmails } from "@/lib/admin-auth";
 import { writeFeedSnapshotToCache } from "@/lib/feed-snapshot-cache";
 import {
-  readLatestFeedSnapshotFromD1,
-  writeLatestFeedSnapshotToD1,
+  readLatestFeedSnapshot,
+  writeLatestFeedSnapshot,
 } from "@/lib/feed-snapshot-store";
 import { parseFeedPlatform } from "@/lib/feed-platform";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 import {
-  buildMissingD1FeedSnapshot,
+  buildMissingDatabaseFeedSnapshot,
   filterFeedSnapshotByPlatform,
 } from "@/lib/feed-snapshot";
 import { parseFeedSnapshotPayload } from "@/lib/feed-snapshot-payload";
@@ -104,7 +104,7 @@ function getScrapedFeedUrl(env: RuntimeEnv) {
   return env.PYTHON_SCRAPED_FEED_URL?.trim() || "";
 }
 
-async function refreshD1SnapshotFromFeed(env: RuntimeEnv) {
+async function refreshDatabaseSnapshotFromFeed(env: RuntimeEnv) {
   const feedUrl = getScrapedFeedUrl(env);
   if (!feedUrl) return null;
 
@@ -125,9 +125,9 @@ async function refreshD1SnapshotFromFeed(env: RuntimeEnv) {
     throw new Error("feed source returned an invalid snapshot payload");
   }
 
-  const stored = await writeLatestFeedSnapshotToD1(snapshot);
+  const stored = await writeLatestFeedSnapshot(snapshot);
   if (!stored) {
-    throw new Error("D1 feed snapshot store is unavailable");
+    throw new Error("Postgres feed snapshot store is unavailable");
   }
 
   return snapshot;
@@ -171,7 +171,7 @@ export async function POST(request: Request) {
   const platform = parseFeedPlatform(payload.platform);
   let refreshedSnapshot = null;
   try {
-    refreshedSnapshot = await refreshD1SnapshotFromFeed(env);
+    refreshedSnapshot = await refreshDatabaseSnapshotFromFeed(env);
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
     return Response.json(
@@ -189,13 +189,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const d1Snapshot = refreshedSnapshot || (await readLatestFeedSnapshotFromD1());
-  const snapshot = d1Snapshot
-    ? filterFeedSnapshotByPlatform(d1Snapshot, platform)
-    : buildMissingD1FeedSnapshot();
+  const databaseSnapshot = refreshedSnapshot || (await readLatestFeedSnapshot());
+  const snapshot = databaseSnapshot
+    ? filterFeedSnapshotByPlatform(databaseSnapshot, platform)
+    : buildMissingDatabaseFeedSnapshot();
 
-  if (platform === "all" && d1Snapshot) {
-    await writeFeedSnapshotToCache(request, d1Snapshot);
+  if (platform === "all" && databaseSnapshot) {
+    await writeFeedSnapshotToCache(request, databaseSnapshot);
   }
 
   const latencyMs = Date.now() - startedAt;

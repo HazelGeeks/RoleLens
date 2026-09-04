@@ -32,7 +32,7 @@ const LAST_SHOWN_SYNC_WARNING_KEY = "rolelens.feed.lastShownWarning";
 function buildRecoveryMessage(message: string) {
   const safeMessage = message.endsWith(".") ? message.slice(0, -1) : message;
   const recovery =
-    "Recovery: verify the D1 feed snapshot ingestion, then retry sync.";
+    "Recovery: verify the Postgres feed snapshot ingestion, then retry sync.";
   return safeMessage + ". " + recovery;
 }
 
@@ -168,7 +168,7 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
             "Feed data was imported locally, but server persistence sync is currently unavailable.",
           );
           showSyncToast(
-            "Local import succeeded. Cross-device persistence sync failed; check D1 binding, migrations, and auth.",
+            "Local import succeeded. Cross-device persistence sync failed; check Hyperdrive binding, Supabase migrations, and auth.",
           );
           setSyncError(
             detail

@@ -36,9 +36,9 @@ import {
 import styles from "./jobs-page-sections.module.css";
 
 const DEFAULT_OPERATIONAL_CHECKLIST = [
-  "Post the latest normalized feed snapshot to /api/jobs/ingest so D1 stores it.",
+  "Post the latest normalized feed snapshot to /api/jobs/ingest so Supabase stores it.",
   "Confirm ROLELENS_CRON_SECRET matches the deployed CRON_SECRET.",
-  "Confirm D1 migrations are applied and feed_import_snapshots exists.",
+  "Confirm Supabase migrations are applied and feed_import_snapshots exists.",
   "Restart next dev (local) after env changes or redeploy the target environment (Cloudflare).",
   "Call /api/jobs/import, then retry Sync All Feeds in the Jobs page.",
 ];
@@ -388,7 +388,7 @@ export function JobsFiltersCard({
                 <div className={styles.diagnosticsPanel}>
                   <p>Sync Diagnostics</p>
                   <p>
-                    D1 Python snapshot:{" "}
+                    Postgres Python snapshot:{" "}
                     {syncDiagnostics.python.scrapedFeedConfigured ? "yes" : "no"}
                   </p>
                   <p>Final sourceCount: {syncDiagnostics.sourceCount}</p>

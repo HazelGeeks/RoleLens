@@ -1,6 +1,6 @@
 import { getAdminAccessForRequest } from "@/lib/admin-auth";
-import { getD1DatabaseFromContext, type D1DatabaseLike } from "@/lib/d1";
-import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
+import { getDatabaseFromContext, type DatabaseLike } from "@/lib/database";
+import { readLatestFeedSnapshot } from "@/lib/feed-snapshot-store";
 
 type CountRow = {
   count?: number | string;
@@ -40,7 +40,7 @@ function noStoreJson(payload: unknown, init?: ResponseInit) {
 }
 
 async function countOrNull(
-  db: D1DatabaseLike,
+  db: DatabaseLike,
   query: string,
   issues: string[],
   bindings: unknown[] = [],
@@ -51,12 +51,12 @@ async function countOrNull(
       .first<CountRow>();
     return toNumber(row?.count);
   } catch (error) {
-    issues.push(error instanceof Error ? error.message : "D1 count query failed");
+    issues.push(error instanceof Error ? error.message : "Postgres count query failed");
     return null;
   }
 }
 
-async function statusCountsOrEmpty(db: D1DatabaseLike, issues: string[]) {
+async function statusCountsOrEmpty(db: DatabaseLike, issues: string[]) {
   try {
     const rows = await db
       .prepare(
@@ -72,12 +72,12 @@ async function statusCountsOrEmpty(db: D1DatabaseLike, issues: string[]) {
       count: toNumber(row.count),
     }));
   } catch (error) {
-    issues.push(error instanceof Error ? error.message : "D1 status query failed");
+    issues.push(error instanceof Error ? error.message : "Postgres status query failed");
     return [];
   }
 }
 
-async function recentJobsOrEmpty(db: D1DatabaseLike, issues: string[]) {
+async function recentJobsOrEmpty(db: DatabaseLike, issues: string[]) {
   try {
     const rows = await db
       .prepare(
@@ -96,7 +96,7 @@ async function recentJobsOrEmpty(db: D1DatabaseLike, issues: string[]) {
       updatedAt: row.updatedAt || row.updated_at || null,
     }));
   } catch (error) {
-    issues.push(error instanceof Error ? error.message : "D1 recent jobs query failed");
+    issues.push(error instanceof Error ? error.message : "Postgres recent jobs query failed");
     return [];
   }
 }
@@ -123,14 +123,14 @@ export async function GET(request: Request) {
   }
 
   const issues: string[] = [];
-  const db = await getD1DatabaseFromContext();
+  const db = await getDatabaseFromContext();
   let snapshot = null;
 
   try {
-    snapshot = await readLatestFeedSnapshotFromD1();
+    snapshot = await readLatestFeedSnapshot();
   } catch (error) {
     issues.push(
-      error instanceof Error ? error.message : "D1 feed snapshot query failed",
+      error instanceof Error ? error.message : "Postgres feed snapshot query failed",
     );
   }
 
@@ -166,7 +166,7 @@ export async function GET(request: Request) {
     : [[], []];
 
   if (!db) {
-    issues.push("D1 binding is unavailable in this runtime");
+    issues.push("Hyperdrive binding is unavailable in this runtime");
   }
 
   return noStoreJson({

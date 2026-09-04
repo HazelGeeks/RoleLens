@@ -5,13 +5,13 @@ import {
 } from "@/lib/feed-sync-alert";
 
 describe("buildFeedSyncAlert", () => {
-  it("returns an error when no D1 snapshot is available", () => {
+  it("returns an error when no Postgres snapshot is available", () => {
     const alert = buildFeedSyncAlert({
       sourceCount: 0,
       errors: [
         {
-          source: "d1",
-          message: "No D1-ingested feed snapshot is available",
+          source: "postgres",
+          message: "No Postgres-ingested feed snapshot is available",
         },
       ],
       sourceResults: [],
@@ -19,8 +19,8 @@ describe("buildFeedSyncAlert", () => {
 
     expect(alert).not.toBeNull();
     expect(alert?.level).toBe("error");
-    expect(alert?.message.toLowerCase()).toContain("no d1 feed snapshot");
-    expect(alert?.message).toContain("D1");
+    expect(alert?.message.toLowerCase()).toContain("no postgres feed snapshot");
+    expect(alert?.message).toContain("Supabase Postgres");
     expect(alert?.message).toContain("Ingest");
   });
 

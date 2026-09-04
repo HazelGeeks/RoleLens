@@ -37,14 +37,14 @@ export function buildFeedSyncAlert(
   input: FeedSyncHealthInput,
 ): FeedSyncAlert | null {
   const configurationError = input.errors.find(
-    (entry) => entry.source === "configuration" || entry.source === "d1",
+    (entry) => entry.source === "configuration" || entry.source === "postgres",
   );
 
   if (configurationError) {
     return {
       level: "error",
       message:
-        "No D1 feed snapshot is available. Ingest a normalized feed snapshot into D1, then retry sync.",
+        "No Postgres feed snapshot is available. Ingest a normalized feed snapshot into Supabase Postgres, then retry sync.",
     };
   }
 

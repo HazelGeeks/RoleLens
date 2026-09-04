@@ -7,19 +7,19 @@ vi.mock("@/lib/feed-snapshot-cache", () => ({
 }));
 
 vi.mock("@/lib/feed-snapshot-store", () => ({
-  readLatestFeedSnapshotFromD1: vi.fn(),
+  readLatestFeedSnapshot: vi.fn(),
 }));
 
 import {
   readFeedSnapshotFromCache,
   writeFeedSnapshotToCache,
 } from "@/lib/feed-snapshot-cache";
-import { readLatestFeedSnapshotFromD1 } from "@/lib/feed-snapshot-store";
+import { readLatestFeedSnapshot } from "@/lib/feed-snapshot-store";
 import { GET } from "./route";
 
 const mockedReadFeedSnapshotFromCache = vi.mocked(readFeedSnapshotFromCache);
 const mockedWriteFeedSnapshotToCache = vi.mocked(writeFeedSnapshotToCache);
-const mockedReadLatestFeedSnapshotFromD1 = vi.mocked(readLatestFeedSnapshotFromD1);
+const mockedReadLatestFeedSnapshot = vi.mocked(readLatestFeedSnapshot);
 
 const ORIGINAL_IMPORT_PUBLIC_RATE_LIMIT_PER_MIN =
   process.env.IMPORT_PUBLIC_RATE_LIMIT_PER_MIN;
@@ -98,7 +98,7 @@ describe("/api/jobs/import route", () => {
     vi.clearAllMocks();
     process.env.IMPORT_PUBLIC_RATE_LIMIT_PER_MIN = "60";
     process.env.CRON_SECRET = "test-cron-secret";
-    mockedReadLatestFeedSnapshotFromD1.mockResolvedValue(null);
+    mockedReadLatestFeedSnapshot.mockResolvedValue(null);
     mockedReadFeedSnapshotFromCache.mockResolvedValue(null);
     mockedWriteFeedSnapshotToCache.mockResolvedValue(undefined);
   });
@@ -118,9 +118,9 @@ describe("/api/jobs/import route", () => {
     }
   });
 
-  it("serves the latest D1 snapshot for normal and refresh requests", async () => {
+  it("serves the latest Postgres snapshot for normal and refresh requests", async () => {
     const snapshot = buildSnapshot();
-    mockedReadLatestFeedSnapshotFromD1.mockResolvedValue(snapshot);
+    mockedReadLatestFeedSnapshot.mockResolvedValue(snapshot);
     const request = new Request(
       "https://rolelens.pages.dev/api/jobs/import?refresh=1",
       {
@@ -138,14 +138,14 @@ describe("/api/jobs/import route", () => {
 
     expect(response.status).toBe(200);
     expect(payload.cached).toBe(true);
-    expect(payload.cacheSource).toBe("d1");
+    expect(payload.cacheSource).toBe("postgres");
     expect(payload.platform).toBe("all");
     expect(payload.jobs).toHaveLength(2);
     expect(mockedReadFeedSnapshotFromCache).not.toHaveBeenCalled();
     expect(mockedWriteFeedSnapshotToCache).toHaveBeenCalledWith(request, snapshot);
   });
 
-  it("serves edge cache only when D1 has no snapshot", async () => {
+  it("serves edge cache only when Postgres has no snapshot", async () => {
     mockedReadFeedSnapshotFromCache.mockResolvedValue(buildSnapshot());
     const request = new Request("https://rolelens.pages.dev/api/jobs/import", {
       method: "GET",
@@ -167,8 +167,8 @@ describe("/api/jobs/import route", () => {
     );
   });
 
-  it("filters platform-scoped imports from the D1 snapshot", async () => {
-    mockedReadLatestFeedSnapshotFromD1.mockResolvedValue(buildSnapshot());
+  it("filters platform-scoped imports from the Postgres snapshot", async () => {
+    mockedReadLatestFeedSnapshot.mockResolvedValue(buildSnapshot());
     const request = new Request(
       "https://rolelens.pages.dev/api/jobs/import?platform=indeed",
       {
@@ -194,7 +194,7 @@ describe("/api/jobs/import route", () => {
     expect(mockedWriteFeedSnapshotToCache).not.toHaveBeenCalled();
   });
 
-  it("returns a configuration snapshot when D1 and edge cache are empty", async () => {
+  it("returns a configuration snapshot when Postgres and edge cache are empty", async () => {
     const request = new Request(
       "https://rolelens.pages.dev/api/jobs/import?refresh=1",
       {
@@ -212,8 +212,8 @@ describe("/api/jobs/import route", () => {
     expect(response.status).toBe(200);
     expect(payload.cached).toBe(false);
     expect(payload.sourceCount).toBe(0);
-    expect(payload.errors[0]?.source).toBe("d1");
-    expect(payload.errors[0]?.message).toContain("No D1-ingested");
+    expect(payload.errors[0]?.source).toBe("postgres");
+    expect(payload.errors[0]?.message).toContain("No Postgres-ingested");
   });
 
   it("rate-limits anonymous callers", async () => {
@@ -238,6 +238,6 @@ describe("/api/jobs/import route", () => {
     expect(second.status).toBe(429);
     expect(secondPayload.ok).toBe(false);
     expect(secondPayload.message).toContain("Rate limit exceeded");
-    expect(mockedReadLatestFeedSnapshotFromD1).toHaveBeenCalledTimes(1);
+    expect(mockedReadLatestFeedSnapshot).toHaveBeenCalledTimes(1);
   });
 });

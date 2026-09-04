@@ -1,5 +1,8 @@
 # ADR: Persistent Storage Architecture for Multi-Device Sync
 
+> Superseded on 2026-09-03 by `supabase-postgres-migration.md` for the production
+> database choice. The concurrency and idempotency decisions below still apply.
+
 - Status: Proposed for implementation after PoC approval
 - Date: 2026-04-13
 - Related issue: #2

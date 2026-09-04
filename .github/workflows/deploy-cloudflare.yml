@@ -72,9 +72,6 @@ jobs:
       - name: Build Worker output
         run: npm run cf:build
 
-      - name: Apply D1 migrations
-        run: npm run db:schema:prod
-
       - name: Deploy to Cloudflare Workers
         run: npm run cf:deploy
 

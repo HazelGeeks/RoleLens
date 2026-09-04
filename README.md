@@ -9,7 +9,7 @@ Production is configured for **Cloudflare Workers** through the OpenNext adapter
 - Next.js 16 + App Router
 - TypeScript + Tailwind CSS
 - Cloudflare Workers + OpenNext
-- Cloudflare D1 for shared server-side persistence
+- Hazel Co. Supabase Postgres through Cloudflare Hyperdrive
 - Client-side local persistence (`localStorage`)
 - TanStack Table + Recharts
 
@@ -27,22 +27,22 @@ Production is configured for **Cloudflare Workers** through the OpenNext adapter
    - `INTEREST`
    - `SUBMITTED`
    - `ARCHIVE`
-7. Login / Sign-up with server-side session auth (D1 in Cloudflare runtime, memory fallback locally)
+7. Login / Sign-up with server-side session auth (Supabase Postgres in Cloudflare runtime, memory fallback locally)
 
 ## Stable Feed Storage
 
-RoleLens uses D1 as the canonical feed snapshot store:
+RoleLens uses Supabase Postgres as the canonical feed snapshot store:
 
 1. The `Daily Feed Sync` GitHub Actions workflow runs the Python scraper and POSTs normalized JSON to `/api/jobs/ingest`
-2. Browser-triggered `/api/jobs/sync` fetches `PYTHON_SCRAPED_FEED_URL` when configured and stores the latest snapshot in D1 (`feed_import_snapshots`)
-3. `/api/jobs/import` reads the latest snapshot from D1
+2. Browser-triggered `/api/jobs/sync` fetches `PYTHON_SCRAPED_FEED_URL` when configured and stores the latest snapshot in Postgres (`feed_import_snapshots`)
+3. `/api/jobs/import` reads the latest snapshot from Postgres
 4. Client sync merges imported postings into local storage while preserving status/notes/follow-up
 
 ### Feed Source Environment Variables
 
 Feed ingestion:
 
-- `PYTHON_SCRAPED_FEED_URL` (optional; JSON snapshot URL fetched by `/api/jobs/sync` before D1 is read)
+- `PYTHON_SCRAPED_FEED_URL` (optional; JSON snapshot URL fetched by `/api/jobs/sync` before Postgres is read)
 - `CRON_SECRET` (required; `/api/jobs/cron` rejects all calls without `x-cron-secret`)
 - `SYNC_ADMIN_SECRET` (optional; protects manual import refresh via `x-rolelens-sync-secret`, falls back to `CRON_SECRET` when unset)
 - `SYNC_ADMIN_EMAILS` (required for browser-triggered manual sync in production; comma-separated admin account emails; `SYNC_ADMIN_EMAIL` is also accepted for one admin)
@@ -59,15 +59,15 @@ Auth security:
 - `AUTH_PASSWORD_PEPPER` (required in production; added to password hashing material before DB storage)
   - Set as `AUTH_PASSWORD_PEPPER=<long-random-value>` (example generation: `openssl rand -base64 48`)
   - In non-production local dev, if omitted, RoleLens uses a development fallback pepper and logs a warning.
-- `AUTH_BACKEND` (optional override: `memory`/`d1`; if unset, RoleLens auto-uses D1 when the binding is available)
+- `AUTH_BACKEND` (optional override: `memory`/`postgres`; production uses `postgres`)
 
-### D1 Feed Refresh
+### Postgres Feed Refresh
 
-The app does not run Python inside Cloudflare Workers. Instead, `.github/workflows/daily-feed-sync.yml` runs the Python scraper on a schedule, uploads the generated JSON as a short-lived artifact, POSTs it to `/api/jobs/ingest`, then calls `/api/jobs/cron` to warm the cache from the new D1 snapshot.
+The app does not run Python inside Cloudflare Workers. Instead, `.github/workflows/daily-feed-sync.yml` runs the Python scraper on a schedule, uploads the generated JSON as a short-lived artifact, POSTs it to `/api/jobs/ingest`, then calls `/api/jobs/cron` to warm the cache from the new Postgres snapshot.
 
 `PYTHON_SCRAPED_FEED_URL` remains available for debugging or alternate external schedulers, but the default production automation path is the scheduled GitHub Actions scrape-and-ingest workflow.
 
-`POST /api/jobs/sync` refreshes D1 from `PYTHON_SCRAPED_FEED_URL` when configured, then returns the latest D1 snapshot:
+`POST /api/jobs/sync` refreshes Postgres from `PYTHON_SCRAPED_FEED_URL` when configured, then returns the latest Postgres snapshot:
 
 ```bash
 curl --fail --silent --show-error \
@@ -78,7 +78,7 @@ curl --fail --silent --show-error \
   "${ROLELENS_PRODUCTION_URL%/}/api/jobs/sync/"
 ```
 
-`POST /api/jobs/ingest` accepts a normalized feed snapshot and stores it in D1:
+`POST /api/jobs/ingest` accepts a normalized feed snapshot and stores it in Postgres:
 
 ```bash
 curl --fail --silent --show-error \
@@ -89,7 +89,7 @@ curl --fail --silent --show-error \
   "${ROLELENS_PRODUCTION_URL%/}/api/jobs/ingest/"
 ```
 
-`POST /api/jobs/cron` refreshes the edge cache from the latest D1 snapshot:
+`POST /api/jobs/cron` refreshes the edge cache from the latest Postgres snapshot:
 
 ```bash
 curl --fail --silent --show-error \
@@ -98,13 +98,13 @@ curl --fail --silent --show-error \
   "${ROLELENS_PRODUCTION_URL%/}/api/jobs/cron/"
 ```
 
-On the app list screen, `Sync All Feeds` calls `/api/jobs/sync`, which refreshes D1 from `PYTHON_SCRAPED_FEED_URL` when configured and then merges the resulting D1 snapshot into the browser workspace. Platform-scoped sync buttons (`Sync Indeed`, `Sync LinkedIn`, `Sync Saramin`, `Sync JobKorea`) use the same refreshed D1 snapshot filtered by platform. In production, browser-triggered manual sync requires the signed-in account email to be listed in `SYNC_ADMIN_EMAILS`; cron/secret-triggered sync still uses `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
+On the app list screen, `Sync All Feeds` calls `/api/jobs/sync`, which refreshes Postgres from `PYTHON_SCRAPED_FEED_URL` when configured and then merges the resulting snapshot into the browser workspace. Platform-scoped sync buttons (`Sync Indeed`, `Sync LinkedIn`, `Sync Saramin`, `Sync JobKorea`) use the same refreshed snapshot filtered by platform. In production, browser-triggered manual sync requires the signed-in account email to be listed in `SYNC_ADMIN_EMAILS`; cron/secret-triggered sync still uses `CRON_SECRET` or `SYNC_ADMIN_SECRET`.
 
 ### Troubleshooting Feed Source Configuration
 
 If you see "No valid feed source is configured", run this checklist:
 
-1. Confirm D1 migrations are applied and `feed_import_snapshots` exists.
+1. Confirm the Supabase migration is applied and `feed_import_snapshots` exists.
 2. Confirm the `Daily Feed Sync` workflow has `ROLELENS_CRON_SECRET` and can POST to `/api/jobs/ingest`.
 3. Confirm `ROLELENS_CRON_SECRET` matches the deployed Cloudflare `CRON_SECRET`.
 4. If `PYTHON_SCRAPED_FEED_URL` is intentionally configured, call `POST /api/jobs/sync` and verify it returns `refreshed: true`.
@@ -116,11 +116,11 @@ Notes:
 
 ## Important Tradeoff
 
-- Jobs are stored in the persistence API backend (memory/D1) and mirrored to local cache for fast UI rendering.
+- Jobs are stored in the persistence API backend (memory/Postgres) and mirrored to local cache for fast UI rendering.
 - The browser cache is treated as a client-side mirror, not the source of truth.
 - Clearing browser storage no longer removes persisted jobs; they are restored from the API on refresh.
 
-## Persistence API (D1-ready)
+## Persistence API
 
 RoleLens now includes DB persistence APIs that use the same storage layer as `/api/persistence/*`.
 
@@ -149,8 +149,9 @@ Optional hardening:
 
 Backend selection (optional):
 
-- `PERSISTENCE_BACKEND` (`memory`/`d1`, default: `memory`)
-- `PERSISTENCE_D1_BINDING` (default: `DB`)
+- `PERSISTENCE_BACKEND` (`memory`/`postgres`; production uses `postgres`)
+- `PERSISTENCE_DATABASE_BINDING` (production default: `HYPERDRIVE`)
+- `DATABASE_URL` (local development only; never configure this as a production Worker variable)
 
 Design and planning docs:
 
@@ -199,7 +200,7 @@ cp .env.example .env.local
 # 기본(localStorage/memory 중심)
 npm run dev
 
-# 로컬에서 D1까지 함께 쓰는 모드 (Cloudflare runtime)
+# 로컬에서 Worker 런타임을 미리 보는 모드
 npm run dev:cloudflare
 ```
 
@@ -225,7 +226,7 @@ npm run dev
 ## Scripts
 
 - `npm run dev` - local dev (memory fallback)
-- `npm run dev:cloudflare` - build and preview the Cloudflare Worker runtime with local D1
+- `npm run dev:cloudflare` - build and preview the Cloudflare Worker runtime
 - `npm run build` - production build
 - `npm run lint` - lint
 - `npm run test` - unit tests (cron security, persistence PoC, local data reliability)
@@ -234,9 +235,6 @@ npm run dev
 - `npm run cf:deploy` - deploy a previously built Worker output
 - `npm run preview` - build and preview the Worker locally
 - `npm run deploy` - build and deploy the Worker
-- `npm run db:schema:local` - apply database schema changes locally
-- `npm run db:schema:preview` - apply database schema changes to preview D1
-- `npm run db:schema:prod` - apply database schema changes to production D1
 
 ## Cloudflare Workers Deployment
 
@@ -258,12 +256,15 @@ Required Cloudflare Worker secrets:
 - `CRON_SECRET`
 - `SYNC_ADMIN_EMAILS`
 
-The Worker name and D1 bindings are defined in `wrangler.toml`. Run `npm run deploy` for a manual deployment, or merge to `main` to run the deployment workflow.
+The Worker name and Hyperdrive binding are defined in `wrangler.toml`. Run `npm run deploy` for a manual deployment, or merge to `main` to run the deployment workflow.
 
-## D1 Persistence Setup
+## Supabase Postgres Setup
 
-1. Create/update D1 binding in `wrangler.toml` (`binding = "DB"`).
-2. Run `npm run db:schema:prod` before first production deploy (or when schema changes).
+1. Apply `supabase/migrations/20260903190000_rolelens_initial.sql` in the Hazel Co. Supabase project.
+2. Create a least-privilege database user for RoleLens.
+3. Create Cloudflare Hyperdrive from Supabase's direct Postgres connection and bind it as `HYPERDRIVE`.
+4. Replace the placeholder Hyperdrive ID in `wrangler.toml`, restore Worker secrets, and deploy.
+5. Follow `docs/decisions/supabase-postgres-migration.md` for data validation and cutover.
 
 ## Project Structure
 
@@ -287,4 +288,4 @@ lib/
 
 ## Persistence Runtime Notes
 
-`/api/persistence/*` now supports D1 via Cloudflare binding and automatically falls back to in-memory storage when D1 binding is unavailable in local `next dev`.
+`/api/persistence/*` uses Supabase Postgres through the Cloudflare `HYPERDRIVE` binding and automatically falls back to in-memory storage when the binding or local `DATABASE_URL` is unavailable outside production.

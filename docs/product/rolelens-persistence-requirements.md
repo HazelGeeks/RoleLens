@@ -1,5 +1,8 @@
 # RoleLens Persistence Requirements (Issue #2)
 
+> Historical PoC decision. Production storage changed to Supabase Postgres through
+> Cloudflare Hyperdrive on 2026-09-03; see `docs/decisions/supabase-postgres-migration.md`.
+
 ## 1. Goal
 
 - Transition from browser-only storage to multi-device-capable persistent storage.

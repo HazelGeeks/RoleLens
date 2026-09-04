@@ -1,12 +1,12 @@
-import { getD1DatabaseFromContext, type D1DatabaseLike } from "@/lib/d1";
+import { getDatabaseFromContext, type DatabaseLike } from "@/lib/database";
 
 type AuthBackend =
   | {
       kind: "memory";
     }
   | {
-      kind: "d1";
-      db: D1DatabaseLike;
+      kind: "postgres";
+      db: DatabaseLike;
     };
 
 type AuthUserRecord = {
@@ -268,10 +268,11 @@ async function verifyPassword(password: string, storedHash: string) {
 async function resolveAuthBackend(): Promise<AuthBackend> {
   const configured = process.env.AUTH_BACKEND?.trim().toLowerCase();
   const persistenceBackend = process.env.PERSISTENCE_BACKEND?.trim().toLowerCase();
+  const isProduction = process.env.NODE_ENV?.trim().toLowerCase() === "production";
 
-  if (configured && configured !== "memory" && configured !== "d1") {
+  if (configured && configured !== "memory" && configured !== "postgres") {
     throw new Error(
-      "Invalid AUTH_BACKEND value: " + configured + ". Expected memory or d1.",
+      "Invalid AUTH_BACKEND value: " + configured + ". Expected memory or postgres.",
     );
   }
 
@@ -279,31 +280,32 @@ async function resolveAuthBackend(): Promise<AuthBackend> {
     return { kind: "memory" };
   }
 
-  const shouldUseD1 = configured === "d1" || persistenceBackend === "d1";
-  const db = await getD1DatabaseFromContext();
+  const shouldUsePostgres =
+    configured === "postgres" || persistenceBackend === "postgres" || isProduction;
+  const db = await getDatabaseFromContext();
 
-  if (!shouldUseD1 && db) {
-    return { kind: "d1", db };
+  if (!shouldUsePostgres && db) {
+    return { kind: "postgres", db };
   }
 
-  if (!shouldUseD1) {
+  if (!shouldUsePostgres) {
     return { kind: "memory" };
   }
 
   if (!db) {
-    if (process.env.NODE_ENV !== "production") {
+    if (!isProduction) {
       console.warn(
-        "Auth backend is configured for d1 but D1 binding is unavailable in this runtime; falling back to memory backend.",
+        "Auth backend is configured for postgres but Hyperdrive binding is unavailable in this runtime; falling back to memory backend.",
       );
       return { kind: "memory" };
     }
 
     throw new Error(
-      "Auth backend is configured for d1, but no D1 binding is available in request context.",
+      "Auth requires postgres, but no Hyperdrive binding is available in request context.",
     );
   }
 
-  return { kind: "d1", db };
+  return { kind: "postgres", db };
 }
 
 function toSessionUser(user: AuthUserRecord): AuthSessionUser {
@@ -333,7 +335,7 @@ async function createSessionRecord(userId: string) {
   };
 }
 
-type AuthD1UserRow = {
+type AuthPostgresUserRow = {
   id: string;
   email: string;
   name: string;
@@ -342,7 +344,7 @@ type AuthD1UserRow = {
   updatedAt: string;
 };
 
-type AuthD1SessionJoinRow = {
+type AuthPostgresSessionJoinRow = {
   userId: string;
   email: string;
   name: string;
@@ -350,14 +352,14 @@ type AuthD1SessionJoinRow = {
   expiresAt: string;
 };
 
-async function getAuthUserByEmailD1(db: D1DatabaseLike, email: string) {
+async function getAuthUserByEmailPostgres(db: DatabaseLike, email: string) {
   const row = await db
     .prepare(
       "SELECT id, email, name, password_hash as passwordHash, created_at as createdAt, updated_at as updatedAt " +
         "FROM auth_users WHERE email = ? LIMIT 1",
     )
     .bind(email)
-    .first<AuthD1UserRow>();
+    .first<AuthPostgresUserRow>();
 
   return row
     ? {
@@ -371,7 +373,7 @@ async function getAuthUserByEmailD1(db: D1DatabaseLike, email: string) {
     : undefined;
 }
 
-async function insertAuthSessionD1(db: D1DatabaseLike, session: AuthSessionRecord) {
+async function insertAuthSessionPostgres(db: DatabaseLike, session: AuthSessionRecord) {
   await db
     .prepare(
       "INSERT INTO auth_sessions (id, user_id, token_hash, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -387,7 +389,7 @@ async function insertAuthSessionD1(db: D1DatabaseLike, session: AuthSessionRecor
     .run();
 }
 
-async function clearAuthSessionsForUserD1(db: D1DatabaseLike, userId: string) {
+async function clearAuthSessionsForUserPostgres(db: DatabaseLike, userId: string) {
   await db
     .prepare("DELETE FROM auth_sessions WHERE user_id = ?")
     .bind(userId)
@@ -410,13 +412,14 @@ export async function signUpAuth(input: {
   const validated = validateCredentials(input);
   if (!validated.ok) return { ok: false, status: 400, message: validated.message };
 
-  const backend = await resolveAuthBackend();
   const now = new Date().toISOString();
+  const passwordHash = await hashPassword(validated.password);
+  const backend = await resolveAuthBackend();
   const user: AuthUserRecord = {
     id: "user-" + crypto.randomUUID(),
     email: validated.email,
     name: validated.name || "User",
-    passwordHash: await hashPassword(validated.password),
+    passwordHash,
     createdAt: now,
     updatedAt: now,
   };
@@ -447,7 +450,7 @@ export async function signUpAuth(input: {
   }
 
   const session = await createSessionRecord(user.id);
-  await insertAuthSessionD1(backend.db, session.record);
+  await insertAuthSessionPostgres(backend.db, session.record);
   return { ok: true, user: toSessionUser(user), sessionToken: session.sessionToken };
 }
 
@@ -465,7 +468,7 @@ export async function signInAuth(input: {
     const userId = memoryUserIdsByEmail.get(validated.email);
     user = userId ? memoryUsersById.get(userId) : undefined;
   } else {
-    user = await getAuthUserByEmailD1(backend.db, validated.email);
+    user = await getAuthUserByEmailPostgres(backend.db, validated.email);
   }
 
   if (!user) return { ok: false, status: 401, message: "No account found for this email. Please sign up first." };
@@ -477,7 +480,7 @@ export async function signInAuth(input: {
   if (backend.kind === "memory") {
     memorySessionsByTokenHash.set(session.record.tokenHash, session.record);
   } else {
-    await insertAuthSessionD1(backend.db, session.record);
+    await insertAuthSessionPostgres(backend.db, session.record);
   }
 
   return { ok: true, user: toSessionUser(user), sessionToken: session.sessionToken };
@@ -526,7 +529,7 @@ export async function resetPasswordAuth(input: {
     };
   }
 
-  const user = await getAuthUserByEmailD1(backend.db, validated.email);
+  const user = await getAuthUserByEmailPostgres(backend.db, validated.email);
   if (!user) {
     return {
       ok: true,
@@ -539,7 +542,7 @@ export async function resetPasswordAuth(input: {
     .prepare("UPDATE auth_users SET password_hash = ?, updated_at = ? WHERE id = ?")
     .bind(nextPasswordHash, now, user.id)
     .run();
-  await clearAuthSessionsForUserD1(backend.db, user.id);
+  await clearAuthSessionsForUserPostgres(backend.db, user.id);
 
   return {
     ok: true,
@@ -597,7 +600,7 @@ export async function getAuthSessionUserFromRequest(request: Request) {
         "WHERE s.token_hash = ? LIMIT 1",
     )
     .bind(tokenHash)
-    .first<AuthD1SessionJoinRow>();
+    .first<AuthPostgresSessionJoinRow>();
 
   if (!row || row.expiresAt <= now) return null;
 
