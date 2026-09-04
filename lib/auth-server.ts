@@ -1,3 +1,4 @@
+import { getPasswordResetDelivery } from "@/lib/auth-email";
 import { getDatabaseFromContext, type DatabaseLike } from "@/lib/database";
 
 type AuthBackend =
@@ -60,8 +61,7 @@ type AuthPasswordResetFailure = {
 };
 
 export type AuthPasswordResetResult =
-  | AuthPasswordResetSuccess
-  | AuthPasswordResetFailure;
+  AuthPasswordResetSuccess | AuthPasswordResetFailure;
 
 const AUTH_COOKIE_NAME = "rolelens_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -71,6 +71,17 @@ const DEV_AUTH_PASSWORD_PEPPER_FALLBACK = "rolelens-dev-insecure-pepper";
 const memoryUsersById = new Map<string, AuthUserRecord>();
 const memoryUserIdsByEmail = new Map<string, string>();
 const memorySessionsByTokenHash = new Map<string, AuthSessionRecord>();
+
+type PasswordResetRecord = {
+  userId: string;
+  tokenHash: string;
+  createdAt: string;
+  expiresAt: string;
+};
+const memoryPasswordResets = new Map<string, PasswordResetRecord>();
+const PASSWORD_RESET_MAX_AGE_SECONDS = 15 * 60;
+const PASSWORD_RESET_MESSAGE =
+  "If an account exists for this email, a password reset link will be sent. Check your inbox.";
 
 const textEncoder = new TextEncoder();
 let didWarnMissingPepperInDev = false;
@@ -179,7 +190,10 @@ function safeEqualBytes(left: Uint8Array, right: Uint8Array) {
 }
 
 async function createSha256Base64(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", textEncoder.encode(value));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    textEncoder.encode(value),
+  );
   return bytesToBase64(new Uint8Array(digest));
 }
 
@@ -207,7 +221,11 @@ function isLikelyUniqueConstraintError(error: unknown) {
   if (!error) return false;
 
   const message =
-    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
   const normalized = message.toLowerCase();
   return normalized.includes("unique") || normalized.includes("constraint");
 }
@@ -222,7 +240,10 @@ function validateCredentials(input: {
   const name = input.name?.trim();
 
   if (!email || !email.includes("@")) {
-    return { ok: false as const, message: "Please enter a valid email address." };
+    return {
+      ok: false as const,
+      message: "Please enter a valid email address.",
+    };
   }
 
   if (password.trim().length < 8) {
@@ -258,7 +279,9 @@ async function verifyPassword(password: string, storedHash: string) {
   }
 
   const pepper = await resolveAuthPasswordPepper();
-  const actualBase64 = await createSha256Base64(password + ":" + saltBase64 + ":" + pepper);
+  const actualBase64 = await createSha256Base64(
+    password + ":" + saltBase64 + ":" + pepper,
+  );
   const actualBytes = base64ToBytes(actualBase64);
   const expectedBytes = base64ToBytes(expectedBase64);
 
@@ -267,12 +290,16 @@ async function verifyPassword(password: string, storedHash: string) {
 
 async function resolveAuthBackend(): Promise<AuthBackend> {
   const configured = process.env.AUTH_BACKEND?.trim().toLowerCase();
-  const persistenceBackend = process.env.PERSISTENCE_BACKEND?.trim().toLowerCase();
-  const isProduction = process.env.NODE_ENV?.trim().toLowerCase() === "production";
+  const persistenceBackend =
+    process.env.PERSISTENCE_BACKEND?.trim().toLowerCase();
+  const isProduction =
+    process.env.NODE_ENV?.trim().toLowerCase() === "production";
 
   if (configured && configured !== "memory" && configured !== "postgres") {
     throw new Error(
-      "Invalid AUTH_BACKEND value: " + configured + ". Expected memory or postgres.",
+      "Invalid AUTH_BACKEND value: " +
+        configured +
+        ". Expected memory or postgres.",
     );
   }
 
@@ -281,7 +308,9 @@ async function resolveAuthBackend(): Promise<AuthBackend> {
   }
 
   const shouldUsePostgres =
-    configured === "postgres" || persistenceBackend === "postgres" || isProduction;
+    configured === "postgres" ||
+    persistenceBackend === "postgres" ||
+    isProduction;
   const db = await getDatabaseFromContext();
 
   if (!shouldUsePostgres && db) {
@@ -373,7 +402,10 @@ async function getAuthUserByEmailPostgres(db: DatabaseLike, email: string) {
     : undefined;
 }
 
-async function insertAuthSessionPostgres(db: DatabaseLike, session: AuthSessionRecord) {
+async function insertAuthSessionPostgres(
+  db: DatabaseLike,
+  session: AuthSessionRecord,
+) {
   await db
     .prepare(
       "INSERT INTO auth_sessions (id, user_id, token_hash, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -386,13 +418,6 @@ async function insertAuthSessionPostgres(db: DatabaseLike, session: AuthSessionR
       session.expiresAt,
       session.lastSeenAt,
     )
-    .run();
-}
-
-async function clearAuthSessionsForUserPostgres(db: DatabaseLike, userId: string) {
-  await db
-    .prepare("DELETE FROM auth_sessions WHERE user_id = ?")
-    .bind(userId)
     .run();
 }
 
@@ -410,7 +435,8 @@ export async function signUpAuth(input: {
   password: string;
 }): Promise<AuthMutationResult> {
   const validated = validateCredentials(input);
-  if (!validated.ok) return { ok: false, status: 400, message: validated.message };
+  if (!validated.ok)
+    return { ok: false, status: 400, message: validated.message };
 
   const now = new Date().toISOString();
   const passwordHash = await hashPassword(validated.password);
@@ -426,13 +452,21 @@ export async function signUpAuth(input: {
 
   if (backend.kind === "memory") {
     if (memoryUserIdsByEmail.has(user.email)) {
-      return { ok: false, status: 409, message: "This email is already registered." };
+      return {
+        ok: false,
+        status: 409,
+        message: "This email is already registered.",
+      };
     }
     memoryUsersById.set(user.id, user);
     memoryUserIdsByEmail.set(user.email, user.id);
     const session = await createSessionRecord(user.id);
     memorySessionsByTokenHash.set(session.record.tokenHash, session.record);
-    return { ok: true, user: toSessionUser(user), sessionToken: session.sessionToken };
+    return {
+      ok: true,
+      user: toSessionUser(user),
+      sessionToken: session.sessionToken,
+    };
   }
 
   try {
@@ -440,18 +474,33 @@ export async function signUpAuth(input: {
       .prepare(
         "INSERT INTO auth_users (id, email, name, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
       )
-      .bind(user.id, user.email, user.name, user.passwordHash, user.createdAt, user.updatedAt)
+      .bind(
+        user.id,
+        user.email,
+        user.name,
+        user.passwordHash,
+        user.createdAt,
+        user.updatedAt,
+      )
       .run();
   } catch (error) {
     if (isLikelyUniqueConstraintError(error)) {
-      return { ok: false, status: 409, message: "This email is already registered." };
+      return {
+        ok: false,
+        status: 409,
+        message: "This email is already registered.",
+      };
     }
     throw error;
   }
 
   const session = await createSessionRecord(user.id);
   await insertAuthSessionPostgres(backend.db, session.record);
-  return { ok: true, user: toSessionUser(user), sessionToken: session.sessionToken };
+  return {
+    ok: true,
+    user: toSessionUser(user),
+    sessionToken: session.sessionToken,
+  };
 }
 
 export async function signInAuth(input: {
@@ -459,7 +508,8 @@ export async function signInAuth(input: {
   password: string;
 }): Promise<AuthMutationResult> {
   const validated = validateCredentials(input);
-  if (!validated.ok) return { ok: false, status: 400, message: validated.message };
+  if (!validated.ok)
+    return { ok: false, status: 400, message: validated.message };
 
   const backend = await resolveAuthBackend();
 
@@ -471,10 +521,16 @@ export async function signInAuth(input: {
     user = await getAuthUserByEmailPostgres(backend.db, validated.email);
   }
 
-  if (!user) return { ok: false, status: 401, message: "No account found for this email. Please sign up first." };
+  if (!user)
+    return {
+      ok: false,
+      status: 401,
+      message: "No account found for this email. Please sign up first.",
+    };
 
   const matches = await verifyPassword(validated.password, user.passwordHash);
-  if (!matches) return { ok: false, status: 401, message: "Incorrect password." };
+  if (!matches)
+    return { ok: false, status: 401, message: "Incorrect password." };
 
   const session = await createSessionRecord(user.id);
   if (backend.kind === "memory") {
@@ -483,67 +539,128 @@ export async function signInAuth(input: {
     await insertAuthSessionPostgres(backend.db, session.record);
   }
 
-  return { ok: true, user: toSessionUser(user), sessionToken: session.sessionToken };
+  return {
+    ok: true,
+    user: toSessionUser(user),
+    sessionToken: session.sessionToken,
+  };
+}
+
+export async function requestPasswordResetAuth(
+  emailInput: string,
+): Promise<AuthPasswordResetResult> {
+  const email = normalizeEmail(emailInput);
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return {
+      ok: false,
+      status: 400,
+      message: "Please enter a valid email address.",
+    };
+  }
+  const deliver = await getPasswordResetDelivery();
+  const backend = await resolveAuthBackend();
+  const user =
+    backend.kind === "memory"
+      ? memoryUsersById.get(memoryUserIdsByEmail.get(email) ?? "")
+      : await getAuthUserByEmailPostgres(backend.db, email);
+  if (!user) return { ok: true, message: PASSWORD_RESET_MESSAGE };
+
+  const token = toBase64Url(createRandomBytes(32));
+  const pepper = await resolveAuthPasswordPepper();
+  const tokenHash = await createSha256Base64(
+    "password-reset:" + token + ":" + pepper,
+  );
+  const now = new Date().toISOString();
+  const threshold = addSecondsAsIso(now, -60);
+  const record = {
+    userId: user.id,
+    tokenHash,
+    createdAt: now,
+    expiresAt: addSecondsAsIso(now, PASSWORD_RESET_MAX_AGE_SECONDS),
+  };
+  if (backend.kind === "memory") {
+    const previous = memoryPasswordResets.get(user.id);
+    if (previous && previous.createdAt > threshold)
+      return { ok: true, message: PASSWORD_RESET_MESSAGE };
+    memoryPasswordResets.set(user.id, record);
+  } else {
+    const issued = await backend.db
+      .prepare(
+        "INSERT INTO auth_password_reset_tokens (user_id, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?) " +
+          "ON CONFLICT (user_id) DO UPDATE SET token_hash = EXCLUDED.token_hash, created_at = EXCLUDED.created_at, expires_at = EXCLUDED.expires_at " +
+          "WHERE auth_password_reset_tokens.created_at <= ? RETURNING user_id AS userId",
+      )
+      .bind(user.id, tokenHash, now, record.expiresAt, threshold)
+      .first<{ userId: string }>();
+    if (!issued) return { ok: true, message: PASSWORD_RESET_MESSAGE };
+  }
+  try {
+    await deliver(user.email, token);
+  } catch {
+    if (backend.kind === "memory") {
+      if (memoryPasswordResets.get(user.id)?.tokenHash === tokenHash)
+        memoryPasswordResets.delete(user.id);
+    } else {
+      await backend.db
+        .prepare(
+          "DELETE FROM auth_password_reset_tokens WHERE user_id = ? AND token_hash = ?",
+        )
+        .bind(user.id, tokenHash)
+        .run();
+    }
+    // Do not expose the provider response, recipient, or recovery token.
+    throw new Error("Password reset email delivery failed");
+  }
+  return { ok: true, message: PASSWORD_RESET_MESSAGE };
 }
 
 export async function resetPasswordAuth(input: {
-  email: string;
+  token: string;
   password: string;
 }): Promise<AuthPasswordResetResult> {
-  const validated = validateCredentials(input);
-  if (!validated.ok) return { ok: false, status: 400, message: validated.message };
-
+  const invalid = {
+    ok: false as const,
+    status: 400,
+    message: "This reset link is invalid or expired. Request a new link.",
+  };
+  if (!/^[A-Za-z0-9_-]{43}$/.test(input.token)) return invalid;
+  if (input.password.trim().length < 8 || input.password.length > 1024) {
+    return {
+      ok: false,
+      status: 400,
+      message: "Password must be between 8 and 1024 characters.",
+    };
+  }
   const backend = await resolveAuthBackend();
+  const pepper = await resolveAuthPasswordPepper();
+  const tokenHash = await createSha256Base64(
+    "password-reset:" + input.token + ":" + pepper,
+  );
+  const passwordHash = await hashPassword(input.password);
   const now = new Date().toISOString();
-  const nextPasswordHash = await hashPassword(validated.password);
-
   if (backend.kind === "memory") {
-    const userId = memoryUserIdsByEmail.get(validated.email);
-    if (!userId) {
-      return {
-        ok: true,
-        message:
-          "If an account exists for this email, the password has been reset. Please log in again.",
-      };
-    }
-
-    const existingUser = memoryUsersById.get(userId);
-    if (!existingUser) {
-      return {
-        ok: true,
-        message:
-          "If an account exists for this email, the password has been reset. Please log in again.",
-      };
-    }
-
-    memoryUsersById.set(userId, {
-      ...existingUser,
-      passwordHash: nextPasswordHash,
-      updatedAt: now,
-    });
-    clearAuthSessionsForUserMemory(userId);
-
-    return {
-      ok: true,
-      message: "Password reset successful. Please log in with your new password.",
-    };
+    const record = Array.from(memoryPasswordResets.values()).find(
+      (entry) => entry.tokenHash === tokenHash,
+    );
+    if (!record || record.expiresAt <= now) return invalid;
+    const user = memoryUsersById.get(record.userId);
+    if (!user) return invalid;
+    // No await between consumption and mutation: concurrent attempts cannot reuse the token.
+    memoryPasswordResets.delete(user.id);
+    memoryUsersById.set(user.id, { ...user, passwordHash, updatedAt: now });
+    clearAuthSessionsForUserMemory(user.id);
+  } else {
+    // One SQL statement atomically consumes the token, updates the password, and revokes sessions.
+    const updated = await backend.db
+      .prepare(
+        "WITH consumed AS (DELETE FROM auth_password_reset_tokens WHERE token_hash = ? AND expires_at > ? RETURNING user_id), " +
+          "updated AS (UPDATE auth_users SET password_hash = ?, updated_at = ? FROM consumed WHERE auth_users.id = consumed.user_id RETURNING auth_users.id), " +
+          "revoked AS (DELETE FROM auth_sessions WHERE user_id IN (SELECT id FROM updated)) SELECT id FROM updated",
+      )
+      .bind(tokenHash, now, passwordHash, now)
+      .first<{ id: string }>();
+    if (!updated) return invalid;
   }
-
-  const user = await getAuthUserByEmailPostgres(backend.db, validated.email);
-  if (!user) {
-    return {
-      ok: true,
-      message:
-        "If an account exists for this email, the password has been reset. Please log in again.",
-    };
-  }
-
-  await backend.db
-    .prepare("UPDATE auth_users SET password_hash = ?, updated_at = ? WHERE id = ?")
-    .bind(nextPasswordHash, now, user.id)
-    .run();
-  await clearAuthSessionsForUserPostgres(backend.db, user.id);
-
   return {
     ok: true,
     message: "Password reset successful. Please log in with your new password.",
@@ -551,7 +668,9 @@ export async function resetPasswordAuth(input: {
 }
 
 export function getAuthSessionTokenFromRequest(request: Request) {
-  const token = parseCookies(request.headers.get("cookie")).get(AUTH_COOKIE_NAME)?.trim();
+  const token = parseCookies(request.headers.get("cookie"))
+    .get(AUTH_COOKIE_NAME)
+    ?.trim();
   return token || null;
 }
 
@@ -632,6 +751,7 @@ export async function signOutAuth(request: Request) {
 }
 
 export function resetAuthStoreForTests() {
+  memoryPasswordResets.clear();
   memoryUsersById.clear();
   memoryUserIdsByEmail.clear();
   memorySessionsByTokenHash.clear();

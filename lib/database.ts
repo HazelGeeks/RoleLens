@@ -15,15 +15,21 @@ export type DatabasePreparedStatementLike = {
 
 export type DatabaseLike = {
   prepare(query: string): DatabasePreparedStatementLike;
+  transaction?<T>(work: (db: DatabaseLike) => Promise<T>): Promise<T>;
 };
 
 type HyperdriveBindingLike = {
   connectionString: string;
 };
 
-function isHyperdriveBindingLike(value: unknown): value is HyperdriveBindingLike {
+function isHyperdriveBindingLike(
+  value: unknown,
+): value is HyperdriveBindingLike {
   if (!value || typeof value !== "object") return false;
-  return typeof (value as { connectionString?: unknown }).connectionString === "string";
+  return (
+    typeof (value as { connectionString?: unknown }).connectionString ===
+    "string"
+  );
 }
 
 function toPostgresParameters(
@@ -93,6 +99,19 @@ function createPostgresDatabase(connectionString: string): DatabaseLike {
   });
 
   return {
+    ...createPostgresAdapter(sql),
+    async transaction<T>(work: (db: DatabaseLike) => Promise<T>): Promise<T> {
+      return (await sql.begin((transaction) =>
+        work(createPostgresAdapter(transaction)),
+      )) as T;
+    },
+  };
+}
+
+function createPostgresAdapter(
+  sql: Pick<postgres.Sql, "unsafe">,
+): DatabaseLike {
+  return {
     prepare(query: string) {
       const normalizedQuery = normalizePostgresQuery(query);
       let values: unknown[] = [];
@@ -149,8 +168,8 @@ function getHyperdriveFromGlobalScope(bindingName: string) {
 }
 
 export async function getDatabaseFromContext(
-  bindingName =
-    process.env.PERSISTENCE_DATABASE_BINDING?.trim() || DEFAULT_HYPERDRIVE_BINDING,
+  bindingName = process.env.PERSISTENCE_DATABASE_BINDING?.trim() ||
+    DEFAULT_HYPERDRIVE_BINDING,
 ): Promise<DatabaseLike | undefined> {
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");

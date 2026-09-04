@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   createContext,
   useCallback,
   useContext,
@@ -34,19 +35,24 @@ type AuthActionResult =
 type AuthContextValue = {
   status: AuthStatus;
   user: AuthSessionUser | null;
-  signIn: (input: { email: string; password: string }) => Promise<AuthActionResult>;
+  signIn: (input: {
+    email: string;
+    password: string;
+  }) => Promise<AuthActionResult>;
   signUp: (input: {
     name: string;
     email: string;
     password: string;
   }) => Promise<AuthActionResult>;
   signOut: () => Promise<void>;
+  syncError: string | null;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [user, setUser] = useState<AuthSessionUser | null>(null);
 
   const refreshFromStorage = useCallback(() => {
@@ -55,13 +61,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus(nextUser ? "authenticated" : "guest");
   }, []);
 
+  const claimJobs = useCallback(async () => {
+    try {
+      const result = await claimLocalJobsForActiveSession();
+      setSyncError(
+        result.failed
+          ? `${result.failed} postings could not be synced. Your local copies are preserved; reload to retry.`
+          : null,
+      );
+    } catch (error) {
+      setSyncError(
+        error instanceof Error
+          ? error.message
+          : "Unable to sync saved postings. Reload to retry.",
+      );
+    }
+  }, []);
+
   useEffect(() => {
     void (async () => {
-      const syncedUser = await syncAuthSessionFromServer();
-      if (syncedUser) {
-        await claimLocalJobsForActiveSession();
+      try {
+        const syncedUser = await syncAuthSessionFromServer();
+        if (syncedUser) await claimJobs();
+      } catch {
+        setSyncError(
+          "Unable to verify your session. Reconnect and reload to retry.",
+        );
+      } finally {
+        refreshFromStorage();
       }
-      refreshFromStorage();
     })();
 
     const handleSessionUpdated = () => {
@@ -87,52 +115,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       window.removeEventListener("storage", handleStorage);
     };
-  }, [refreshFromStorage]);
+  }, [claimJobs, refreshFromStorage]);
 
-  const signIn = useCallback<AuthContextValue["signIn"]>(async (input) => {
-    const result = await signInLocalAuth(input);
-    if (result.ok) {
-      setUser(result.user);
-      setStatus("authenticated");
-      await claimLocalJobsForActiveSession();
-      return { ok: true };
-    }
+  const signIn = useCallback<AuthContextValue["signIn"]>(
+    async (input) => {
+      const result = await signInLocalAuth(input);
+      if (result.ok) {
+        setUser(result.user);
+        setStatus("authenticated");
+        await claimJobs();
+        return { ok: true };
+      }
 
-    setStatus("guest");
-    return result;
-  }, []);
+      setStatus("guest");
+      return result;
+    },
+    [claimJobs],
+  );
 
-  const signUp = useCallback<AuthContextValue["signUp"]>(async (input) => {
-    const result = await signUpLocalAuth(input);
-    if (result.ok) {
-      setUser(result.user);
-      setStatus("authenticated");
-      await claimLocalJobsForActiveSession();
-      return { ok: true };
-    }
+  const signUp = useCallback<AuthContextValue["signUp"]>(
+    async (input) => {
+      const result = await signUpLocalAuth(input);
+      if (result.ok) {
+        setUser(result.user);
+        setStatus("authenticated");
+        await claimJobs();
+        return { ok: true };
+      }
 
-    setStatus("guest");
-    return result;
-  }, []);
+      setStatus("guest");
+      return result;
+    },
+    [claimJobs],
+  );
 
   const signOut = useCallback(async () => {
-    await signOutLocalAuth();
-    setUser(null);
-    setStatus("guest");
+    try {
+      await signOutLocalAuth();
+      setUser(null);
+      setStatus("guest");
+      setSyncError(null);
+    } catch {
+      setSyncError("Unable to sign out. Check your connection and retry.");
+    }
   }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
       user,
+      syncError,
       signIn,
       signUp,
       signOut,
     }),
-    [signIn, signOut, signUp, status, user],
+    [signIn, signOut, signUp, status, user, syncError],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {syncError ? (
+        <p role="alert" className="p-3 text-sm text-red-700">
+          {syncError}
+        </p>
+      ) : null}
+      <Fragment key={user?.id ?? "guest"}>{children}</Fragment>
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

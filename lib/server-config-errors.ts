@@ -13,6 +13,12 @@ function normalizeErrorMessage(error: unknown) {
 
 export function toPublicServerError(error: unknown) {
   const message = normalizeErrorMessage(error);
+  if (message.includes("password reset email"))
+    return {
+      status: 503,
+      message:
+        "Password reset email is temporarily unavailable. Please try again later.",
+    };
 
   if (message.includes("auth_password_pepper is required in production")) {
     return {

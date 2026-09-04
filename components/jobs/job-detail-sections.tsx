@@ -121,7 +121,8 @@ export function JobOverviewCard({
   const hasSourceUrl = Boolean(job.sourceUrl);
   const hasNextAction = Boolean(nextActionInput.trim());
   const hasFollowUpDate = Boolean(followUpDateInput.trim());
-  const hasFollowUpContent = hasNextAction || hasFollowUpDate || isFollowUpOverdue;
+  const hasFollowUpContent =
+    hasNextAction || hasFollowUpDate || isFollowUpOverdue;
   const salaryRange = formatSalaryRange(job);
 
   return (
@@ -195,12 +196,17 @@ export function JobOverviewCard({
           </div>
         </div>
 
-        <div className={`${styles.panel} ${!hasFollowUpContent ? styles.compactPanel : ""}`}>
+        <div
+          className={`${styles.panel} ${!hasFollowUpContent ? styles.compactPanel : ""}`}
+        >
           <h3 className={styles.panelTitle}>Follow-up Automation</h3>
           <div className={styles.followUpGrid}>
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Next Action</label>
+              <label htmlFor="job-next-action" className={styles.label}>
+                Next Action
+              </label>
               <Textarea
+                id="job-next-action"
                 value={nextActionInput}
                 onChange={(event) => onNextActionChange(event.target.value)}
                 className={styles.followUpTextarea}
@@ -208,8 +214,11 @@ export function JobOverviewCard({
               />
             </div>
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Follow-up Date</label>
+              <label htmlFor="job-follow-up-date" className={styles.label}>
+                Follow-up Date
+              </label>
               <Input
+                id="job-follow-up-date"
                 type="date"
                 value={followUpDateInput}
                 onChange={(event) => onFollowUpDateChange(event.target.value)}
@@ -267,7 +276,9 @@ export function JobInsightCards({ job, notesCard }: JobInsightCardsProps) {
   const hasSidePanels = hasSkills || hasBreakdown || hasStatusHistory;
 
   return (
-    <div className={hasSidePanels ? styles.insightGrid : styles.singleColumnGrid}>
+    <div
+      className={hasSidePanels ? styles.insightGrid : styles.singleColumnGrid}
+    >
       <div className={styles.mainStack}>
         <Card className={`${styles.descriptionCard} space-y-2`}>
           <CardTitle>Description</CardTitle>
@@ -302,49 +313,49 @@ export function JobInsightCards({ job, notesCard }: JobInsightCardsProps) {
 
       {hasSidePanels ? (
         <div className={styles.sideStack}>
-        {hasSkills || hasBreakdown ? (
-          <Card className="space-y-2">
-            <CardTitle>Skills & Fit</CardTitle>
-            {hasSkills ? (
-              <div className={styles.skillsList}>
-                {job.extractedSkills.map((skill) => (
-                  <Badge key={skill}>{skill}</Badge>
-                ))}
-              </div>
-            ) : null}
-            {hasBreakdown && breakdown ? (
-              <div className={styles.fitGrid}>
-                {Object.entries(breakdown).map(([key, value]) => (
-                  <div key={key} className={styles.fitItem}>
-                    <p className={styles.fitKey}>{key}</p>
-                    <p className={styles.fitValue}>{value}</p>
+          {hasSkills || hasBreakdown ? (
+            <Card className="space-y-2">
+              <CardTitle>Skills & Fit</CardTitle>
+              {hasSkills ? (
+                <div className={styles.skillsList}>
+                  {job.extractedSkills.map((skill) => (
+                    <Badge key={skill}>{skill}</Badge>
+                  ))}
+                </div>
+              ) : null}
+              {hasBreakdown && breakdown ? (
+                <div className={styles.fitGrid}>
+                  {Object.entries(breakdown).map(([key, value]) => (
+                    <div key={key} className={styles.fitItem}>
+                      <p className={styles.fitKey}>{key}</p>
+                      <p className={styles.fitValue}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </Card>
+          ) : null}
+
+          {hasStatusHistory ? (
+            <Card className="space-y-2">
+              <CardTitle>Status Timeline</CardTitle>
+              <div className={styles.timeline}>
+                {job.statusHistory.slice(0, 8).map((item) => (
+                  <div key={item.id} className={styles.timelineItem}>
+                    <p className={styles.timelineStatus}>
+                      {statusLabels[item.status]}
+                    </p>
+                    <p className={styles.timelineDate}>
+                      {new Date(item.changedAt).toLocaleString()}
+                    </p>
+                    {item.note ? (
+                      <p className={styles.timelineNote}>{item.note}</p>
+                    ) : null}
                   </div>
                 ))}
               </div>
-            ) : null}
-          </Card>
-        ) : null}
-
-        {hasStatusHistory ? (
-          <Card className="space-y-2">
-            <CardTitle>Status Timeline</CardTitle>
-            <div className={styles.timeline}>
-              {job.statusHistory.slice(0, 8).map((item) => (
-                <div key={item.id} className={styles.timelineItem}>
-                  <p className={styles.timelineStatus}>
-                    {statusLabels[item.status]}
-                  </p>
-                  <p className={styles.timelineDate}>
-                    {new Date(item.changedAt).toLocaleString()}
-                  </p>
-                  {item.note ? (
-                    <p className={styles.timelineNote}>{item.note}</p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </Card>
-        ) : null}
+            </Card>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -375,8 +386,11 @@ export function JobNotesCard({
         </CardDescription>
       ) : null}
       <div className={styles.fieldGroup}>
-        <label className={styles.label}>Add Note</label>
+        <label htmlFor="job-new-note" className={styles.label}>
+          Add Note
+        </label>
         <Textarea
+          id="job-new-note"
           value={newNote}
           onChange={(event) => onNewNoteChange(event.target.value)}
           className={styles.noteTextarea}

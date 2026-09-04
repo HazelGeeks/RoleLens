@@ -61,6 +61,61 @@ Auth security:
   - In non-production local dev, if omitted, RoleLens uses a development fallback pepper and logs a warning.
 - `AUTH_BACKEND` (optional override: `memory`/`postgres`; production uses `postgres`)
 
+### Password Reset and Data Migration
+
+Before deploying this version, apply both Supabase migrations in order, including
+`supabase/migrations/20260904233000_auth_recovery_and_job_metadata.sql`.
+The new migration adds `persistent_jobs.meta_json` and `auth_password_reset_tokens`.
+The deploy scripts do not apply database migrations automatically. If the initial
+migration is already applied, run only the new migration before deploying the app.
+
+Password reset now has two separate endpoints:
+
+- `POST /api/auth/request-password-reset` accepts `{ "email": "..." }` and emails a link.
+- `POST /api/auth/reset-password` accepts `{ "token": "...", "password": "..." }`.
+  Email/password-only requests are rejected.
+
+Recovery tokens expire in 15 minutes, are stored only as hashes, and can be redeemed
+once. Redemption and session revocation happen atomically in Postgres. Requests for
+the same account are limited to one email per minute. The request response does not
+reveal whether the account exists. A failed delivery invalidates the new token.
+
+Email recovery is optional and disabled until delivery is configured. Without a sender
+domain, the recovery screen displays an unavailable message and disables new email
+requests. The old email/password-only reset remains blocked. Other features do not
+require an email provider. Resend is not used by this integration.
+
+Email setup (only when enabling recovery):
+
+1. Onboard the sender domain to Cloudflare Email Sending.
+2. Set `AUTH_EMAIL_FROM` to an address on that verified domain.
+3. Set `AUTH_PUBLIC_URL` to the public HTTPS origin of RoleLens.
+4. Uncomment the optional `AUTH_EMAIL` send-email binding in `wrangler.toml` and deploy.
+
+See the [Cloudflare Workers email API](https://developers.cloudflare.com/email-service/api/send-emails/workers-api/).
+Without valid delivery configuration, requests fail closed with HTTP 503. No recovery
+token is returned by the API or written to application logs. Tests mock delivery;
+production mail delivery must be verified with a controlled inbox after setup.
+
+Browser job caches now use `rolelens.jobs.v2:account:<user-id>` and a separate
+`rolelens.jobs.v2:guest` key. Logout switches away from the account cache; it does not
+turn account records into guest records. In-flight requests cannot write to another
+account after a session switch. New guest drafts are transferred once after a
+successful account sync.
+
+The old `rolelens.jobs.v1` shared cache is retained without modification. Only records
+whose persistent IDs are confirmed by the signed-in account's API response are
+recovered automatically. Ambiguous records remain in the old key for manual recovery;
+they are never silently assigned to the next account. Already-lost descriptions or
+notes cannot be reconstructed unless an old browser cache still contains them.
+
+Job metadata (description, salary, source, work type, skills, score, publication date,
+and status history) and initial notes now persist in the database. Existing owned
+records are backfilled from their local cache when metadata is missing. Legacy notes
+are imported idempotently. Clearing optional update fields uses explicit `null`;
+omitting a field leaves its value unchanged. Failed edits preserve drafts and show an
+error with an explicit retry action, including version conflicts.
+
 ### Postgres Feed Refresh
 
 The app does not run Python inside Cloudflare Workers. Instead, `.github/workflows/daily-feed-sync.yml` runs the Python scraper on a schedule, uploads the generated JSON as a short-lived artifact, POSTs it to `/api/jobs/ingest`, then calls `/api/jobs/cron` to warm the cache from the new Postgres snapshot.
@@ -111,6 +166,7 @@ If you see "No valid feed source is configured", run this checklist:
 5. Open Jobs page and run `Sync All Feeds` (or a platform-specific sync button) again.
 
 Notes:
+
 - Do not use comma-only or whitespace-only values (for example: `, ,`).
 - API diagnostics never return raw secret values; only counts/booleans are exposed.
 

@@ -1,5 +1,11 @@
 import {
+  assertJobsStorageScope,
+  getJobsStorageKey,
+  GUEST_JOBS_STORAGE_KEY,
+} from "@/lib/job-cache-scope";
+import {
   getJobsFromStorage,
+  LEGACY_JOBS_STORAGE_KEY,
   saveJobsToStorage,
   type LocalJobPosting,
 } from "@/lib/local-jobs";
@@ -7,6 +13,7 @@ import type {
   CreatePersistentJobInput,
   PersistentJob,
   PersistentJobPatch,
+  PersistentJobMeta,
 } from "@/lib/persistence/types";
 import { getActiveAuthSessionUserId } from "@/lib/auth-client";
 
@@ -20,11 +27,41 @@ export type LocalJobsClaimedDetail = {
   failed: number;
 };
 
+async function fetchPersistence(input: string, init: RequestInit) {
+  const scope = getJobsStorageKey();
+  const response = await fetch(input, init);
+  assertJobsStorageScope(scope);
+  return response;
+}
+
+export function toPersistentJobMeta(job: LocalJobPosting): PersistentJobMeta {
+  return {
+    source: job.source,
+    remoteType: job.remoteType,
+    employmentType: job.employmentType,
+    salaryMin: job.salaryMin,
+    salaryMax: job.salaryMax,
+    salaryCurrency: job.salaryCurrency,
+    seniority: job.seniority,
+    workAuthorizationNote: job.workAuthorizationNote,
+    descriptionRaw: job.descriptionRaw,
+    extractedSkills: job.extractedSkills,
+    fitScore: job.fitScore,
+    fitBreakdown: job.fitBreakdown,
+    statusHistory: job.statusHistory,
+    publishedAt: job.publishedAt,
+    lastStatusChangedAt: job.lastStatusChangedAt,
+  };
+}
+
 function normalizeKey(value: string) {
   return value.trim().toLowerCase();
 }
 
-function createFallbackHistory(status: LocalJobPosting["status"], changedAt: string) {
+function createFallbackHistory(
+  status: LocalJobPosting["status"],
+  changedAt: string,
+) {
   return [
     {
       id: crypto.randomUUID(),
@@ -118,6 +155,10 @@ function findMatchingPersistentJob(
 
 async function ensureOkResponse(response: Response) {
   if (response.ok) return;
+  if (response.status === 409)
+    throw new Error(
+      "This posting changed on another device. Review the latest version and retry your change.",
+    );
 
   let details = "";
   try {
@@ -146,35 +187,49 @@ export function toLocalJobFromPersistent(
     createdAt: note.createdAt,
   }));
 
+  for (const note of existing?.notes ?? []) {
+    if (
+      !notes.some(
+        (saved) =>
+          saved.id === note.id ||
+          saved.id === `${job.id}:${note.id}` ||
+          (saved.content === note.content &&
+            saved.createdAt === note.createdAt),
+      )
+    )
+      notes.push(note);
+  }
+  const meta =
+    job.meta ?? (existing ? toPersistentJobMeta(existing) : undefined);
   const merged: LocalJobPosting = {
     id: fallbackId,
     persistentId: job.id,
-    source: existing?.source ?? "MANUAL",
-    sourceUrl: job.sourceUrl || existing?.sourceUrl,
+    source: meta?.source ?? "MANUAL",
+    sourceUrl: job.sourceUrl,
     company: job.company,
     title: job.title,
-    location: job.location || existing?.location,
-    remoteType: existing?.remoteType ?? "UNKNOWN",
-    employmentType: existing?.employmentType,
-    salaryMin: existing?.salaryMin,
-    salaryMax: existing?.salaryMax,
-    salaryCurrency: existing?.salaryCurrency,
-    seniority: existing?.seniority,
-    workAuthorizationNote: existing?.workAuthorizationNote,
-    descriptionRaw: existing?.descriptionRaw || "",
-    extractedSkills: existing?.extractedSkills || [],
-    fitScore: existing?.fitScore ?? 0,
-    fitBreakdown: existing?.fitBreakdown,
+    location: job.location,
+    remoteType: meta?.remoteType ?? "UNKNOWN",
+    employmentType: meta?.employmentType,
+    salaryMin: meta?.salaryMin,
+    salaryMax: meta?.salaryMax,
+    salaryCurrency: meta?.salaryCurrency,
+    seniority: meta?.seniority,
+    workAuthorizationNote: meta?.workAuthorizationNote,
+    descriptionRaw: meta?.descriptionRaw || "",
+    extractedSkills: meta?.extractedSkills || [],
+    fitScore: meta?.fitScore ?? 0,
+    fitBreakdown: meta?.fitBreakdown,
     status: job.status,
     nextAction: job.nextAction,
     followUpDate: job.followUpDate,
-    publishedAt: existing?.publishedAt,
-    lastStatusChangedAt: existing?.lastStatusChangedAt || job.updatedAt,
+    publishedAt: meta?.publishedAt,
+    lastStatusChangedAt: meta?.lastStatusChangedAt || job.updatedAt,
     statusHistory:
-      existing?.statusHistory && existing.statusHistory.length > 0
-        ? existing.statusHistory
+      meta?.statusHistory && meta.statusHistory.length > 0
+        ? meta.statusHistory
         : createFallbackHistory(job.status, job.createdAt),
-    tags: Array.from(new Set([...(existing?.tags || []), ...job.tags])),
+    tags: job.tags,
     notes,
     createdAt: existing?.createdAt || job.createdAt,
     updatedAt: job.updatedAt,
@@ -221,7 +276,11 @@ export function mergeLocalWithPersistent(
       existingByPersistentId || existingBySourceUrl || existingByMeta;
     if (existing) consumedLocalIds.add(existing.id);
 
-    const mapped = toLocalJobFromPersistent(persistent, existing);
+    const mapped =
+      existing?.persistentId === persistent.id &&
+      (existing.persistentVersion ?? 0) > persistent.version
+        ? existing
+        : toLocalJobFromPersistent(persistent, existing);
     merged.set(mapped.id, mapped);
   }
 
@@ -236,7 +295,8 @@ export function mergeLocalWithPersistent(
 }
 
 export async function listPersistentJobsClient() {
-  const response = await fetch("/api/jobs", {
+  const scope = getJobsStorageKey();
+  const response = await fetchPersistence("/api/jobs", {
     method: "GET",
     cache: "no-store",
     headers: buildPersistenceHeaders(),
@@ -246,16 +306,21 @@ export async function listPersistentJobsClient() {
     ok: boolean;
     jobs: PersistentJob[];
   };
+  assertJobsStorageScope(scope);
 
   return Array.isArray(payload.jobs) ? payload.jobs : [];
 }
 
 export async function getPersistentJobClient(jobId: string) {
-  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/`, {
-    method: "GET",
-    cache: "no-store",
-    headers: buildPersistenceHeaders(),
-  });
+  const scope = getJobsStorageKey();
+  const response = await fetchPersistence(
+    `/api/jobs/${encodeURIComponent(jobId)}/`,
+    {
+      method: "GET",
+      cache: "no-store",
+      headers: buildPersistenceHeaders(),
+    },
+  );
 
   if (response.status === 404) return null;
 
@@ -264,6 +329,7 @@ export async function getPersistentJobClient(jobId: string) {
     ok: boolean;
     job: PersistentJob;
   };
+  assertJobsStorageScope(scope);
 
   return payload.job;
 }
@@ -283,18 +349,27 @@ function toPersistentCreateInput(
     nextAction: job.nextAction,
     followUpDate: job.followUpDate,
     tags: job.tags,
+    meta: toPersistentJobMeta(job),
+    initialNotes: job.notes,
     clientRequestId: options?.clientRequestId ?? `local-job:${job.id}`,
   };
 }
 
-export async function createPersistentJobClient(input: CreatePersistentJobInput) {
-  const response = await fetch("/api/jobs", {
+export async function createPersistentJobClient(
+  input: CreatePersistentJobInput,
+) {
+  const scope = getJobsStorageKey();
+  const response = await fetchPersistence("/api/jobs", {
     method: "POST",
     headers: buildPersistenceHeaders(),
     body: JSON.stringify(input),
   });
   await ensureOkResponse(response);
-  const payload = (await response.json()) as { ok: boolean; job: PersistentJob };
+  const payload = (await response.json()) as {
+    ok: boolean;
+    job: PersistentJob;
+  };
+  assertJobsStorageScope(scope);
   return payload.job;
 }
 
@@ -302,13 +377,21 @@ export async function patchPersistentJobClient(
   jobId: string,
   patch: PersistentJobPatch,
 ) {
-  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/`, {
-    method: "PATCH",
-    headers: buildPersistenceHeaders(),
-    body: JSON.stringify(patch),
-  });
+  const scope = getJobsStorageKey();
+  const response = await fetchPersistence(
+    `/api/jobs/${encodeURIComponent(jobId)}/`,
+    {
+      method: "PATCH",
+      headers: buildPersistenceHeaders(),
+      body: JSON.stringify(patch),
+    },
+  );
   await ensureOkResponse(response);
-  const payload = (await response.json()) as { ok: boolean; job: PersistentJob };
+  const payload = (await response.json()) as {
+    ok: boolean;
+    job: PersistentJob;
+  };
+  assertJobsStorageScope(scope);
   return payload.job;
 }
 
@@ -322,7 +405,9 @@ function buildUpdatePatch(
     changes: {},
   };
 
-  const setIfDifferent = <K extends keyof Extract<PersistentJobPatch, { op: "update" }>["changes"]>(
+  const setIfDifferent = <
+    K extends keyof Extract<PersistentJobPatch, { op: "update" }>["changes"],
+  >(
     key: K,
     nextValue: Extract<PersistentJobPatch, { op: "update" }>["changes"][K],
     baseValue: Extract<PersistentJobPatch, { op: "update" }>["changes"][K],
@@ -334,10 +419,22 @@ function buildUpdatePatch(
 
   setIfDifferent("company", job.company, base?.company);
   setIfDifferent("title", job.title, base?.title);
-  setIfDifferent("location", job.location, base?.location);
-  setIfDifferent("sourceUrl", job.sourceUrl, base?.sourceUrl);
-  setIfDifferent("nextAction", job.nextAction, base?.nextAction);
-  setIfDifferent("followUpDate", job.followUpDate, base?.followUpDate);
+  setIfDifferent("location", job.location ?? null, base?.location ?? null);
+  setIfDifferent("sourceUrl", job.sourceUrl ?? null, base?.sourceUrl ?? null);
+  setIfDifferent(
+    "nextAction",
+    job.nextAction ?? null,
+    base?.nextAction ?? null,
+  );
+  setIfDifferent(
+    "followUpDate",
+    job.followUpDate ?? null,
+    base?.followUpDate ?? null,
+  );
+
+  const meta = toPersistentJobMeta(job);
+  if (JSON.stringify(meta) !== JSON.stringify(base?.meta))
+    patch.changes.meta = meta;
 
   const baseTags = base?.tags || [];
   if (!sameTags(baseTags, job.tags)) {
@@ -392,72 +489,104 @@ export async function mirrorLocalJobToPersistence(
 }
 
 export async function claimLocalJobsForActiveSession() {
-  if (!getActiveAuthSessionUserId()) {
-    return {
-      claimed: 0,
-      failed: 0,
-    };
-  }
-
-  const localJobs = getJobsFromStorage();
-  if (localJobs.length === 0) {
-    return {
-      claimed: 0,
-      failed: 0,
-    };
-  }
-
+  const userId = getActiveAuthSessionUserId();
+  if (!userId) return { claimed: 0, failed: 0 };
+  const scope = getJobsStorageKey();
+  // A failed list is not evidence that the account is empty.
+  const persistentJobs = await listPersistentJobsClient();
+  assertJobsStorageScope(scope);
+  const ownedIds = new Set(persistentJobs.map((job) => job.id));
+  const legacy = getJobsFromStorage(LEGACY_JOBS_STORAGE_KEY).filter(
+    (job) => job.persistentId && ownedIds.has(job.persistentId),
+  );
+  const guestJobs = getJobsFromStorage(GUEST_JOBS_STORAGE_KEY);
+  const localJobs = Array.from(
+    new Map(
+      [
+        ...legacy,
+        ...guestJobs.map((job) => ({
+          ...job,
+          persistentId: undefined,
+          persistentVersion: undefined,
+        })),
+        ...getJobsFromStorage(),
+      ].map((job) => [job.id, job]),
+    ).values(),
+  );
   const nextJobs = new Map(localJobs.map((job) => [job.id, job]));
-  let persistentJobs: PersistentJob[] = [];
+  const claimedGuestIds = new Set<string>();
   let claimed = 0;
   let failed = 0;
-
-  try {
-    persistentJobs = await listPersistentJobsClient();
-  } catch {
-    persistentJobs = [];
-  }
-
   for (const job of localJobs) {
+    assertJobsStorageScope(scope);
     try {
-      const existingPersistent = findMatchingPersistentJob(job, persistentJobs);
-      if (existingPersistent) {
-        nextJobs.set(job.id, toLocalJobFromPersistent(existingPersistent, job));
-        claimed += 1;
-        continue;
+      let persistent = findMatchingPersistentJob(job, persistentJobs);
+      if (persistent) {
+        // Backfill legacy detail without replacing newer server-side tracking fields.
+        if (!persistent.meta)
+          persistent = await patchPersistentJobClient(persistent.id, {
+            op: "update",
+            expectedVersion: persistent.version,
+            changes: { meta: toPersistentJobMeta(job) },
+          });
+        const missingNotes = job.notes.filter(
+          (note) =>
+            !persistent!.notes.some(
+              (saved) =>
+                saved.id === note.id ||
+                saved.id === `${persistent!.id}:${note.id}` ||
+                (saved.content === note.content &&
+                  saved.createdAt === note.createdAt),
+            ),
+        );
+        if (missingNotes.length)
+          persistent = await patchPersistentJobClient(persistent.id, {
+            op: "import-notes",
+            expectedVersion: persistent.version,
+            notes: missingNotes,
+          });
+      } else {
+        persistent = await mirrorLocalJobToPersistence(
+          { ...job, persistentId: undefined, persistentVersion: undefined },
+          {
+            clientRequestId: `account-claim:${job.id}`,
+          },
+        );
+        persistentJobs.push(persistent);
       }
-
-      const portableJob = {
-        ...job,
-        persistentId: undefined,
-        persistentVersion: undefined,
-      };
-      const persistent = await mirrorLocalJobToPersistence(portableJob, {
-        clientRequestId: `account-claim:${job.id}`,
-      });
-      persistentJobs = [persistent, ...persistentJobs];
+      assertJobsStorageScope(scope);
+      const persistentIndex = persistentJobs.findIndex(
+        (entry) => entry.id === persistent.id,
+      );
+      if (persistentIndex >= 0) persistentJobs[persistentIndex] = persistent;
       nextJobs.set(job.id, toLocalJobFromPersistent(persistent, job));
+      claimedGuestIds.add(job.id);
       claimed += 1;
     } catch {
+      assertJobsStorageScope(scope);
       failed += 1;
     }
   }
-
-  saveJobsToStorage(Array.from(nextJobs.values()), "sync");
-
-  if (typeof window !== "undefined" && (claimed > 0 || failed > 0)) {
+  assertJobsStorageScope(scope);
+  // Retain any local records created while the claim was in flight.
+  const latest = new Map(getJobsFromStorage().map((job) => [job.id, job]));
+  for (const [id, job] of nextJobs) {
+    const original = localJobs.find((entry) => entry.id === id);
+    if (!latest.has(id) || latest.get(id)?.updatedAt === original?.updatedAt)
+      latest.set(id, job);
+  }
+  saveJobsToStorage(
+    mergeLocalWithPersistent(Array.from(latest.values()), persistentJobs),
+  );
+  const remainingGuests = getJobsFromStorage(GUEST_JOBS_STORAGE_KEY).filter(
+    (job) => !claimedGuestIds.has(job.id),
+  );
+  saveJobsToStorage(remainingGuests, "sync", GUEST_JOBS_STORAGE_KEY);
+  if (typeof window !== "undefined" && (claimed || failed))
     window.dispatchEvent(
       new CustomEvent<LocalJobsClaimedDetail>(LOCAL_JOBS_CLAIMED_EVENT, {
-        detail: {
-          claimed,
-          failed,
-        },
+        detail: { claimed, failed },
       }),
     );
-  }
-
-  return {
-    claimed,
-    failed,
-  };
+  return { claimed, failed };
 }

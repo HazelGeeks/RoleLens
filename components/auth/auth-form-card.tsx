@@ -19,6 +19,7 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordReset, setPasswordReset] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -48,6 +49,16 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
       router.replace("/dashboard");
     }
   }, [router, status, user]);
+
+  useEffect(() => {
+    if (
+      isLogin &&
+      new URLSearchParams(window.location.search).get("passwordReset") === "1"
+    ) {
+      setPasswordReset(true);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [isLogin]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -96,6 +107,14 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
 
       <Card>
         <CardTitle>{submitLabel}</CardTitle>
+        {passwordReset ? (
+          <p
+            role="status"
+            className="mb-4 text-sm text-green-700 dark:text-green-300"
+          >
+            Password reset successful. Please log in with your new password.
+          </p>
+        ) : null}
 
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
           {!isLogin ? (
@@ -172,7 +191,10 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
       </Card>
 
       <p className="text-sm text-slate-500">
-        <Link href={alternateCta.href} className="font-medium text-blue-600 hover:underline">
+        <Link
+          href={alternateCta.href}
+          className="font-medium text-blue-600 hover:underline"
+        >
           {alternateCta.text}
         </Link>
       </p>

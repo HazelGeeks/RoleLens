@@ -7,9 +7,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "."),
     },
   },
+  esbuild: { jsx: "automatic" },
   test: {
     environment: "node",
-    include: ["**/*.test.ts"],
+    include: ["**/*.test.{ts,tsx}"],
     globals: true,
   },
 });

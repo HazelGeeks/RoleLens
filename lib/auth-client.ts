@@ -1,3 +1,5 @@
+import { AUTH_SESSION_STORAGE_KEY } from "@/lib/job-cache-scope";
+export { AUTH_SESSION_STORAGE_KEY } from "@/lib/job-cache-scope";
 export type AuthSessionUser = {
   id: string;
   email: string;
@@ -31,7 +33,6 @@ export type AuthMessageResult =
       message: string;
     };
 
-export const AUTH_SESSION_STORAGE_KEY = "rolelens.auth.session.v1";
 export const AUTH_SESSION_UPDATED_EVENT = "rolelens:auth-session-updated";
 
 function parseJson(raw: string | null): unknown {
@@ -67,7 +68,9 @@ function parseSessionUser(value: unknown): AuthSessionUser | null {
 function readSession(): AuthSession | null {
   if (typeof window === "undefined") return null;
 
-  const parsed = parseJson(window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY));
+  const parsed = parseJson(
+    window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY),
+  );
   if (!parsed || typeof parsed !== "object") return null;
 
   const record = parsed as { user?: unknown };
@@ -83,7 +86,10 @@ function writeSessionUser(user: AuthSessionUser | null) {
   if (!user) {
     window.localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
   } else {
-    window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify({ user }));
+    window.localStorage.setItem(
+      AUTH_SESSION_STORAGE_KEY,
+      JSON.stringify({ user }),
+    );
   }
 
   window.dispatchEvent(new CustomEvent(AUTH_SESSION_UPDATED_EVENT));
@@ -95,7 +101,9 @@ function getApiErrorMessage(payload: unknown) {
   return typeof maybeMessage === "string" ? maybeMessage : null;
 }
 
-async function parseAuthResponse(response: Response): Promise<AuthOperationResult> {
+async function parseAuthResponse(
+  response: Response,
+): Promise<AuthOperationResult> {
   const payload = (await response.json().catch(() => null)) as unknown;
 
   if (!response.ok) {
@@ -135,6 +143,9 @@ export async function syncAuthSessionFromServer() {
     method: "GET",
     cache: "no-store",
     credentials: "include",
+  }).catch((error: unknown) => {
+    writeSessionUser(null);
+    throw error;
   });
 
   if (!response.ok) {
@@ -142,7 +153,9 @@ export async function syncAuthSessionFromServer() {
     return null;
   }
 
-  const payload = (await response.json().catch(() => null)) as { user?: unknown } | null;
+  const payload = (await response.json().catch(() => null)) as {
+    user?: unknown;
+  } | null;
   const user = parseSessionUser(payload?.user);
   writeSessionUser(user);
   return user;
@@ -189,16 +202,17 @@ export async function signInLocalAuth(input: {
 }
 
 export async function signOutLocalAuth() {
-  await fetch("/api/auth/logout", {
+  const response = await fetch("/api/auth/logout", {
     method: "POST",
     credentials: "include",
-  }).catch(() => null);
+  });
+  if (!response.ok) throw new Error("Unable to log out. Please retry.");
 
   writeSessionUser(null);
 }
 
 export async function resetPasswordLocalAuth(input: {
-  email: string;
+  token: string;
   password: string;
 }): Promise<AuthMessageResult> {
   const response = await fetch("/api/auth/reset-password", {
@@ -208,7 +222,7 @@ export async function resetPasswordLocalAuth(input: {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      email: input.email,
+      token: input.token,
       password: input.password,
     }),
   });
@@ -223,9 +237,28 @@ export async function resetPasswordLocalAuth(input: {
     };
   }
 
+  writeSessionUser(null);
   return {
     ok: true,
     message:
       messageFromApi || "Password reset successful. Please log in again.",
+  };
+}
+
+export async function requestPasswordResetLocalAuth(
+  email: string,
+): Promise<AuthMessageResult> {
+  const response = await fetch("/api/auth/request-password-reset", {
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const payload: unknown = await response.json().catch(() => null);
+  return {
+    ok: response.ok,
+    message:
+      getApiErrorMessage(payload) ||
+      "Unable to request a reset link. Please retry.",
   };
 }

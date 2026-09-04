@@ -30,19 +30,20 @@ describe("auth client API session cache", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            ok: true,
-            user: {
-              id: "user-1",
-              name: "Sungjun",
-              email: "sungjun@example.com",
-              createdAt: "2026-01-01T00:00:00.000Z",
-            },
-          }),
-          { status: 201, headers: { "content-type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              ok: true,
+              user: {
+                id: "user-1",
+                name: "Sungjun",
+                email: "sungjun@example.com",
+                createdAt: "2026-01-01T00:00:00.000Z",
+              },
+            }),
+            { status: 201, headers: { "content-type": "application/json" } },
+          ),
       ),
     );
 
@@ -54,7 +55,9 @@ describe("auth client API session cache", () => {
 
     expect(result.ok).toBe(true);
     expect(getActiveAuthSessionUser()?.email).toBe("sungjun@example.com");
-    expect(localStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toContain("sungjun@example.com");
+    expect(localStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toContain(
+      "sungjun@example.com",
+    );
   });
 
   it("returns API error message for failed login", async () => {
@@ -62,11 +65,12 @@ describe("auth client API session cache", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({ ok: false, message: "Incorrect password." }),
-          { status: 401, headers: { "content-type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ ok: false, message: "Incorrect password." }),
+            { status: 401, headers: { "content-type": "application/json" } },
+          ),
       ),
     );
 
@@ -86,19 +90,20 @@ describe("auth client API session cache", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            ok: true,
-            user: {
-              id: "user-2",
-              name: "RoleLens User",
-              email: "user@example.com",
-              createdAt: "2026-01-01T00:00:00.000Z",
-            },
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              ok: true,
+              user: {
+                id: "user-2",
+                name: "RoleLens User",
+                email: "user@example.com",
+                createdAt: "2026-01-01T00:00:00.000Z",
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
       ),
     );
 
@@ -153,19 +158,21 @@ describe("auth client API session cache", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            ok: true,
-            message: "Password reset successful. Please log in with your new password.",
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              ok: true,
+              message:
+                "Password reset successful. Please log in with your new password.",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
       ),
     );
 
     const result = await resetPasswordLocalAuth({
-      email: "sungjun@example.com",
+      token: "a".repeat(43),
       password: "new-password123",
     });
 

@@ -5,46 +5,51 @@ It is intentionally explicit so agents can act with minimal back-and-forth.
 
 ## 1) Repository Snapshot
 
-- Workspace root: `/Users/sungjun/RoleLens`
-- Git repository: yes
-- Current tracked source files: none detected at authoring time
-- Existing build/test config files: none detected (`package.json`, `pyproject.toml`, `Cargo.toml`, `Makefile` not found)
-- Existing top-level docs: none detected (`README*` not found)
-
-Because the repo is effectively empty right now, this document includes:
-- What is true today (no runnable build/lint/test commands yet)
-- Standard command patterns to use once tooling is introduced
-- Style and engineering conventions agents should follow when adding code
+- Git repository: Next.js 16 App Router, TypeScript, React, Mantine.
+- Production: Cloudflare Workers through OpenNext; Supabase Postgres via Hyperdrive.
+- Local development: memory persistence/auth fallback when no database is configured.
+- Main source directories: `app/`, `components/`, `lib/`.
+- Database migrations: `supabase/migrations/` (apply new migrations before deployment).
+- Tests: Vitest, React Testing Library for UI, PGlite for Postgres SQL integration.
 
 ## 2) Cursor/Copilot Rule Files
 
 Checked locations:
+
 - `.cursorrules`
 - `.cursor/rules/`
 - `.github/copilot-instructions.md`
 
 Result:
+
 - No Cursor or Copilot rule files were found at authoring time.
 
 Agent policy:
+
 - If any of these files appear later, treat them as higher-priority repository instructions.
 - Update this `AGENTS.md` to reflect newly added rules.
 
 ## 3) Build, Lint, and Test Commands
 
-## Current State (Important)
+## Current Commands
 
-There are no project commands to run yet because no build tool or test framework is configured.
+- Build: `npm run build`
+- Lint: `npm run lint`
+- Test all: `npm test`
+- Single test: `npm test -- path/to/file.test.ts`
+- Verify: `npm run verify` (lint and tests)
+- Type check: `npx tsc --noEmit`
+- Format changed files: `npx prettier --write <files>`
+- Worker build: `npm run cf:build`
+- Generate runtime types: `npm run cf-typegen`
 
-At this moment:
-- Build command: not defined
-- Lint command: not defined
-- Test command: not defined
-- Single-test command: not defined
+Tests mock email delivery and use an isolated in-process Postgres engine. They do not
+send email or access production data. Never use real recovery tokens in test fixtures.
 
 ## Command Discovery Order (When Files Are Added)
 
 When the repo gains source code, detect commands in this order:
+
 1. `README*` instructions
 2. `Makefile` targets
 3. Language/tool manifest scripts
@@ -53,6 +58,7 @@ When the repo gains source code, detect commands in this order:
 ## Standard Commands by Ecosystem (Use Only If Present)
 
 Node.js (npm):
+
 - Build: `npm run build`
 - Lint: `npm run lint`
 - Test all: `npm test`
@@ -61,6 +67,7 @@ Node.js (npm):
 - Vitest single test file: `npm test -- path/to/test.file`
 
 Node.js (pnpm):
+
 - Build: `pnpm build`
 - Lint: `pnpm lint`
 - Test all: `pnpm test`
@@ -68,6 +75,7 @@ Node.js (pnpm):
 - Vitest test name: `pnpm vitest -t "test name"`
 
 Python (pytest):
+
 - Lint (ruff): `ruff check .`
 - Format (black): `black .`
 - Test all: `pytest`
@@ -76,6 +84,7 @@ Python (pytest):
 - Single test by keyword: `pytest -k "keyword"`
 
 Go:
+
 - Build: `go build ./...`
 - Lint (if golangci): `golangci-lint run`
 - Test all: `go test ./...`
@@ -83,6 +92,7 @@ Go:
 - Single test name: `go test ./path/to/pkg -run TestName`
 
 Rust:
+
 - Build: `cargo build`
 - Lint: `cargo clippy --all-targets --all-features -D warnings`
 - Test all: `cargo test`
@@ -98,7 +108,7 @@ Rust:
 
 ## 4) Code Style and Engineering Guidelines
 
-These conventions apply until language-specific standards are added.
+Follow the existing TypeScript conventions and format changed files with Prettier.
 
 ## Formatting and Structure
 
@@ -180,14 +190,17 @@ These conventions apply until language-specific standards are added.
 ## 6) Agent Behavior Checklist
 
 Before editing:
+
 - Inspect existing conventions in nearby files.
 - Locate and follow any newly added Cursor/Copilot rule files.
 
 During editing:
+
 - Make the minimal change that fully solves the task.
 - Preserve backward compatibility unless a breaking change is requested.
 
 Before handoff:
+
 - Report what changed and why.
 - List commands run and their outcomes.
 - If no tests were run, state why and provide the exact command to run.

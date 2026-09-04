@@ -1,14 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { statusOptions } from "@/lib/constants";
-import {
-  addNote as addLocalNote,
-  updateFollowUp as updateLocalFollowUp,
-  updateStatus as updateLocalStatus,
-  upsertJob,
-} from "@/lib/local-jobs";
+import { upsertJob, getJobById } from "@/lib/local-jobs";
 import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
 import {
   isPersistenceNotFoundError,
@@ -36,10 +31,24 @@ export function JobDetailClient() {
   const [newNote, setNewNote] = useState("");
   const [nextActionInput, setNextActionInput] = useState("");
   const [followUpDateInput, setFollowUpDateInput] = useState("");
+  const isSaving = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const currentDraft = useRef({ newNote, nextActionInput, followUpDateInput });
+  const noteRequest = useRef<{
+    id: string;
+    content: string;
+    createdAt: string;
+  } | null>(null);
+  useEffect(() => {
+    currentDraft.current = { newNote, nextActionInput, followUpDateInput };
+  }, [newNote, nextActionInput, followUpDateInput]);
+  const retryAction = useRef<(() => Promise<void>) | null>(null);
+  const initializedJobId = useRef<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!job) return;
+    if (!job || initializedJobId.current === job.id) return;
+    initializedJobId.current = job.id;
     setNextActionInput(job.nextAction || "");
     setFollowUpDateInput(job.followUpDate || "");
   }, [job]);
@@ -50,9 +59,7 @@ export function JobDetailClient() {
 
   const today = new Date().toISOString().slice(0, 10);
   const isFollowUpOverdue =
-    !!job.followUpDate &&
-    job.followUpDate <= today &&
-    job.status !== "ARCHIVE";
+    !!job.followUpDate && job.followUpDate <= today && job.status !== "ARCHIVE";
 
   const setFollowUpAfterDays = (days: number) => {
     const date = new Date();
@@ -80,10 +87,11 @@ export function JobDetailClient() {
   };
 
   const ensurePersistentJob = async () => {
-    if (job.persistentId) {
+    const latest = getJobById(job.id) ?? job;
+    if (latest.persistentId) {
       return {
-        id: job.persistentId,
-        version: job.persistentVersion,
+        id: latest.persistentId,
+        version: latest.persistentVersion,
       };
     }
 
@@ -91,7 +99,9 @@ export function JobDetailClient() {
   };
 
   const patchPersistentJobWithRecovery = async (
-    buildPatch: (expectedVersion: number | undefined) => Parameters<typeof patchPersistentJobClient>[1],
+    buildPatch: (
+      expectedVersion: number | undefined,
+    ) => Parameters<typeof patchPersistentJobClient>[1],
   ) => {
     const persistent = await ensurePersistentJob();
 
@@ -113,87 +123,81 @@ export function JobDetailClient() {
     }
   };
 
-  const saveStatus = async (nextStatus: (typeof statusOptions)[number]) => {
+  const runAction = async (action: () => Promise<void>) => {
+    if (isSaving.current) return;
+    isSaving.current = true;
+    setSaving(true);
     setActionError(null);
-    updateLocalStatus(job.id, nextStatus);
-    await refreshJobs();
-
+    retryAction.current = action;
     try {
-      const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
-        op: "status",
-        expectedVersion,
-        status: nextStatus,
-      }));
-
-      upsertJob(toLocalJobFromPersistent(updated, job));
+      await action();
+      retryAction.current = null;
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save. Please retry.",
+      );
+      // Fetch the current version for an explicit retry; keep the user's draft inputs.
       await refreshJobs();
-    } catch {
-      await refreshJobs();
+    } finally {
+      isSaving.current = false;
+      setSaving(false);
     }
+  };
+
+  const saveStatus = async (nextStatus: (typeof statusOptions)[number]) => {
+    const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
+      op: "status",
+      expectedVersion,
+      status: nextStatus,
+    }));
+    upsertJob(toLocalJobFromPersistent(updated, job));
   };
 
   const saveFollowUp = async () => {
-    setActionError(null);
-    const nextAction = nextActionInput.trim() || undefined;
-    const followUpDate = followUpDateInput.trim() || undefined;
-    updateLocalFollowUp(job.id, {
-      nextAction,
-      followUpDate,
-    });
-    await refreshJobs();
-
-    try {
-      const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
-        op: "update",
-        expectedVersion,
-        changes: {
-          nextAction,
-          followUpDate,
-        },
-      }));
-
-      upsertJob(toLocalJobFromPersistent(updated, job));
-      await refreshJobs();
-    } catch {
-      await refreshJobs();
-    }
+    const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
+      op: "update",
+      expectedVersion,
+      changes: {
+        nextAction: currentDraft.current.nextActionInput.trim() || null,
+        followUpDate: currentDraft.current.followUpDateInput.trim() || null,
+      },
+    }));
+    upsertJob(toLocalJobFromPersistent(updated, job));
   };
 
   const addNewNote = async () => {
-    if (!newNote.trim()) return;
-    setActionError(null);
-    const content = newNote.trim();
-    addLocalNote(job.id, content);
-    setNewNote("");
-    await refreshJobs();
-
-    try {
-      const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
-        op: "note",
-        expectedVersion,
+    const content = currentDraft.current.newNote.trim();
+    if (!content) return;
+    if (noteRequest.current?.content !== content)
+      noteRequest.current = {
+        id: crypto.randomUUID(),
         content,
-      }));
-
-      upsertJob(toLocalJobFromPersistent(updated, job));
-      await refreshJobs();
-    } catch {
-      await refreshJobs();
-    }
+        createdAt: new Date().toISOString(),
+      };
+    const note = noteRequest.current;
+    const updated = await patchPersistentJobWithRecovery((expectedVersion) => ({
+      op: "import-notes",
+      expectedVersion,
+      notes: [note],
+    }));
+    upsertJob(toLocalJobFromPersistent(updated, job));
+    noteRequest.current = null;
+    setNewNote("");
   };
 
   return (
-    <div className={styles.detailStack}>
+    <fieldset
+      disabled={saving}
+      className={styles.detailStack}
+      aria-busy={saving}
+    >
       <JobDetailHeader job={job} />
       <JobOverviewCard
         job={job}
         onSaveStatus={(nextStatus) => {
-          void saveStatus(nextStatus).catch((error) => {
-            setActionError(
-              error instanceof Error
-                ? error.message
-                : "Failed to update job status",
-            );
-          });
+          void runAction(() => saveStatus(nextStatus));
         }}
         nextActionInput={nextActionInput}
         onNextActionChange={setNextActionInput}
@@ -201,18 +205,22 @@ export function JobDetailClient() {
         onFollowUpDateChange={setFollowUpDateInput}
         onSetFollowUpAfterDays={setFollowUpAfterDays}
         onSaveFollowUp={() => {
-          void saveFollowUp().catch((error) => {
-            setActionError(
-              error instanceof Error
-                ? error.message
-                : "Failed to save follow-up",
-            );
-          });
+          void runAction(saveFollowUp);
         }}
         isFollowUpOverdue={isFollowUpOverdue}
       />
       {actionError ? (
-        <p className="text-sm text-rose-600 dark:text-rose-300">{actionError}</p>
+        <div role="alert" className="text-sm text-rose-600 dark:text-rose-300">
+          <p>{actionError}</p>
+          <button
+            type="button"
+            onClick={() => {
+              if (retryAction.current) void runAction(retryAction.current);
+            }}
+          >
+            Retry save
+          </button>
+        </div>
       ) : null}
       <JobInsightCards
         job={job}
@@ -222,15 +230,11 @@ export function JobDetailClient() {
             newNote={newNote}
             onNewNoteChange={setNewNote}
             onAddNote={() => {
-              void addNewNote().catch((error) => {
-                setActionError(
-                  error instanceof Error ? error.message : "Failed to add note",
-                );
-              });
+              void runAction(addNewNote);
             }}
           />
         }
       />
-    </div>
+    </fieldset>
   );
 }

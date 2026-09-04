@@ -19,6 +19,11 @@ id = "2c0633de6ecb4e90aa7de666ceeb66c6"
 # placeholder satisfies Hyperdrive emulation without exposing production credentials.
 localConnectionString = "postgresql://postgres:postgres@127.0.0.1:5432/postgres"
 
+# Optional: enable only after onboarding a sender domain for Email Sending
+# and configuring AUTH_EMAIL_FROM and AUTH_PUBLIC_URL.
+# [[send_email]]
+# name = "AUTH_EMAIL"
+
 [vars]
 PERSISTENCE_BACKEND = "postgres"
 PERSISTENCE_DATABASE_BINDING = "HYPERDRIVE"

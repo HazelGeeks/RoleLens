@@ -5,6 +5,7 @@ import type {
   PersistentJobNote,
   PersistentJobPatch,
 } from "@/lib/persistence/types";
+import { persistentMetaSchema } from "@/lib/persistence/validators";
 import { getDatabaseFromContext, type DatabaseLike } from "@/lib/database";
 
 const userJobStore = new Map<string, Map<string, PersistentJob>>();
@@ -38,6 +39,7 @@ type JobRow = {
   nextAction: string | null;
   followUpDate: string | null;
   tagsJson: string;
+  metaJson: string | null;
   createdAt: string;
   updatedAt: string;
   updatedByDevice: string;
@@ -118,7 +120,8 @@ function hasOwn<T extends object>(value: T, key: string) {
 
 async function resolvePersistenceBackend(): Promise<PersistenceBackend> {
   const configured = process.env.PERSISTENCE_BACKEND?.trim().toLowerCase();
-  const isProduction = process.env.NODE_ENV?.trim().toLowerCase() === "production";
+  const isProduction =
+    process.env.NODE_ENV?.trim().toLowerCase() === "production";
 
   if (configured && configured !== "memory" && configured !== "postgres") {
     throw new Error(
@@ -173,7 +176,10 @@ function parseTagsJson(raw: string, jobId: string): string[] {
   );
 }
 
-function toPersistentJob(row: JobRow, notes: PersistentJobNote[]): PersistentJob {
+function toPersistentJob(
+  row: JobRow,
+  notes: PersistentJobNote[],
+): PersistentJob {
   return {
     id: row.id,
     userId: row.userId,
@@ -185,6 +191,9 @@ function toPersistentJob(row: JobRow, notes: PersistentJobNote[]): PersistentJob
     nextAction: row.nextAction ?? undefined,
     followUpDate: row.followUpDate ?? undefined,
     tags: parseTagsJson(row.tagsJson, row.id),
+    meta: row.metaJson
+      ? persistentMetaSchema.parse(JSON.parse(row.metaJson))
+      : undefined,
     notes,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -200,6 +209,7 @@ function applyPatchOperation(
 ) {
   const next = clone(current);
   let appendedNote: PersistentJobNote | undefined;
+  const importedNotes: PersistentJobNote[] = [];
 
   if (operation.op === "update") {
     if (hasOwn(operation.changes, "company") && operation.changes.company) {
@@ -209,23 +219,35 @@ function applyPatchOperation(
       next.title = operation.changes.title;
     }
     if (hasOwn(operation.changes, "location")) {
-      next.location = operation.changes.location;
+      next.location = operation.changes.location ?? undefined;
     }
     if (hasOwn(operation.changes, "sourceUrl")) {
-      next.sourceUrl = operation.changes.sourceUrl;
+      next.sourceUrl = operation.changes.sourceUrl ?? undefined;
     }
     if (hasOwn(operation.changes, "nextAction")) {
-      next.nextAction = operation.changes.nextAction;
+      next.nextAction = operation.changes.nextAction ?? undefined;
     }
     if (hasOwn(operation.changes, "followUpDate")) {
-      next.followUpDate = operation.changes.followUpDate;
+      next.followUpDate = operation.changes.followUpDate ?? undefined;
     }
+    if (operation.changes.meta) next.meta = clone(operation.changes.meta);
     if (hasOwn(operation.changes, "tags")) {
       next.tags = normalizeTags(operation.changes.tags);
     }
   }
 
   if (operation.op === "status") {
+    if (next.meta && next.status !== operation.status) {
+      const changedAt = new Date().toISOString();
+      next.meta = {
+        ...next.meta,
+        lastStatusChangedAt: changedAt,
+        statusHistory: [
+          { id: crypto.randomUUID(), status: operation.status, changedAt },
+          ...(next.meta?.statusHistory ?? []),
+        ].slice(0, 2000),
+      };
+    }
     next.status = operation.status;
     if (operation.note) {
       appendedNote = buildNote(operation.note, actor);
@@ -238,9 +260,28 @@ function applyPatchOperation(
     next.notes = [appendedNote, ...next.notes];
   }
 
+  if (operation.op === "import-notes") {
+    for (const note of operation.notes) {
+      const id = `${current.id}:${note.id}`;
+      if (
+        next.notes.some(
+          (saved) =>
+            saved.id === id ||
+            saved.id === note.id ||
+            (saved.content === note.content &&
+              saved.createdAt === note.createdAt),
+        )
+      )
+        continue;
+      const imported = { ...note, id, actor };
+      next.notes.push(imported);
+      importedNotes.push(imported);
+    }
+  }
+
   return {
     next,
-    appendedNote,
+    appendedNotes: [...importedNotes, ...(appendedNote ? [appendedNote] : [])],
   };
 }
 
@@ -285,8 +326,9 @@ async function createPersistentJobInMemory(args: {
     ? [buildNote(args.input.initialNote, args.actor)]
     : [];
 
+  const jobId = crypto.randomUUID();
   const job: PersistentJob = {
-    id: crypto.randomUUID(),
+    id: jobId,
     userId: args.userId,
     company: args.input.company,
     title: args.input.title,
@@ -296,7 +338,15 @@ async function createPersistentJobInMemory(args: {
     nextAction: args.input.nextAction,
     followUpDate: args.input.followUpDate,
     tags: normalizeTags(args.input.tags),
-    notes: initialNote,
+    notes: [
+      ...(args.input.initialNotes ?? []).map((note) => ({
+        ...note,
+        id: `${jobId}:${note.id}`,
+        actor: args.actor,
+      })),
+      ...initialNote,
+    ],
+    meta: args.input.meta ? clone(args.input.meta) : undefined,
     createdAt: now,
     updatedAt: now,
     updatedByDevice: args.deviceId,
@@ -444,6 +494,7 @@ async function getPersistentJobInPostgres(
               next_action AS nextAction,
               follow_up_date AS followUpDate,
               tags_json AS tagsJson,
+              meta_json AS metaJson,
               created_at AS createdAt,
               updated_at AS updatedAt,
               updated_by_device AS updatedByDevice,
@@ -476,6 +527,7 @@ async function listPersistentJobsInPostgres(
               next_action AS nextAction,
               follow_up_date AS followUpDate,
               tags_json AS tagsJson,
+              meta_json AS metaJson,
               created_at AS createdAt,
               updated_at AS updatedAt,
               updated_by_device AS updatedByDevice,
@@ -518,11 +570,6 @@ function getChangedCount(result: { meta?: { changes?: number } }) {
   return result.meta?.changes ?? 0;
 }
 
-function isLikelyUniqueConstraintError(error: unknown) {
-  if (!(error instanceof Error)) return false;
-  return error.message.toLowerCase().includes("unique");
-}
-
 async function createPersistentJobInPostgres(args: {
   userId: string;
   deviceId: string;
@@ -533,13 +580,21 @@ async function createPersistentJobInPostgres(args: {
   const requestId = args.input.clientRequestId?.trim();
 
   if (requestId) {
+    await args.db
+      .prepare("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")
+      .bind(JSON.stringify([args.userId, requestId]))
+      .first();
     const mappedJobId = await getCreateRequestJobIdInPostgres(
       args.db,
       args.userId,
       requestId,
     );
     if (mappedJobId) {
-      const replayed = await getPersistentJobInPostgres(args.db, args.userId, mappedJobId);
+      const replayed = await getPersistentJobInPostgres(
+        args.db,
+        args.userId,
+        mappedJobId,
+      );
       if (replayed) return replayed;
     }
   }
@@ -551,8 +606,8 @@ async function createPersistentJobInPostgres(args: {
   await args.db
     .prepare(
       `INSERT INTO persistent_jobs
-       (id, user_id, company, title, location, source_url, status, next_action, follow_up_date, tags_json, created_at, updated_at, updated_by_device, version)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, user_id, company, title, location, source_url, status, next_action, follow_up_date, tags_json, meta_json, created_at, updated_at, updated_by_device, version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       createdJobId,
@@ -565,12 +620,21 @@ async function createPersistentJobInPostgres(args: {
       toNullableValue(args.input.nextAction),
       toNullableValue(args.input.followUpDate),
       JSON.stringify(tags),
+      args.input.meta ? JSON.stringify(args.input.meta) : null,
       now,
       now,
       args.deviceId,
       1,
     )
     .run();
+
+  for (const note of args.input.initialNotes ?? []) {
+    await insertPersistentNoteInPostgres(args.db, args.userId, createdJobId, {
+      ...note,
+      id: `${createdJobId}:${note.id}`,
+      actor: args.actor,
+    });
+  }
 
   if (args.input.initialNote) {
     await insertPersistentNoteInPostgres(args.db, args.userId, createdJobId, {
@@ -582,49 +646,19 @@ async function createPersistentJobInPostgres(args: {
   }
 
   if (requestId) {
-    try {
-      await args.db
-        .prepare(
-          `INSERT INTO persistent_job_create_requests
-           (user_id, client_request_id, job_id, created_at)
-           VALUES (?, ?, ?, ?)`,
-        )
-        .bind(args.userId, requestId, createdJobId, now)
-        .run();
-    } catch (error) {
-      if (!isLikelyUniqueConstraintError(error)) {
-        throw error;
-      }
-
-      const mappedJobId = await getCreateRequestJobIdInPostgres(
-        args.db,
-        args.userId,
-        requestId,
-      );
-
-      if (!mappedJobId) {
-        throw error;
-      }
-
-      await args.db
-        .prepare(`DELETE FROM persistent_job_notes WHERE user_id = ? AND job_id = ?`)
-        .bind(args.userId, createdJobId)
-        .run();
-      await args.db
-        .prepare(`DELETE FROM persistent_jobs WHERE user_id = ? AND id = ?`)
-        .bind(args.userId, createdJobId)
-        .run();
-
-      const replayed = await getPersistentJobInPostgres(args.db, args.userId, mappedJobId);
-      if (replayed) return replayed;
-
-      throw new Error(
-        `Client request id ${requestId} already exists but mapped job ${mappedJobId} was not found.`,
-      );
-    }
+    await args.db
+      .prepare(
+        "INSERT INTO persistent_job_create_requests (user_id, client_request_id, job_id, created_at) VALUES (?, ?, ?, ?)",
+      )
+      .bind(args.userId, requestId, createdJobId, now)
+      .run();
   }
 
-  const created = await getPersistentJobInPostgres(args.db, args.userId, createdJobId);
+  const created = await getPersistentJobInPostgres(
+    args.db,
+    args.userId,
+    createdJobId,
+  );
   if (!created) {
     throw new Error(`Failed to load created persistent job ${createdJobId}.`);
   }
@@ -635,7 +669,17 @@ async function createPersistentJobInPostgres(args: {
 async function patchPersistentJobInPostgres(
   args: PatchArgs & { db: DatabaseLike },
 ): Promise<PatchPersistentJobResult> {
-  const current = await getPersistentJobInPostgres(args.db, args.userId, args.jobId);
+  await args.db
+    .prepare(
+      "SELECT id FROM persistent_jobs WHERE user_id = ? AND id = ? FOR UPDATE",
+    )
+    .bind(args.userId, args.jobId)
+    .first();
+  const current = await getPersistentJobInPostgres(
+    args.db,
+    args.userId,
+    args.jobId,
+  );
 
   if (!current) {
     return {
@@ -655,7 +699,7 @@ async function patchPersistentJobInPostgres(
     };
   }
 
-  const { next, appendedNote } = applyPatchOperation(
+  const { next, appendedNotes } = applyPatchOperation(
     current,
     args.operation,
     args.actor,
@@ -675,6 +719,7 @@ async function patchPersistentJobInPostgres(
                next_action = ?,
                follow_up_date = ?,
                tags_json = ?,
+               meta_json = ?,
                version = ?,
                updated_at = ?,
                updated_by_device = ?
@@ -690,6 +735,7 @@ async function patchPersistentJobInPostgres(
                next_action = ?,
                follow_up_date = ?,
                tags_json = ?,
+               meta_json = ?,
                version = ?,
                updated_at = ?,
                updated_by_device = ?
@@ -706,6 +752,7 @@ async function patchPersistentJobInPostgres(
     toNullableValue(next.nextAction),
     toNullableValue(next.followUpDate),
     JSON.stringify(normalizeTags(next.tags)),
+    next.meta ? JSON.stringify(next.meta) : null,
     nextVersion,
     now,
     args.deviceId,
@@ -720,7 +767,11 @@ async function patchPersistentJobInPostgres(
   const updateResult = await statement.bind(...values).run();
   if (getChangedCount(updateResult) !== 1) {
     if (args.operation.expectedVersion != null) {
-      const latest = await getPersistentJobInPostgres(args.db, args.userId, args.jobId);
+      const latest = await getPersistentJobInPostgres(
+        args.db,
+        args.userId,
+        args.jobId,
+      );
       if (!latest) {
         return {
           ok: false,
@@ -741,11 +792,20 @@ async function patchPersistentJobInPostgres(
     };
   }
 
-  if (appendedNote) {
-    await insertPersistentNoteInPostgres(args.db, args.userId, args.jobId, appendedNote);
+  for (const note of appendedNotes) {
+    await insertPersistentNoteInPostgres(
+      args.db,
+      args.userId,
+      args.jobId,
+      note,
+    );
   }
 
-  const updated = await getPersistentJobInPostgres(args.db, args.userId, args.jobId);
+  const updated = await getPersistentJobInPostgres(
+    args.db,
+    args.userId,
+    args.jobId,
+  );
   if (!updated) {
     throw new Error(`Failed to load updated persistent job ${args.jobId}.`);
   }
@@ -787,10 +847,11 @@ export async function createPersistentJob(args: {
 }): Promise<PersistentJob> {
   const backend = await resolvePersistenceBackend();
   if (backend.kind === "postgres") {
-    return createPersistentJobInPostgres({
-      ...args,
-      db: backend.db,
-    });
+    if (!backend.db.transaction)
+      throw new Error("Postgres transactions are required for job creation.");
+    return backend.db.transaction((db) =>
+      createPersistentJobInPostgres({ ...args, db }),
+    );
   }
 
   return createPersistentJobInMemory(args);
@@ -801,10 +862,11 @@ export async function patchPersistentJob(
 ): Promise<PatchPersistentJobResult> {
   const backend = await resolvePersistenceBackend();
   if (backend.kind === "postgres") {
-    return patchPersistentJobInPostgres({
-      ...args,
-      db: backend.db,
-    });
+    if (!backend.db.transaction)
+      throw new Error("Postgres transactions are required for job updates.");
+    return backend.db.transaction((db) =>
+      patchPersistentJobInPostgres({ ...args, db }),
+    );
   }
 
   return patchPersistentJobInMemory(args);

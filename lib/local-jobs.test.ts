@@ -17,7 +17,7 @@ import {
 } from "@/lib/test-utils/mock-window-storage";
 
 function setupWindow(seed: MemoryStorageSeed = {}) {
-  const dispatchEvent = vi.fn(() => true);
+  const dispatchEvent = vi.fn<Window["dispatchEvent"]>(() => true);
   const { localStorage } = installMockWindow(seed, {
     dispatchEvent,
     addEventListener: vi.fn(),
@@ -237,7 +237,8 @@ describe("local jobs reliability", () => {
     expect(localStorage.getItem(LOCAL_JOBS_STORAGE_KEY)).toBe("[]");
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
 
-    const event = dispatchEvent.mock.calls[0]?.[0] as CustomEvent<LocalJobsUpdatedDetail>;
+    const event = dispatchEvent.mock
+      .calls[0]?.[0] as CustomEvent<LocalJobsUpdatedDetail>;
     expect(event.type).toBe(LOCAL_JOBS_UPDATED_EVENT);
     expect(event.detail.reason).toBe("reset");
     expect(event.detail.totalJobs).toBe(0);

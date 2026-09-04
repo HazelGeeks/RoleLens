@@ -1,7 +1,9 @@
+import { getJobsStorageKey } from "@/lib/job-cache-scope";
 import { statusOptions } from "@/lib/constants";
 import { sanitizeJobDescription } from "@/lib/job-description";
 
-export type JobSource = "LINKEDIN" | "INDEED" | "SARAMIN" | "JOBKOREA" | "MANUAL";
+export type JobSource =
+  "LINKEDIN" | "INDEED" | "SARAMIN" | "JOBKOREA" | "MANUAL";
 export type RemoteType = "REMOTE" | "HYBRID" | "ONSITE" | "UNKNOWN";
 export type EmploymentType =
   | "FULL_TIME"
@@ -58,16 +60,12 @@ export type LocalJobPosting = {
   persistentVersion?: number;
 };
 
-export const LOCAL_JOBS_STORAGE_KEY = "rolelens.jobs.v1";
+export const LEGACY_JOBS_STORAGE_KEY = "rolelens.jobs.v1";
+export const LOCAL_JOBS_STORAGE_KEY = "rolelens.jobs.v2:guest";
 export const LOCAL_JOBS_UPDATED_EVENT = "rolelens:jobs-updated";
 
 export type LocalJobsUpdatedReason =
-  | "sync"
-  | "upsert"
-  | "note"
-  | "status"
-  | "follow-up"
-  | "reset";
+  "sync" | "upsert" | "note" | "status" | "follow-up" | "reset";
 
 export type LocalJobsUpdatedDetail = {
   reason: LocalJobsUpdatedReason;
@@ -75,7 +73,13 @@ export type LocalJobsUpdatedDetail = {
   updatedAt: string;
 };
 
-const sourceValues = ["LINKEDIN", "INDEED", "SARAMIN", "JOBKOREA", "MANUAL"] as const;
+const sourceValues = [
+  "LINKEDIN",
+  "INDEED",
+  "SARAMIN",
+  "JOBKOREA",
+  "MANUAL",
+] as const;
 const remoteValues = ["REMOTE", "HYBRID", "ONSITE", "UNKNOWN"] as const;
 const employmentValues = [
   "FULL_TIME",
@@ -288,38 +292,42 @@ function normalizeJob(raw: Partial<LocalJobPosting>): LocalJobPosting {
     createdAt,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : now,
     persistentVersion:
-      typeof raw.persistentVersion === "number" && Number.isFinite(raw.persistentVersion)
+      typeof raw.persistentVersion === "number" &&
+      Number.isFinite(raw.persistentVersion)
         ? raw.persistentVersion
         : undefined,
   };
 }
 
-export function getJobsFromStorage(): LocalJobPosting[] {
+export function getJobsFromStorage(
+  storageKey = getJobsStorageKey(),
+): LocalJobPosting[] {
   if (typeof window === "undefined") return [];
 
-  const raw = window.localStorage.getItem(LOCAL_JOBS_STORAGE_KEY);
+  const raw = window.localStorage.getItem(storageKey);
   if (!raw) {
-    window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify([]));
+    if (storageKey !== LEGACY_JOBS_STORAGE_KEY)
+      window.localStorage.setItem(storageKey, JSON.stringify([]));
     return [];
   }
 
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) {
-      window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify([]));
+      if (storageKey !== LEGACY_JOBS_STORAGE_KEY)
+        window.localStorage.setItem(storageKey, JSON.stringify([]));
       return [];
     }
 
     const normalized = parsed.map((item) =>
       normalizeJob((item ?? {}) as Partial<LocalJobPosting>),
     );
-    window.localStorage.setItem(
-      LOCAL_JOBS_STORAGE_KEY,
-      JSON.stringify(normalized),
-    );
+    if (storageKey !== LEGACY_JOBS_STORAGE_KEY)
+      window.localStorage.setItem(storageKey, JSON.stringify(normalized));
     return normalized;
   } catch {
-    window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify([]));
+    if (storageKey !== LEGACY_JOBS_STORAGE_KEY)
+      window.localStorage.setItem(storageKey, JSON.stringify([]));
     return [];
   }
 }
@@ -327,15 +335,16 @@ export function getJobsFromStorage(): LocalJobPosting[] {
 export function saveJobsToStorage(
   jobs: LocalJobPosting[],
   reason: LocalJobsUpdatedReason = "sync",
+  storageKey = getJobsStorageKey(),
 ) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify(jobs));
+  window.localStorage.setItem(storageKey, JSON.stringify(jobs));
   dispatchJobsUpdated(reason, jobs.length);
 }
 
 export function resetJobsStorage() {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(LOCAL_JOBS_STORAGE_KEY, JSON.stringify([]));
+  window.localStorage.setItem(getJobsStorageKey(), JSON.stringify([]));
   dispatchJobsUpdated("reset", 0);
 }
 

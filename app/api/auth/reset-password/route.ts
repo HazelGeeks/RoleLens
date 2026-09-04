@@ -1,4 +1,7 @@
-import { resetPasswordAuth } from "@/lib/auth-server";
+import {
+  buildAuthSessionClearCookie,
+  resetPasswordAuth,
+} from "@/lib/auth-server";
 import { toPublicServerError } from "@/lib/server-config-errors";
 
 export async function POST(request: Request) {
@@ -18,9 +21,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const input = payload as Partial<{ email: string; password: string }>;
+    const input = (payload ?? {}) as Partial<{
+      token: string;
+      password: string;
+    }>;
     const result = await resetPasswordAuth({
-      email: typeof input.email === "string" ? input.email : "",
+      token: typeof input.token === "string" ? input.token : "",
       password: typeof input.password === "string" ? input.password : "",
     });
 
@@ -36,10 +42,15 @@ export async function POST(request: Request) {
       );
     }
 
-    return Response.json({
-      ok: true,
-      message: result.message,
-    });
+    return Response.json(
+      { ok: true, message: result.message },
+      {
+        headers: {
+          "cache-control": "no-store",
+          "set-cookie": buildAuthSessionClearCookie(request.url),
+        },
+      },
+    );
   } catch (error) {
     const publicError = toPublicServerError(error);
     return Response.json(

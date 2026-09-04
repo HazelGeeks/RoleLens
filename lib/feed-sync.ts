@@ -1,3 +1,7 @@
+import {
+  assertJobsStorageScope,
+  getJobsStorageKey,
+} from "@/lib/job-cache-scope";
 import type {
   FeedImportDiagnostics,
   FeedImportSnapshot,
@@ -61,6 +65,7 @@ export async function syncJobsFromFeeds(options?: {
   platform?: FeedPlatform;
   persistToDb?: boolean;
 }): Promise<SyncJobsFromFeedsResult> {
+  const scope = getJobsStorageKey();
   const platform = parseFeedPlatform(options?.platform);
   const runActiveSync = options?.refresh === true || platform !== "all";
   const headers = buildPersistenceHeaders();
@@ -79,7 +84,12 @@ export async function syncJobsFromFeeds(options?: {
         headers,
       });
 
-  if (!response.ok && runActiveSync && platform === "all" && response.status >= 500) {
+  if (
+    !response.ok &&
+    runActiveSync &&
+    platform === "all" &&
+    response.status >= 500
+  ) {
     response = await fetch("/api/jobs/import", {
       method: "GET",
       cache: "no-store",
@@ -98,7 +108,9 @@ export async function syncJobsFromFeeds(options?: {
       details = "";
     }
 
-    throw new Error(`Feed sync failed with status ${response.status}${details}`);
+    throw new Error(
+      `Feed sync failed with status ${response.status}${details}`,
+    );
   }
 
   const payload = (await response.json()) as FeedImportSnapshot & {
@@ -108,7 +120,10 @@ export async function syncJobsFromFeeds(options?: {
   const sourceResults = Array.isArray(payload.sourceResults)
     ? payload.sourceResults
     : [];
-  const diagnostics = normalizeDiagnostics(payload.diagnostics, payload.sourceCount);
+  const diagnostics = normalizeDiagnostics(
+    payload.diagnostics,
+    payload.sourceCount,
+  );
   const recoveryGuide =
     Array.isArray(payload.recoveryGuide) && payload.recoveryGuide.length > 0
       ? payload.recoveryGuide
@@ -126,6 +141,7 @@ export async function syncJobsFromFeeds(options?: {
       }),
     ),
   );
+  assertJobsStorageScope(scope);
   const existingJobs = getJobsFromStorage();
   const shouldPruneStale = payload.errors.length === 0;
   const retainedJobs = existingJobs.filter((job) => {
@@ -164,8 +180,11 @@ export async function syncJobsFromFeeds(options?: {
   const persistenceErrors: FeedImportSnapshot["errors"] = [];
 
   if (options?.persistToDb !== false) {
-    for (const job of mergedJobs.filter((entry) => importedJobIds.has(entry.id))) {
+    for (const job of mergedJobs.filter((entry) =>
+      importedJobIds.has(entry.id),
+    )) {
       try {
+        assertJobsStorageScope(scope);
         const persistent = await mirrorLocalJobToPersistence(job);
         nextMap.set(job.id, toLocalJobFromPersistent(persistent, job));
       } catch (error) {
@@ -182,6 +201,7 @@ export async function syncJobsFromFeeds(options?: {
     );
   }
 
+  assertJobsStorageScope(scope);
   saveJobsToStorage(mergedJobs);
 
   const today = new Date().toISOString().slice(0, 10);

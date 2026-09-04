@@ -20,6 +20,8 @@ export type PersistentJobMeta = {
   fitScore: number;
   fitBreakdown?: Record<string, number>;
   statusHistory?: JobStatusHistoryItem[];
+  publishedAt?: string;
+  lastStatusChangedAt?: string;
 };
 
 export type PersistentJobNote = {
@@ -58,6 +60,7 @@ export type CreatePersistentJobInput = {
   followUpDate?: string;
   tags?: string[];
   initialNote?: string;
+  initialNotes?: Array<{ id: string; content: string; createdAt: string }>;
   clientRequestId?: string;
   meta?: PersistentJobMeta;
 };
@@ -65,15 +68,20 @@ export type CreatePersistentJobInput = {
 export type UpdatePersistentJobChanges = {
   company?: string;
   title?: string;
-  location?: string;
-  sourceUrl?: string;
-  nextAction?: string;
-  followUpDate?: string;
+  location?: string | null;
+  sourceUrl?: string | null;
+  nextAction?: string | null;
+  followUpDate?: string | null;
   tags?: string[];
   meta?: PersistentJobMeta;
 };
 
 export type PersistentJobPatch =
+  | {
+      op: "import-notes";
+      expectedVersion?: number;
+      notes: NonNullable<CreatePersistentJobInput["initialNotes"]>;
+    }
   | {
       op: "update";
       expectedVersion?: number;

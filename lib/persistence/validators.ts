@@ -39,7 +39,7 @@ const statusHistoryItemSchema = z.object({
 
 const fitBreakdownSchema = z.record(z.string(), z.number().finite()).optional();
 
-const persistentMetaSchema = z.object({
+export const persistentMetaSchema = z.object({
   source: z.enum(sourceOptions),
   remoteType: z.enum(remoteTypeOptions),
   employmentType: z.enum(employmentTypeOptions).optional(),
@@ -48,11 +48,13 @@ const persistentMetaSchema = z.object({
   salaryCurrency: z.string().trim().min(1).max(12).optional(),
   seniority: z.string().trim().min(1).max(120).optional(),
   workAuthorizationNote: z.string().trim().min(1).max(240).optional(),
-  descriptionRaw: z.string().trim().min(1).optional(),
+  descriptionRaw: z.string().max(200000).optional(),
   extractedSkills: z.array(z.string().trim().min(1).max(80)).max(200),
   fitScore: z.number().finite(),
   fitBreakdown: fitBreakdownSchema,
-  statusHistory: z.array(statusHistoryItemSchema).max(200).optional(),
+  statusHistory: z.array(statusHistoryItemSchema).max(2000).optional(),
+  publishedAt: z.string().datetime({ offset: true }).optional(),
+  lastStatusChangedAt: z.string().datetime({ offset: true }).optional(),
 });
 
 export const createPersistentJobSchema = z.object({
@@ -65,6 +67,16 @@ export const createPersistentJobSchema = z.object({
   followUpDate: optionalDate,
   tags: tagsSchema,
   initialNote: z.string().trim().min(2).max(1000).optional(),
+  initialNotes: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(128),
+        content: z.string().trim().min(1).max(1000),
+        createdAt: z.string().datetime({ offset: true }),
+      }),
+    )
+    .max(1000)
+    .optional(),
   clientRequestId: z.string().trim().min(6).max(128).optional(),
   meta: persistentMetaSchema.optional(),
 });
@@ -73,10 +85,10 @@ const updateChangesSchema = z
   .object({
     company: z.string().trim().min(2).optional(),
     title: z.string().trim().min(2).optional(),
-    location: optionalTrimmedText,
-    sourceUrl: optionalUrl,
-    nextAction: z.string().trim().min(2).max(240).optional(),
-    followUpDate: optionalDate,
+    location: optionalTrimmedText.nullable(),
+    sourceUrl: optionalUrl.nullable(),
+    nextAction: z.string().trim().min(2).max(240).nullable().optional(),
+    followUpDate: optionalDate.nullable(),
     tags: tagsSchema,
     meta: persistentMetaSchema.optional(),
   })
@@ -94,6 +106,11 @@ const updateChangesSchema = z
 const expectedVersionSchema = z.number().int().positive().optional();
 
 export const patchPersistentJobSchema = z.discriminatedUnion("op", [
+  z.object({
+    op: z.literal("import-notes"),
+    expectedVersion: expectedVersionSchema,
+    notes: createPersistentJobSchema.shape.initialNotes.unwrap(),
+  }),
   z.object({
     op: z.literal("update"),
     expectedVersion: expectedVersionSchema,
