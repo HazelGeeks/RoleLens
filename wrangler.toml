@@ -15,6 +15,9 @@ service = "rolelens"
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "2c0633de6ecb4e90aa7de666ceeb66c6"
+# OpenNext loads Cloudflare bindings while running `next build`. This local-only
+# placeholder satisfies Hyperdrive emulation without exposing production credentials.
+localConnectionString = "postgresql://postgres:postgres@127.0.0.1:5432/postgres"
 
 [vars]
 PERSISTENCE_BACKEND = "postgres"
