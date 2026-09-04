@@ -13,9 +13,11 @@ import {
 } from "@tanstack/react-table";
 import * as React from "react";
 import { Button, Group, ScrollArea, Table, Text } from "@mantine/core";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { statusLabels } from "@/lib/constants";
+import { getJobSourceDisplay } from "@/lib/job-source";
+import type { JobSource } from "@/lib/local-jobs";
 import { formatCurrency, statusBadgeColor } from "@/lib/presentation";
 import { cn } from "@/lib/utils";
 import styles from "./jobs-table.module.css";
@@ -26,7 +28,8 @@ export type JobRow = {
   title: string;
   location: string | null;
   remoteType: string;
-  source: string;
+  source: JobSource;
+  sourceUrl?: string;
   status: keyof typeof statusLabels;
   fitScore: number | null;
   salaryMin: number | null;
@@ -116,6 +119,33 @@ export function JobsTable({
             {row.original.company}
           </span>
         ),
+      },
+      {
+        accessorKey: "source",
+        header: "Source",
+        cell: ({ row }) => {
+          const { label, href } = getJobSourceDisplay(
+            row.original.source,
+            row.original.sourceUrl,
+          );
+
+          if (!href) {
+            return <Badge>{label}</Badge>;
+          }
+
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-slate-700 hover:underline dark:text-slate-200"
+              aria-label={`Open ${label} posting in a new tab`}
+            >
+              <Badge>{label}</Badge>
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+            </a>
+          );
+        },
       },
       {
         accessorKey: "location",
@@ -314,6 +344,7 @@ export function JobsTable({
             const encoded = encodeURIComponent(job.id);
             const checked = selectedIds.includes(job.id);
             const salary = formatSalary(job);
+            const sourceDisplay = getJobSourceDisplay(job.source, job.sourceUrl);
             const hasStatus = job.status !== "NONE";
             const isInactive = job.status === "ARCHIVE";
             const due =
@@ -363,6 +394,23 @@ export function JobsTable({
                   <div className={styles.mobileMetaItem}>
                     <span>Posted</span>
                     <strong>{formatPostedDate(job.publishedAt)}</strong>
+                  </div>
+                  <div className={styles.mobileMetaItem}>
+                    <span>Source</span>
+                    <strong>
+                      {sourceDisplay.href ? (
+                        <a
+                          href={sourceDisplay.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`Open ${sourceDisplay.label} posting in a new tab`}
+                        >
+                          {sourceDisplay.label}
+                        </a>
+                      ) : (
+                        sourceDisplay.label
+                      )}
+                    </strong>
                   </div>
                   {job.followUpDate ? (
                     <div
@@ -437,7 +485,7 @@ export function JobsTable({
           withTableBorder
           withColumnBorders={false}
           verticalSpacing="xs"
-          className="min-w-[1360px]"
+          className="min-w-[1460px]"
         >
           <Table.Thead>
             {table.getHeaderGroups().map((headerGroup) => (

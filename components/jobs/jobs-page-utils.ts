@@ -78,6 +78,7 @@ function toJobRow(job: LocalJobPosting): JobRow {
     location: job.location || null,
     remoteType: job.remoteType,
     source: job.source,
+    sourceUrl: job.sourceUrl,
     status: job.status,
     fitScore: job.fitScore,
     salaryMin: job.salaryMin || null,
