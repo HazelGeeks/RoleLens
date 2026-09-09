@@ -15,7 +15,7 @@ jobs:
   refresh-feed-snapshot:
     runs-on: ubuntu-latest
     env:
-      ROLELENS_SYNC_URL: ${{ secrets.ROLELENS_SYNC_URL || vars.ROLELENS_PRODUCTION_URL }}
+      ROLELENS_SYNC_URL: ${{ vars.ROLELENS_PRODUCTION_URL }}
       FEED_SNAPSHOT_PATH: python-scraped-jobs.json
     steps:
       - name: Checkout
@@ -24,7 +24,7 @@ jobs:
       - name: Validate required secret
         run: |
           test -n "$ROLELENS_CRON_SECRET" || (echo "Missing ROLELENS_CRON_SECRET" && exit 1)
-          test -n "$ROLELENS_SYNC_URL" || (echo "Missing ROLELENS_SYNC_URL secret or ROLELENS_PRODUCTION_URL variable" && exit 1)
+          test -n "$ROLELENS_SYNC_URL" || (echo "Missing ROLELENS_PRODUCTION_URL variable" && exit 1)
         env:
           ROLELENS_CRON_SECRET: ${{ secrets.ROLELENS_CRON_SECRET }}
 
@@ -37,6 +37,9 @@ jobs:
 
       - name: Install scraper dependencies
         run: python -m pip install -r python/scraper/requirements.txt
+
+      - name: Test scraper source controls
+        run: python -m unittest discover -s python/scraper -p 'test_*.py'
 
       - name: Scrape feed snapshot
         run: |
@@ -58,8 +61,9 @@ jobs:
           failed = [
               result
               for result in snapshot.get("sourceResults", [])
-              if not result.get("ok")
+              if not result.get("ok") and not result.get("disabled")
           ]
+          paused = [result for result in snapshot.get("sourceResults", []) if result.get("disabled")]
           print(
               json.dumps(
                   {
@@ -77,6 +81,25 @@ jobs:
 
           if not snapshot.get("jobs"):
               raise SystemExit("Generated snapshot contains no jobs")
+
+          # A successful ingestion can still have failed sources. Surface this
+          # explicitly while preserving jobs collected from healthy sources.
+          if failed:
+              print(f"::warning title=Partial feed collection::{len(failed)} sources failed; healthy-source jobs will still be ingested. See the job summary and snapshot artifact.")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("## Feed collection\n\n")
+              summary.write(f"Collected at: {snapshot.get('generatedAt')}\n\n")
+              summary.write(f"Raw postings: {len(snapshot.get('jobs', []))}. Failed sources: {len(failed)}.\n\n")
+              if paused:
+                  summary.write(f"Paused sources: {len(paused)} (no requests sent).\n\n")
+                  for result in paused:
+                      summary.write(f"- {result.get('source')}: {result.get('message', 'Paused')}\n")
+                  summary.write("\n")
+              if failed:
+                  summary.write("Failed sources (details are in the snapshot artifact):\n\n")
+                  for result in failed:
+                      summary.write(f"- {result.get('source')}\n")
           PY
 
       - name: Upload feed snapshot artifact
@@ -92,6 +115,7 @@ jobs:
         run: |
           ROLELENS_SYNC_BASE="${ROLELENS_SYNC_URL%/}"
           curl --fail --silent --show-error \
+            --connect-timeout 10 --max-time 90 \
             --request POST \
             --header "content-type: application/json" \
             --header "x-cron-secret: $ROLELENS_CRON_SECRET" \
@@ -104,8 +128,24 @@ jobs:
         run: |
           ROLELENS_SYNC_BASE="${ROLELENS_SYNC_URL%/}"
           curl --fail --silent --show-error \
+            --connect-timeout 10 --max-time 90 \
             --request POST \
             --header "x-cron-secret: $ROLELENS_CRON_SECRET" \
+            --output /tmp/rolelens-feed-refresh.json \
             "$ROLELENS_SYNC_BASE/api/jobs/cron/"
+          python - <<'PY'
+          import json
+          import os
+
+          with open(os.environ["FEED_SNAPSHOT_PATH"], encoding="utf-8") as handle:
+              expected = json.load(handle)
+          with open("/tmp/rolelens-feed-refresh.json", encoding="utf-8") as handle:
+              actual = json.load(handle)
+          if actual.get("ok") is not True or actual.get("cacheSource") != "postgres":
+              raise SystemExit("Feed refresh did not reach the Supabase application. Check ROLELENS_PRODUCTION_URL.")
+          if actual.get("generatedAt") != expected.get("generatedAt"):
+              raise SystemExit("The application is serving an older feed snapshot after ingestion.")
+          print(f"Verified Supabase feed: {actual['generatedAt']}, {actual.get('importedJobs')} postings")
+          PY
         env:
           ROLELENS_CRON_SECRET: ${{ secrets.ROLELENS_CRON_SECRET }}

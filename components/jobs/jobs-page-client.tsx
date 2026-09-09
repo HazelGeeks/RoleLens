@@ -51,15 +51,19 @@ export function JobsPageClient() {
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [jobsNotice, setJobsNotice] = useState<JobsNotice | null>(null);
-  const [dismissedPersistenceError, setDismissedPersistenceError] = useState<string | null>(null);
+  const [dismissedPersistenceError, setDismissedPersistenceError] = useState<
+    string | null
+  >(null);
 
   const {
     isSyncing,
     syncMessage,
     syncError,
+    syncWarning,
     syncToast,
     dismissSyncToast,
     lastSyncAt,
+    feedGeneratedAt,
     syncSourceResults,
     syncDiagnostics,
     syncRecoveryGuide,
@@ -115,7 +119,9 @@ export function JobsPageClient() {
       if (!detail || detail.claimed <= 0) return;
 
       const failedSuffix =
-        detail.failed > 0 ? ` ${detail.failed} item(s) need another retry.` : "";
+        detail.failed > 0
+          ? ` ${detail.failed} item(s) need another retry.`
+          : "";
       setJobsNotice({
         id: Date.now(),
         message:
@@ -173,7 +179,16 @@ export function JobsPageClient() {
         requiredSkill,
         sortBy,
       }),
-    [minFit, q, remoteType, requiredSkill, sortBy, source, status, viewFilteredJobs],
+    [
+      minFit,
+      q,
+      remoteType,
+      requiredSkill,
+      sortBy,
+      source,
+      status,
+      viewFilteredJobs,
+    ],
   );
 
   const sourceCounts = useMemo(
@@ -263,6 +278,17 @@ export function JobsPageClient() {
         onOpenSaveModal={openSaveModal}
       />
 
+      {syncWarning ? (
+        <p role="status" className="text-sm text-amber-700 dark:text-amber-300">
+          {syncWarning}
+        </p>
+      ) : null}
+      {syncError && jobs.length === 0 ? (
+        <p role="alert" className="text-sm text-red-700 dark:text-red-300">
+          {syncError}
+        </p>
+      ) : null}
+
       {jobs.length === 0 ? (
         <JobsEmptyStateCard
           isSyncing={isSyncing}
@@ -281,6 +307,7 @@ export function JobsPageClient() {
             rowsCount={rows.length}
             totalJobs={viewFilteredJobs.length}
             lastSyncAt={lastSyncAt}
+            feedGeneratedAt={feedGeneratedAt}
             syncMessage={syncMessage}
             syncError={syncError}
             syncDiagnostics={syncDiagnostics}

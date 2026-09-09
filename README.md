@@ -314,6 +314,19 @@ Required Cloudflare Worker secrets:
 
 The Worker name and Hyperdrive binding are defined in `wrangler.toml`. Run `npm run deploy` for a manual deployment, or merge to `main` to run the deployment workflow.
 
+The canonical application is **https://rolelens.hazelgeeks.workers.dev**, in the
+**Hazel Co.** account pinned by `account_id` in `wrangler.toml`. The similarly named
+`rolelens.hazel-labs.workers.dev` is the legacy D1 application in another account.
+Do not use it for Supabase deployment or scheduled ingestion.
+
+GitHub deployment reads the account from `wrangler.toml`; its Cloudflare API token
+must have access to that account. Both deployment and scheduled ingestion use the
+`ROLELENS_PRODUCTION_URL` variable, and the scheduled job uses
+`ROLELENS_CRON_SECRET` matching the canonical Worker's `CRON_SECRET`. Legacy
+`CLOUDFLARE_ACCOUNT_ID` and `ROLELENS_SYNC_URL` GitHub secrets no longer select targets.
+The admin-email setting is optional for deployment; without it, manual admin sync
+remains restricted while the authenticated scheduled job continues to work.
+
 ## Supabase Postgres Setup
 
 1. Apply `supabase/migrations/20260903190000_rolelens_initial.sql` in the Hazel Co. Supabase project.

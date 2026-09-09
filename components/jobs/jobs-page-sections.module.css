@@ -351,6 +351,10 @@
   color: #047857;
 }
 
+.syncResultPaused {
+  color: var(--mantine-color-dimmed);
+}
+
 .syncResultFailed {
   color: #be123c;
 }

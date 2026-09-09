@@ -29,6 +29,7 @@ export type FeedImportError = {
 export type FeedSourceResult = {
   source: string;
   ok: boolean;
+  disabled?: boolean;
   importedJobs: number;
   message?: string;
 };

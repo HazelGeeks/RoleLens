@@ -51,25 +51,33 @@
     "name": "Wanted Frontend Search",
     "url": "https://www.wanted.co.kr/search?query=%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C",
     "company": "Wanted",
-    "source_type": "MANUAL"
+    "source_type": "MANUAL",
+    "enabled": false,
+    "disabled_reason": "Paused: search pages reject collection requests. An authorized Wanted OpenAPI connection is required."
   },
   {
     "name": "Wanted Blockchain Search",
     "url": "https://www.wanted.co.kr/search?query=%EB%B8%94%EB%A1%9D%EC%B2%B4%EC%9D%B8",
     "company": "Wanted",
-    "source_type": "MANUAL"
+    "source_type": "MANUAL",
+    "enabled": false,
+    "disabled_reason": "Paused: search pages reject collection requests. An authorized Wanted OpenAPI connection is required."
   },
   {
     "name": "Wanted Backend Search",
     "url": "https://www.wanted.co.kr/search?query=%EB%B0%B1%EC%97%94%EB%93%9C",
     "company": "Wanted",
-    "source_type": "MANUAL"
+    "source_type": "MANUAL",
+    "enabled": false,
+    "disabled_reason": "Paused: search pages reject collection requests. An authorized Wanted OpenAPI connection is required."
   },
   {
     "name": "Wanted Software Engineer Search",
     "url": "https://www.wanted.co.kr/search?query=software%20engineer",
     "company": "Wanted",
-    "source_type": "MANUAL"
+    "source_type": "MANUAL",
+    "enabled": false,
+    "disabled_reason": "Paused: search pages reject collection requests. An authorized Wanted OpenAPI connection is required."
   },
   {
     "name": "RocketPunch Frontend Jobs",

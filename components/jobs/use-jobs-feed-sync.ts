@@ -47,9 +47,13 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [syncToast, setSyncToast] = useState<SyncToast | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
-  const [syncSourceResults, setSyncSourceResults] = useState<FeedSourceResult[]>([]);
+  const [feedGeneratedAt, setFeedGeneratedAt] = useState<string | null>(null);
+  const [syncSourceResults, setSyncSourceResults] = useState<
+    FeedSourceResult[]
+  >([]);
   const [syncDiagnostics, setSyncDiagnostics] =
     useState<FeedImportDiagnostics>(EMPTY_DIAGNOSTICS);
   const [syncRecoveryGuide, setSyncRecoveryGuide] = useState<string[]>([]);
@@ -68,22 +72,28 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
   }, []);
 
   const applySyncAlert = useCallback(
-    (input: FeedSyncHealthInput) => {
+    (input: FeedSyncHealthInput, notify: boolean) => {
       const alert = buildFeedSyncAlert(input);
       const warningFingerprint = buildFeedSyncWarningFingerprint(input);
 
       if (alert?.level === "error") {
+        setSyncWarning(null);
         window.localStorage.removeItem(LAST_SHOWN_SYNC_WARNING_KEY);
         setSyncError(alert.message);
         return;
       }
 
       setSyncError(null);
+      setSyncWarning(alert?.message ?? null);
 
       if (!alert || !warningFingerprint) {
+        setSyncToast(null);
         window.localStorage.removeItem(LAST_SHOWN_SYNC_WARNING_KEY);
         return;
       }
+
+      // Background loads report health inline without interrupting page entry.
+      if (!notify) return;
 
       if (
         window.localStorage.getItem(LAST_SHOWN_SYNC_WARNING_KEY) ===
@@ -120,11 +130,13 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
         });
         await refreshJobs();
         setLastSyncAt(result.syncedAt);
+        setFeedGeneratedAt(result.feedGeneratedAt ?? null);
         setSyncSourceResults(result.sourceResults);
         setSyncDiagnostics(result.diagnostics);
         setSyncRecoveryGuide(result.recoveryGuide);
         const platformLabel = feedPlatformLabels[platform];
-        const targetLabel = platform === "all" ? "all feeds" : platformLabel + " feed";
+        const targetLabel =
+          platform === "all" ? "all feeds" : platformLabel + " feed";
         const rawImported = countRawImportedPostings(result.sourceResults);
         const rawImportPrefix =
           rawImported > result.totalImported
@@ -147,21 +159,31 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
             ".",
         );
 
-        applySyncAlert({
-          sourceCount: result.sourceCount,
-          errors: result.errors,
-          sourceResults: result.sourceResults,
-        });
+        applySyncAlert(
+          {
+            sourceCount: result.sourceCount,
+            errors: result.errors,
+            sourceResults: result.sourceResults,
+          },
+          !options?.silent,
+        );
       } catch (error) {
+        setSyncWarning(null);
         const message =
-          error instanceof Error ? error.message : "Failed to sync crawled feed";
+          error instanceof Error
+            ? error.message
+            : "Failed to sync crawled feed";
 
         if (message.includes("failed to write DB")) {
           const marker = "failed to write DB";
-          const markerIndex = message.toLowerCase().indexOf(marker.toLowerCase());
+          const markerIndex = message
+            .toLowerCase()
+            .indexOf(marker.toLowerCase());
           const detail =
             markerIndex >= 0
-              ? message.slice(markerIndex + marker.length).replace(/^[:\s]+/, "")
+              ? message
+                  .slice(markerIndex + marker.length)
+                  .replace(/^[:\s]+/, "")
               : "";
 
           setSyncMessage(
@@ -180,11 +202,16 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
 
         if (message.includes("Rate limit exceeded")) {
           setSyncError(null);
-          showSyncToast("Sync is temporarily rate-limited. Please wait and retry.");
+          showSyncToast(
+            "Sync is temporarily rate-limited. Please wait and retry.",
+          );
           return;
         }
 
-        if (message.includes("status 401") || message.includes("Login required")) {
+        if (
+          message.includes("status 401") ||
+          message.includes("Login required")
+        ) {
           setSyncError(null);
           showSyncToast("Login required. Please sign in and retry sync.");
           return;
@@ -230,7 +257,9 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
   useEffect(() => {
     if (!syncToast) return;
     const timeout = window.setTimeout(() => {
-      setSyncToast((current) => (current?.id === syncToast.id ? null : current));
+      setSyncToast((current) =>
+        current?.id === syncToast.id ? null : current,
+      );
     }, 6000);
 
     return () => {
@@ -249,17 +278,14 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
           : "";
 
       setSyncSourceResults(lastSummary.sourceResults);
+      setFeedGeneratedAt(lastSummary.feedGeneratedAt ?? null);
       setSyncDiagnostics(lastSummary.diagnostics);
       setSyncRecoveryGuide(lastSummary.recoveryGuide);
       setSyncMessage(
         `Last sync imported ${rawImportPrefix}${lastSummary.totalImported} postings from ${lastSummary.importedSourceCount} source(s).`,
       );
 
-      applySyncAlert({
-        sourceCount: lastSummary.sourceCount,
-        errors: lastSummary.errors,
-        sourceResults: lastSummary.sourceResults,
-      });
+      // Cached diagnostics are historical; only the fresh response sets current alerts.
     }
 
     void runFeedSync({
@@ -273,9 +299,11 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
     isSyncing,
     syncMessage,
     syncError,
+    syncWarning,
     syncToast,
     dismissSyncToast,
     lastSyncAt,
+    feedGeneratedAt,
     syncSourceResults,
     syncDiagnostics,
     syncRecoveryGuide,

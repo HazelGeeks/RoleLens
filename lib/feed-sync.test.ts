@@ -89,9 +89,13 @@ describe("feed sync observability", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await syncJobsFromFeeds({ refresh: true, persistToDb: false });
+    const result = await syncJobsFromFeeds({
+      refresh: true,
+      persistToDb: false,
+    });
 
     expect(result.totalImported).toBe(1);
+    expect(result.feedGeneratedAt).toBe("2026-04-13T00:00:00.000Z");
     expect(result.sourceCount).toBe(2);
     expect(result.importedSourceCount).toBe(5);
     expect(result.sourceResults).toEqual([
@@ -110,6 +114,7 @@ describe("feed sync observability", () => {
 
     const summary = getLastFeedSyncSummary();
     expect(summary).not.toBeNull();
+    expect(summary?.feedGeneratedAt).toBe("2026-04-13T00:00:00.000Z");
     expect(summary?.sourceCount).toBe(2);
     expect(summary?.importedSourceCount).toBe(5);
     expect(summary?.errors).toHaveLength(1);
@@ -506,7 +511,9 @@ describe("feed sync observability", () => {
     const migrated = saved.find((job) => job.id === "legacy-import-1");
     expect(migrated?.status).toBe("NONE");
     expect(migrated?.statusHistory[0]?.status).toBe("NONE");
-    expect(migrated?.statusHistory[0]?.note).toBe("Imported from external feed");
+    expect(migrated?.statusHistory[0]?.note).toBe(
+      "Imported from external feed",
+    );
   });
 
   it("supports platform-scoped sync without deleting other platform jobs", async () => {
@@ -620,7 +627,11 @@ describe("feed sync observability", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await syncJobsFromFeeds({ refresh: true, platform: "indeed", persistToDb: false });
+    await syncJobsFromFeeds({
+      refresh: true,
+      platform: "indeed",
+      persistToDb: false,
+    });
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/jobs/sync",
@@ -711,7 +722,8 @@ describe("feed sync observability", () => {
                   externalId: "py:linkedin:old",
                   source: "LINKEDIN",
                   sourceLabel: "PythonScraper:LinkedIn Frontend Search",
-                  sourceUrl: "https://www.linkedin.com/jobs/view/untouched-stale",
+                  sourceUrl:
+                    "https://www.linkedin.com/jobs/view/untouched-stale",
                   company: "Untouched Co",
                   title: "Untouched Old Posting",
                   descriptionRaw: "React old posting",
@@ -751,7 +763,10 @@ describe("feed sync observability", () => {
       ),
     );
 
-    const result = await syncJobsFromFeeds({ refresh: true, persistToDb: false });
+    const result = await syncJobsFromFeeds({
+      refresh: true,
+      persistToDb: false,
+    });
 
     expect(result.totalImported).toBe(1);
     expect(mockedSaveJobsToStorage).toHaveBeenCalledTimes(1);
@@ -760,13 +775,16 @@ describe("feed sync observability", () => {
     const savedIds = saved.map((job) => job.id);
     expect(savedIds).toContain("saved-stale-imported");
     expect(savedIds).not.toContain("untouched-stale-imported");
-    expect(saved.some((job) => job.sourceUrl === "https://www.linkedin.com/jobs/view/fresh")).toBe(
-      true,
-    );
+    expect(
+      saved.some(
+        (job) => job.sourceUrl === "https://www.linkedin.com/jobs/view/fresh",
+      ),
+    ).toBe(true);
     expect(
       saved.some(
         (job) =>
-          job.sourceUrl === "https://www.linkedin.com/jobs/view/untouched-stale",
+          job.sourceUrl ===
+          "https://www.linkedin.com/jobs/view/untouched-stale",
       ),
     ).toBe(false);
 
@@ -777,108 +795,117 @@ describe("feed sync observability", () => {
   it("sanitizes overlength feed tags before persistence writes", async () => {
     const now = "2026-05-20T00:00:00.000Z";
 
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.toString()
-            : input.url;
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.toString()
+              : input.url;
 
-      if (url.startsWith("/api/jobs/sync")) {
-        return new Response(
-          JSON.stringify({
-            generatedAt: now,
-            sourceCount: 1,
-            jobs: [
-              {
-                externalId: "py:linkedin:long-tag",
-                source: "LINKEDIN",
-                sourceLabel: "PythonScraper:LinkedIn Software Engineer Search",
-                sourceUrl: "https://www.linkedin.com/jobs/view/123",
+        if (url.startsWith("/api/jobs/sync")) {
+          return new Response(
+            JSON.stringify({
+              generatedAt: now,
+              sourceCount: 1,
+              jobs: [
+                {
+                  externalId: "py:linkedin:long-tag",
+                  source: "LINKEDIN",
+                  sourceLabel:
+                    "PythonScraper:LinkedIn Software Engineer Search",
+                  sourceUrl: "https://www.linkedin.com/jobs/view/123",
+                  company: "LinkedIn",
+                  title: "Senior Software Engineer",
+                  location: "Seoul",
+                  descriptionRaw: "React TypeScript role",
+                  extractedSkills: ["React", "TypeScript"],
+                  tags: ["python-scraper", "linkedin-software-engineer-search"],
+                },
+              ],
+              errors: [],
+              sourceResults: [
+                {
+                  source: "PythonScraper",
+                  ok: true,
+                  importedJobs: 1,
+                },
+              ],
+              diagnostics: {
+                ats: {
+                  greenhouseBoardCount: 0,
+                  leverCompanyCount: 0,
+                  ashbyOrganizationCount: 0,
+                  smartRecruitersCompanyCount: 0,
+                  configuredSourceCount: 0,
+                },
+                rss: {
+                  linkedinConfigured: false,
+                  indeedConfigured: false,
+                  thirdConfigured: false,
+                  configuredSourceCount: 0,
+                },
+                python: {
+                  scrapedFeedConfigured: true,
+                  configuredSourceCount: 1,
+                },
+                sourceCount: 1,
+              },
+              recoveryGuide: ["retry"],
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          );
+        }
+
+        if (url === "/api/jobs" && init?.method === "POST") {
+          const payload = JSON.parse(String(init.body ?? "{}")) as {
+            tags?: string[];
+          };
+          expect(payload.tags?.every((tag) => tag.length <= 32)).toBe(true);
+
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              job: {
+                id: "p-1",
+                userId: "test-user",
                 company: "LinkedIn",
                 title: "Senior Software Engineer",
                 location: "Seoul",
-                descriptionRaw: "React TypeScript role",
-                extractedSkills: ["React", "TypeScript"],
-                tags: ["python-scraper", "linkedin-software-engineer-search"],
+                sourceUrl: "https://www.linkedin.com/jobs/view/123",
+                status: "NONE",
+                tags: payload.tags ?? [],
+                notes: [],
+                createdAt: now,
+                updatedAt: now,
+                updatedByDevice: "test-device",
+                version: 1,
               },
-            ],
-            errors: [],
-            sourceResults: [
-              {
-                source: "PythonScraper",
-                ok: true,
-                importedJobs: 1,
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
               },
-            ],
-            diagnostics: {
-              ats: {
-                greenhouseBoardCount: 0,
-                leverCompanyCount: 0,
-                ashbyOrganizationCount: 0,
-                smartRecruitersCompanyCount: 0,
-                configuredSourceCount: 0,
-              },
-              rss: {
-                linkedinConfigured: false,
-                indeedConfigured: false,
-                thirdConfigured: false,
-                configuredSourceCount: 0,
-              },
-              python: {
-                scrapedFeedConfigured: true,
-                configuredSourceCount: 1,
-              },
-              sourceCount: 1,
             },
-            recoveryGuide: ["retry"],
-          }),
-          {
-            status: 200,
-            headers: {
-              "content-type": "application/json",
-            },
-          },
+          );
+        }
+
+        throw new Error(
+          "Unexpected fetch call: " +
+            url +
+            " (" +
+            (init?.method ?? "GET") +
+            ")",
         );
-      }
-
-      if (url === "/api/jobs" && init?.method === "POST") {
-        const payload = JSON.parse(String(init.body ?? "{}")) as {
-          tags?: string[];
-        };
-        expect(payload.tags?.every((tag) => tag.length <= 32)).toBe(true);
-
-        return new Response(
-          JSON.stringify({
-            ok: true,
-            job: {
-              id: "p-1",
-              userId: "test-user",
-              company: "LinkedIn",
-              title: "Senior Software Engineer",
-              location: "Seoul",
-              sourceUrl: "https://www.linkedin.com/jobs/view/123",
-              status: "NONE",
-              tags: payload.tags ?? [],
-              notes: [],
-              createdAt: now,
-              updatedAt: now,
-              updatedByDevice: "test-device",
-              version: 1,
-            },
-          }),
-          {
-            status: 200,
-            headers: {
-              "content-type": "application/json",
-            },
-          },
-        );
-      }
-
-      throw new Error("Unexpected fetch call: " + url + " (" + (init?.method ?? "GET") + ")");
-    });
+      },
+    );
 
     vi.stubGlobal("fetch", fetchMock);
 
@@ -887,5 +914,4 @@ describe("feed sync observability", () => {
     expect(result.totalImported).toBe(1);
     expect(mockedSaveJobsToStorage).toHaveBeenCalledTimes(1);
   });
-
 });

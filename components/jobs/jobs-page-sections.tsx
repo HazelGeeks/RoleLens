@@ -23,10 +23,7 @@ import type {
   RemoteType,
 } from "@/lib/local-jobs";
 import type { FeedImportDiagnostics, FeedSourceResult } from "@/lib/feed-types";
-import {
-  feedPlatformLabels,
-  type FeedPlatform,
-} from "@/lib/feed-platform";
+import { feedPlatformLabels, type FeedPlatform } from "@/lib/feed-platform";
 import type { JobRow } from "@/components/jobs/jobs-table";
 import {
   jobsSortLabels,
@@ -94,7 +91,9 @@ export function JobsPageHeader({
         <button
           type="button"
           className={styles.mobileActionsButton}
-          aria-label={isMobileActionsOpen ? "Close jobs actions" : "Open jobs actions"}
+          aria-label={
+            isMobileActionsOpen ? "Close jobs actions" : "Open jobs actions"
+          }
           aria-expanded={isMobileActionsOpen}
           aria-controls="jobs-actions-menu"
           onClick={() => setIsMobileActionsOpen((isOpen) => !isOpen)}
@@ -115,13 +114,18 @@ export function JobsPageHeader({
             onClick={handleSyncAll}
             disabled={isSyncing}
           >
-            {isSyncing && activeSyncPlatform === "all" ? "Syncing..." : "Sync all"}
+            {isSyncing && activeSyncPlatform === "all"
+              ? "Syncing..."
+              : "Sync all"}
           </Button>
           <Button type="button" onClick={handleOpenSaveModal}>
             Save new
           </Button>
         </div>
-        <div className={styles.platformActions} aria-label="Platform sync actions">
+        <div
+          className={styles.platformActions}
+          aria-label="Platform sync actions"
+        >
           {PLATFORM_BUTTONS.map((platform) => (
             <Button
               key={platform}
@@ -169,6 +173,7 @@ type JobsFiltersCardProps = {
   rowsCount: number;
   totalJobs: number;
   lastSyncAt: string | null;
+  feedGeneratedAt: string | null;
   syncMessage: string | null;
   syncError: string | null;
   syncDiagnostics: FeedImportDiagnostics;
@@ -183,6 +188,7 @@ export function JobsFiltersCard({
   rowsCount,
   totalJobs,
   lastSyncAt,
+  feedGeneratedAt,
   syncMessage,
   syncError,
   syncDiagnostics,
@@ -285,7 +291,9 @@ export function JobsFiltersCard({
               <Select
                 value={filters.remoteType}
                 onChange={(event) =>
-                  actions.setRemoteType(event.target.value as RemoteType | "ALL")
+                  actions.setRemoteType(
+                    event.target.value as RemoteType | "ALL",
+                  )
                 }
               >
                 <option value="ALL">All Work Type</option>
@@ -311,7 +319,9 @@ export function JobsFiltersCard({
               <span>Required Skill</span>
               <Input
                 value={filters.requiredSkill}
-                onChange={(event) => actions.setRequiredSkill(event.target.value)}
+                onChange={(event) =>
+                  actions.setRequiredSkill(event.target.value)
+                }
                 placeholder="React, TypeScript, Next.js"
               />
             </label>
@@ -333,11 +343,7 @@ export function JobsFiltersCard({
           </div>
 
           {syncMessage ? (
-            <p
-              className={styles.syncNotice}
-              role="status"
-              aria-live="polite"
-            >
+            <p className={styles.syncNotice} role="status" aria-live="polite">
               {syncMessage}
             </p>
           ) : null}
@@ -355,10 +361,7 @@ export function JobsFiltersCard({
           ) : null}
 
           {syncError ? (
-            <div
-              className={styles.errorNotice}
-              role="alert"
-            >
+            <div className={styles.errorNotice} role="alert">
               <p>{syncError}</p>
             </div>
           ) : null}
@@ -374,22 +377,27 @@ export function JobsFiltersCard({
             </div>
           ) : null}
 
-          {(lastSyncAt || syncSourceResults.length > 0) ? (
+          {lastSyncAt || syncSourceResults.length > 0 ? (
             <details className={styles.syncDetails}>
-              <summary>
-                Sync details (optional)
-              </summary>
+              <summary>Sync details (optional)</summary>
               <div className={styles.syncDetailsBody}>
                 <p className={styles.syncTimestamp}>
                   {lastSyncAt
-                    ? `Last sync: ${new Date(lastSyncAt).toLocaleString()}`
+                    ? `Last checked: ${new Date(lastSyncAt).toLocaleString()}`
                     : "No sync yet"}
                 </p>
+                {feedGeneratedAt ? (
+                  <p className={styles.syncTimestamp}>
+                    Feed collected: {new Date(feedGeneratedAt).toLocaleString()}
+                  </p>
+                ) : null}
                 <div className={styles.diagnosticsPanel}>
                   <p>Sync Diagnostics</p>
                   <p>
                     Postgres Python snapshot:{" "}
-                    {syncDiagnostics.python.scrapedFeedConfigured ? "yes" : "no"}
+                    {syncDiagnostics.python.scrapedFeedConfigured
+                      ? "yes"
+                      : "no"}
                   </p>
                   <p>Final sourceCount: {syncDiagnostics.sourceCount}</p>
                 </div>
@@ -401,9 +409,7 @@ export function JobsFiltersCard({
                     aria-live="polite"
                   >
                     <h3>Latest Sync Results</h3>
-                    <p>
-                      Source-level success and failure details.
-                    </p>
+                    <p>Source-level success and failure details.</p>
                     <div className={styles.syncResultsGrid}>
                       {syncSourceResults.map((result) => (
                         <div
@@ -414,21 +420,21 @@ export function JobsFiltersCard({
                             <span>{result.source}</span>
                             <span
                               className={
-                                result.ok
-                                  ? styles.syncResultSuccess
-                                  : styles.syncResultFailed
+                                result.disabled
+                                  ? styles.syncResultPaused
+                                  : result.ok
+                                    ? styles.syncResultSuccess
+                                    : styles.syncResultFailed
                               }
                             >
-                              {result.ok
-                                ? `Success (${result.importedJobs} raw)`
-                                : "Failed"}
+                              {result.disabled
+                                ? "Paused"
+                                : result.ok
+                                  ? `Success (${result.importedJobs} raw)`
+                                  : "Failed"}
                             </span>
                           </div>
-                          {result.message ? (
-                            <p>
-                              {result.message}
-                            </p>
-                          ) : null}
+                          {result.message ? <p>{result.message}</p> : null}
                         </div>
                       ))}
                     </div>
@@ -550,9 +556,16 @@ export function CompareShortlistCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-semibold">Compare Shortlist</h3>
         <div className="flex items-center gap-2">
-          <p className="text-xs text-slate-500">Selected {compareRows.length} / 3</p>
+          <p className="text-xs text-slate-500">
+            Selected {compareRows.length} / 3
+          </p>
           {compareRows.length > 0 ? (
-            <Button type="button" variant="secondary" size="sm" onClick={onClear}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onClear}
+            >
               Clear all
             </Button>
           ) : null}
@@ -572,7 +585,8 @@ export function CompareShortlistCard({
                   className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
                 >
                   <span>
-                    {row.title} <span className="text-slate-500">· {row.company}</span>
+                    {row.title}{" "}
+                    <span className="text-slate-500">· {row.company}</span>
                   </span>
                   <Button
                     type="button"
@@ -637,7 +651,9 @@ export function CompareShortlistCard({
                       Remove
                     </Button>
                   </td>
-                  <td className="px-3 py-2 align-top">{row.nextAction || "-"}</td>
+                  <td className="px-3 py-2 align-top">
+                    {row.nextAction || "-"}
+                  </td>
                 </tr>
               ))}
             </tbody>

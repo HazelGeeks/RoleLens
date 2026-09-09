@@ -1,4 +1,6 @@
 name = "rolelens"
+# Hazel Co. owns the Supabase Hyperdrive and the canonical Worker.
+account_id = "8aac1c15f7a44b8a902ba9e98f517a3e"
 main = ".open-next/worker.js"
 compatibility_date = "2026-09-03"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]

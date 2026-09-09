@@ -34,6 +34,7 @@ const LAST_SYNC_DATE_KEY = "rolelens.feed.lastSyncDate";
 const LAST_SYNC_RESULT_KEY = "rolelens.feed.lastSyncResult";
 
 export type SyncJobsFromFeedsResult = {
+  feedGeneratedAt?: string;
   added: number;
   updated: number;
   totalImported: number;
@@ -48,6 +49,7 @@ export type SyncJobsFromFeedsResult = {
 };
 
 export type FeedSyncSummary = {
+  feedGeneratedAt?: string;
   syncedAt: string;
   sourceCount: number;
   importedSourceCount: number;
@@ -209,6 +211,7 @@ export async function syncJobsFromFeeds(options?: {
   const errors = [...payload.errors, ...persistenceErrors];
 
   const summary: FeedSyncSummary = {
+    feedGeneratedAt: payload.generatedAt,
     syncedAt,
     sourceCount: payload.sourceCount,
     importedSourceCount,
@@ -226,6 +229,7 @@ export async function syncJobsFromFeeds(options?: {
   window.localStorage.setItem(LAST_SYNC_RESULT_KEY, JSON.stringify(summary));
 
   return {
+    feedGeneratedAt: payload.generatedAt,
     added,
     updated,
     totalImported: freshImportedJobs.length,
@@ -268,6 +272,10 @@ export function getLastFeedSyncSummary(): FeedSyncSummary | null {
     }
 
     return {
+      feedGeneratedAt:
+        typeof parsed.feedGeneratedAt === "string"
+          ? parsed.feedGeneratedAt
+          : undefined,
       syncedAt: parsed.syncedAt,
       sourceCount: parsed.sourceCount,
       importedSourceCount:

@@ -18,7 +18,7 @@ export function buildFeedSyncWarningFingerprint(
   if (alert?.level !== "warning") return null;
 
   const failedSources = input.sourceResults
-    .filter((result) => !result.ok)
+    .filter((result) => !result.ok && !result.disabled)
     .map((result) => ({
       source: result.source,
       message: result.message || "",
@@ -44,26 +44,38 @@ export function buildFeedSyncAlert(
     return {
       level: "error",
       message:
-        "No Postgres feed snapshot is available. Ingest a normalized feed snapshot into Supabase Postgres, then retry sync.",
+        "Job feeds are currently unavailable. Your saved postings are still available. Please try again later.",
     };
   }
 
-  const failedSources = input.sourceResults.filter((result) => !result.ok);
+  const failedSources = input.sourceResults.filter(
+    (result) => !result.ok && !result.disabled,
+  );
   if (failedSources.length === 0) {
     return null;
   }
 
-  const failedNames = failedSources.map((result) => result.source).join(", ");
+  const failedNames = Array.from(
+    new Set(
+      failedSources.map((result) => {
+        const name = result.source.replace(/^PythonScraper:/, "");
+        return (
+          /^(JobKorea|Wanted|Saramin|Indeed|LinkedIn)\b/.exec(name)?.[1] ?? name
+        );
+      }),
+    ),
+  ).join(", ");
 
   if (input.sourceCount > 0 && failedSources.length >= input.sourceCount) {
     return {
       level: "error",
-      message: `Sync failed for all configured sources (${failedNames}). Check source URLs, credentials, and endpoint availability.`,
+      message:
+        "Job feeds are currently unavailable. Your saved postings are still available. Please try again later.",
     };
   }
 
   return {
     level: "warning",
-    message: `Partial sync completed. Failed source(s): ${failedNames}. Data from healthy sources was imported.`,
+    message: `Some job sources are temporarily unavailable (${failedNames}). You can browse postings from other sources.`,
   };
 }

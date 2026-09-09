@@ -36,6 +36,22 @@ Each source entry uses:
 `source_type` can be `LINKEDIN`, `INDEED`, `SARAMIN`, `JOBKOREA`, or `MANUAL`.
 Set `optional` to `true` for opportunistic sources that are useful when available but should not surface a user-facing partial-sync warning when the site blocks crawler requests.
 
+Set `enabled` to `false` with a `disabled_reason` to pause a source entirely.
+Paused sources make no network requests, are excluded from the active `sourceCount`,
+and remain in `sourceResults` with `disabled: true` and `ok: false`. The app displays
+them as **Paused**, rather than success or a collection failure.
+
+Wanted searches are currently paused because the search pages reject crawler
+requests with HTTP 403. Re-enable them only after an authorized integration is
+available; [Wanted OpenAPI](https://openapi.wanted.jobs/) requires a separately
+issued key. No key or additional service is required while Wanted is paused.
+
+Run the offline source-control tests with:
+
+```bash
+python3 -m unittest discover -s python/scraper -p 'test_*.py'
+```
+
 ## Local run
 
 Install dependencies first:
@@ -99,6 +115,11 @@ python3 python/scraper/scrape_jobkorea.py
 ## Connect to RoleLens import
 
 RoleLens runs this scraper from the `Daily Feed Sync` GitHub Actions workflow. The workflow generates `python-scraped-jobs.json`, uploads it as a short-lived artifact, posts it to `/api/jobs/ingest`, then calls `/api/jobs/cron` to warm the edge cache from the latest Supabase Postgres snapshot.
+
+The workflow uses only the `ROLELENS_PRODUCTION_URL` repository variable for its
+target. The legacy `ROLELENS_SYNC_URL` secret is ignored to prevent refreshing a
+different application. The final check requires the same collection timestamp
+and a `postgres` response, so writing to an old D1 app cannot pass as a successful refresh.
 
 For local debugging or another scheduler, post the generated JSON to:
 

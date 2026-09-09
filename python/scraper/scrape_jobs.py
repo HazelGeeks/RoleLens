@@ -282,6 +282,8 @@ def load_sources(sources_file: Path | None, inline_urls: list[str]) -> list[dict
                 "company": clean_text(str(entry.get("company", ""))) or name,
                 "source_type": source_type,
                 "optional": is_truthy_config_value(entry.get("optional")),
+                "enabled": "enabled" not in entry or is_truthy_config_value(entry["enabled"]),
+                "disabled_reason": clean_text(str(entry.get("disabled_reason", ""))),
             }
             sources.append(source)
 
@@ -452,6 +454,19 @@ def scrape_source_with_jobspy_indeed(
 def scrape_source(source: dict[str, Any], timeout_seconds: int, limit_per_source: int) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, str] | None]:
     label = f"PythonScraper:{source['name']}"
 
+    if source.get("enabled") is False:
+        return (
+            [],
+            {
+                "source": label,
+                "ok": False,
+                "disabled": True,
+                "importedJobs": 0,
+                "message": source.get("disabled_reason") or "Collection is paused.",
+            },
+            None,
+        )
+
     if source.get("source_type") == "INDEED":
         jobspy_result = scrape_source_with_jobspy_indeed(source, limit_per_source)
         if jobspy_result is not None:
@@ -559,7 +574,7 @@ def build_output_payload(
     return {
         "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
         "platform": platform,
-        "sourceCount": len(source_results),
+        "sourceCount": sum(1 for result in source_results if not result.get("disabled")),
         "jobs": jobs,
         "sourceResults": source_results,
         "errors": errors,
