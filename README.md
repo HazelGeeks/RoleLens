@@ -51,8 +51,8 @@ Feed ingestion:
 GitHub Actions feed sync:
 
 - `ROLELENS_CRON_SECRET` (required repository secret; must match the deployed Cloudflare `CRON_SECRET`)
-- `ROLELENS_SYNC_URL` (optional repository secret; falls back to the `ROLELENS_PRODUCTION_URL` repository variable)
-  - When Cloudflare Access protects the Worker URL, point this secret to a public, secret-protected ingestion endpoint until an Access service token is configured.
+- `ROLELENS_PRODUCTION_URL` (required repository variable; the canonical Worker base URL)
+  - The scheduled workflow uses this target exclusively. The legacy `ROLELENS_SYNC_URL` secret is ignored.
 
 Auth security:
 
@@ -298,8 +298,7 @@ Workflow: `.github/workflows/deploy-cloudflare.yml`
 
 Required GitHub Secrets:
 
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN` (must authorize Worker deployment and Hyperdrive access in the Hazel Co. account)
 - `ROLELENS_CRON_SECRET` (for the scheduled feed workflow)
 
 Required GitHub repository variable:
@@ -310,7 +309,10 @@ Required Cloudflare Worker secrets:
 
 - `AUTH_PASSWORD_PEPPER`
 - `CRON_SECRET`
-- `SYNC_ADMIN_EMAILS`
+
+Optional Cloudflare Worker secret:
+
+- `SYNC_ADMIN_EMAILS` (allows listed users to trigger manual admin sync)
 
 The Worker name and Hyperdrive binding are defined in `wrangler.toml`. Run `npm run deploy` for a manual deployment, or merge to `main` to run the deployment workflow.
 
