@@ -29,9 +29,23 @@ export type LocalJobsClaimedDetail = {
 
 async function fetchPersistence(input: string, init: RequestInit) {
   const scope = getJobsStorageKey();
-  const response = await fetch(input, init);
-  assertJobsStorageScope(scope);
-  return response;
+  const retryDelays = [300, 900];
+  for (let attempt = 0; ; attempt += 1) {
+    assertJobsStorageScope(scope);
+    const response = await fetch(input, init);
+    assertJobsStorageScope(scope);
+    if (init.method !== "GET" && response.ok) pendingJobLists.delete(scope);
+    // Only retry reads: replaying a write could duplicate a note or mutation.
+    if (
+      init.method !== "GET" ||
+      ![502, 503, 504].includes(response.status) ||
+      attempt >= retryDelays.length
+    ) {
+      return response;
+    }
+    await response.body?.cancel();
+    await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
+  }
 }
 
 export function toPersistentJobMeta(job: LocalJobPosting): PersistentJobMeta {
@@ -294,8 +308,9 @@ export function mergeLocalWithPersistent(
   );
 }
 
-export async function listPersistentJobsClient() {
-  const scope = getJobsStorageKey();
+const pendingJobLists = new Map<string, Promise<PersistentJob[]>>();
+
+async function loadPersistentJobs(scope: string): Promise<PersistentJob[]> {
   const response = await fetchPersistence("/api/jobs", {
     method: "GET",
     cache: "no-store",
@@ -309,6 +324,22 @@ export async function listPersistentJobsClient() {
   assertJobsStorageScope(scope);
 
   return Array.isArray(payload.jobs) ? payload.jobs : [];
+}
+
+export async function listPersistentJobsClient(): Promise<PersistentJob[]> {
+  const scope = getJobsStorageKey();
+  const existing = pendingJobLists.get(scope);
+  if (existing) return existing;
+
+  // Auth restoration, feed refresh, and the jobs view can all request this list.
+  // Share only the in-flight request within the same account; never cache its result.
+  const pending = loadPersistentJobs(scope);
+  pendingJobLists.set(scope, pending);
+  try {
+    return await pending;
+  } finally {
+    if (pendingJobLists.get(scope) === pending) pendingJobLists.delete(scope);
+  }
 }
 
 export async function getPersistentJobClient(jobId: string) {

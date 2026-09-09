@@ -174,7 +174,10 @@ it("does not upload anything when the account listing fails", async () => {
   );
   vi.stubGlobal("fetch", fetchMock);
   await expect(claimLocalJobsForActiveSession()).rejects.toThrow("503");
-  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(fetchMock).toHaveBeenCalled();
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(
+    true,
+  );
   expect(getJobsFromStorage(GUEST_JOBS_STORAGE_KEY)).toHaveLength(1);
 });
 

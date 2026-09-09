@@ -351,6 +351,7 @@ export function JobsPageClient() {
         <SyncToast
           message={`Account postings could not be loaded. Showing this browser's local copy for now. ${persistenceError}`}
           onDismiss={() => setDismissedPersistenceError(persistenceError)}
+          onRetry={() => void refreshJobs()}
         />
       ) : null}
 

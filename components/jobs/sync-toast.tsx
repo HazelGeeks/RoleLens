@@ -3,9 +3,10 @@
 type SyncToastProps = {
   message: string;
   onDismiss: () => void;
+  onRetry?: () => void;
 };
 
-export function SyncToast({ message, onDismiss }: SyncToastProps) {
+export function SyncToast({ message, onDismiss, onRetry }: SyncToastProps) {
   return (
     <div className="pointer-events-none fixed left-1/2 top-4 z-50 w-[calc(100%-1.5rem)] max-w-sm -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0">
       <div
@@ -24,6 +25,15 @@ export function SyncToast({ message, onDismiss }: SyncToastProps) {
             Dismiss
           </button>
         </div>
+        {onRetry ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-2 rounded border border-amber-300 px-3 py-1 text-xs font-medium hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:border-amber-700 dark:hover:bg-amber-900"
+          >
+            Retry loading postings
+          </button>
+        ) : null}
       </div>
     </div>
   );
