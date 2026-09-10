@@ -47,11 +47,14 @@ async function countOrNull(
 ) {
   try {
     const statement = db.prepare(query);
-    const row = await (bindings.length > 0 ? statement.bind(...bindings) : statement)
-      .first<CountRow>();
+    const row = await (
+      bindings.length > 0 ? statement.bind(...bindings) : statement
+    ).first<CountRow>();
     return toNumber(row?.count);
   } catch (error) {
-    issues.push(error instanceof Error ? error.message : "Postgres count query failed");
+    issues.push(
+      error instanceof Error ? error.message : "Postgres count query failed",
+    );
     return null;
   }
 }
@@ -72,7 +75,9 @@ async function statusCountsOrEmpty(db: DatabaseLike, issues: string[]) {
       count: toNumber(row.count),
     }));
   } catch (error) {
-    issues.push(error instanceof Error ? error.message : "Postgres status query failed");
+    issues.push(
+      error instanceof Error ? error.message : "Postgres status query failed",
+    );
     return [];
   }
 }
@@ -96,7 +101,11 @@ async function recentJobsOrEmpty(db: DatabaseLike, issues: string[]) {
       updatedAt: row.updatedAt || row.updated_at || null,
     }));
   } catch (error) {
-    issues.push(error instanceof Error ? error.message : "Postgres recent jobs query failed");
+    issues.push(
+      error instanceof Error
+        ? error.message
+        : "Postgres recent jobs query failed",
+    );
     return [];
   }
 }
@@ -130,19 +139,15 @@ export async function GET(request: Request) {
     snapshot = await readLatestFeedSnapshot();
   } catch (error) {
     issues.push(
-      error instanceof Error ? error.message : "Postgres feed snapshot query failed",
+      error instanceof Error
+        ? error.message
+        : "Postgres feed snapshot query failed",
     );
   }
 
   const now = new Date().toISOString();
 
-  const [
-    userCount,
-    activeSessionCount,
-    totalJobCount,
-    trackedUserCount,
-    totalGoalCount,
-  ] = db
+  const [userCount, activeSessionCount, totalJobCount, trackedUserCount] = db
     ? await Promise.all([
         countOrNull(db, "SELECT COUNT(*) as count FROM auth_users", issues),
         countOrNull(
@@ -151,18 +156,24 @@ export async function GET(request: Request) {
           issues,
           [now],
         ),
-        countOrNull(db, "SELECT COUNT(*) as count FROM persistent_jobs", issues),
+        countOrNull(
+          db,
+          "SELECT COUNT(*) as count FROM persistent_jobs",
+          issues,
+        ),
         countOrNull(
           db,
           "SELECT COUNT(DISTINCT user_id) as count FROM persistent_jobs",
           issues,
         ),
-        countOrNull(db, "SELECT COUNT(*) as count FROM persistent_goals", issues),
       ])
-    : [null, null, null, null, null];
+    : [null, null, null, null];
 
   const [statusCounts, recentJobs] = db
-    ? await Promise.all([statusCountsOrEmpty(db, issues), recentJobsOrEmpty(db, issues)])
+    ? await Promise.all([
+        statusCountsOrEmpty(db, issues),
+        recentJobsOrEmpty(db, issues),
+      ])
     : [[], []];
 
   if (!db) {
@@ -203,9 +214,6 @@ export async function GET(request: Request) {
       trackedUserCount,
       statusCounts,
       recentJobs,
-    },
-    goals: {
-      totalCount: totalGoalCount,
     },
   });
 }

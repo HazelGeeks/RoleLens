@@ -1,17 +1,5 @@
-import { Suspense } from "react";
-import { ProtectedRoute } from "@/components/auth/protected-route";
-import { GoalsPageClient } from "@/components/interview/goals-page-client";
+import { redirect } from "next/navigation";
 
-function Loading() {
-  return <p className="text-sm text-slate-500">Loading goals workspace...</p>;
-}
-
-export default function InterviewGoalsPage() {
-  return (
-    <ProtectedRoute featureName="interview goals">
-      <Suspense fallback={<Loading />}>
-        <GoalsPageClient />
-      </Suspense>
-    </ProtectedRoute>
-  );
+export default function RetiredWorkspacePage() {
+  redirect("/resume");
 }

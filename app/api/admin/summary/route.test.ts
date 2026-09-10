@@ -19,7 +19,9 @@ import { getDatabaseFromContext } from "@/lib/database";
 import { readLatestFeedSnapshot } from "@/lib/feed-snapshot-store";
 import { GET } from "./route";
 
-const mockedGetAuthSessionUserFromRequest = vi.mocked(getAuthSessionUserFromRequest);
+const mockedGetAuthSessionUserFromRequest = vi.mocked(
+  getAuthSessionUserFromRequest,
+);
 const mockedGetDatabaseFromContext = vi.mocked(getDatabaseFromContext);
 const mockedReadLatestFeedSnapshot = vi.mocked(readLatestFeedSnapshot);
 
@@ -78,7 +80,6 @@ function buildMockDatabase(): DatabaseLike {
     ["auth_sessions", { count: 2 }],
     ["persistent_jobs", { count: 7 }],
     ["DISTINCT user_id", { count: 2 }],
-    ["persistent_goals", { count: 4 }],
   ]);
 
   return {
@@ -137,7 +138,9 @@ describe("/api/admin/summary route", () => {
   it("requires a logged-in session", async () => {
     mockedGetAuthSessionUserFromRequest.mockResolvedValue(null);
 
-    const response = await GET(new Request("https://rolelens.pages.dev/api/admin/summary"));
+    const response = await GET(
+      new Request("https://rolelens.pages.dev/api/admin/summary"),
+    );
     const payload = (await response.json()) as { ok: boolean; message: string };
 
     expect(response.status).toBe(401);
@@ -154,7 +157,9 @@ describe("/api/admin/summary route", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
     });
 
-    const response = await GET(new Request("https://rolelens.pages.dev/api/admin/summary"));
+    const response = await GET(
+      new Request("https://rolelens.pages.dev/api/admin/summary"),
+    );
     const payload = (await response.json()) as { ok: boolean; message: string };
 
     expect(response.status).toBe(403);
@@ -171,7 +176,9 @@ describe("/api/admin/summary route", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
     });
 
-    const response = await GET(new Request("https://rolelens.pages.dev/api/admin/summary"));
+    const response = await GET(
+      new Request("https://rolelens.pages.dev/api/admin/summary"),
+    );
     const payload = (await response.json()) as {
       ok: boolean;
       auth: { userCount: number };
@@ -181,6 +188,7 @@ describe("/api/admin/summary route", () => {
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
+    expect(payload).not.toHaveProperty("goals");
     expect(payload.auth.userCount).toBe(3);
     expect(payload.feed.jobCount).toBe(1);
     expect(payload.jobs.totalCount).toBe(7);

@@ -22,6 +22,16 @@ import {
   signUpAuth,
   getAuthSessionUserFromRequest,
 } from "@/lib/auth-server";
+import { getResume, saveResume } from "@/lib/resume/store";
+import {
+  deleteDocument,
+  listDocuments,
+  saveDocument,
+  DocumentConflictError,
+  DocumentLimitError,
+} from "@/lib/documents/store";
+import { emptyCoverLetter } from "@/lib/cover-letter/profile";
+import { emptyResumeProfile } from "@/lib/resume/profile";
 import type { PersistentJobMeta } from "@/lib/persistence/types";
 
 const { getDatabase, sendReset } = vi.hoisted(() => ({
@@ -75,6 +85,8 @@ beforeAll(async () => {
   for (const file of [
     "20260903190000_rolelens_initial.sql",
     "20260904233000_auth_recovery_and_job_metadata.sql",
+    "20260910000000_resume_profiles.sql",
+    "20260910010000_application_documents.sql",
   ]) {
     await postgres.exec(
       await readFile(
@@ -307,4 +319,119 @@ describe("Postgres migrations and persistence", () => {
       (await resetPasswordAuth({ token, password: "new-password" })).ok,
     ).toBe(true);
   });
+});
+
+it("persists resume profiles in Postgres with atomic version checks and account isolation", async () => {
+  const result = await signUpAuth({
+    name: "Resume User",
+    email: "resume@example.com",
+    password: "password123",
+  });
+  if (!result.ok) throw new Error("Signup failed");
+  const userId = result.user.id;
+  const profile = { ...emptyResumeProfile(), name: "Resume User" };
+  await saveResume(userId, profile, 0);
+  expect(await getResume(userId)).toMatchObject({ profile, version: 1 });
+  expect(await getResume("another-account")).toBeNull();
+  const competing = await Promise.allSettled([
+    saveResume(userId, { ...profile, headline: "First" }, 1),
+    saveResume(userId, { ...profile, headline: "Second" }, 1),
+  ]);
+  expect(
+    competing.filter((result) => result.status === "fulfilled"),
+  ).toHaveLength(1);
+  expect(
+    competing.filter((result) => result.status === "rejected"),
+  ).toHaveLength(1);
+  expect((await getResume(userId))?.version).toBe(2);
+});
+
+it("limits simultaneous document creates to five per kind and frees deleted slots", async () => {
+  const signup = await signUpAuth({
+    name: "Documents",
+    email: "documents@example.com",
+    password: "password123",
+  });
+  if (!signup.ok) throw new Error("Signup failed");
+  const userId = signup.user.id;
+  const inputs = Array.from({ length: 8 }, (_, index) => ({
+    id: `letter-${index}`,
+    kind: "cover-letter" as const,
+    title: `Letter ${index}`,
+    version: 0,
+    data: { ...emptyCoverLetter(), body: `Application ${index}` },
+  }));
+  const results = await Promise.allSettled(
+    inputs.map((input) => saveDocument(userId, input)),
+  );
+  expect(
+    results.filter((result) => result.status === "fulfilled"),
+  ).toHaveLength(5);
+  expect(results.filter((result) => result.status === "rejected")).toHaveLength(
+    3,
+  );
+  for (const result of results)
+    if (result.status === "rejected")
+      expect(result.reason).toBeInstanceOf(DocumentLimitError);
+  const documents = await listDocuments(userId, "cover-letter");
+  expect(documents).toHaveLength(5);
+  expect(await listDocuments("another-account", "cover-letter")).toEqual([]);
+  const first = documents[0];
+  await expect(
+    deleteDocument("another-account", first.kind, first.id, first.version),
+  ).rejects.toBeInstanceOf(DocumentConflictError);
+  const competing = await Promise.allSettled([
+    saveDocument(userId, { ...first, title: "Changed" }),
+    deleteDocument(userId, first.kind, first.id, first.version),
+  ]);
+  expect(
+    competing.filter((result) => result.status === "fulfilled"),
+  ).toHaveLength(1);
+  const remaining = await listDocuments(userId, "cover-letter");
+  const stillPresent = remaining.find((document) => document.id === first.id);
+  if (stillPresent)
+    await deleteDocument(userId, first.kind, first.id, stillPresent.version);
+  await saveDocument(userId, { ...inputs[0], id: "replacement" });
+  expect(await listDocuments(userId, "cover-letter")).toHaveLength(5);
+  await saveResume(userId, emptyResumeProfile(), 0);
+  expect(await listDocuments(userId, "resume")).toHaveLength(1);
+});
+
+it("migrates existing resumes without losing details or overwriting newer edits on rerun", async () => {
+  const signup = await signUpAuth({
+    name: "Legacy",
+    email: "legacy@example.com",
+    password: "password123",
+  });
+  if (!signup.ok) throw new Error("Signup failed");
+  const userId = signup.user.id;
+  const profile = {
+    ...emptyResumeProfile(),
+    name: "Existing resume",
+    skills: "TypeScript",
+  };
+  await postgres.query(
+    "INSERT INTO resume_profiles (user_id, profile_json, version, updated_at) VALUES ($1, $2, 7, $3)",
+    [userId, JSON.stringify(profile), "2026-09-10"],
+  );
+  const migration = await readFile(
+    new URL(
+      "../../supabase/migrations/20260910010000_application_documents.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  await postgres.exec(migration);
+  expect(await listDocuments(userId, "resume")).toMatchObject([
+    { id: "primary", title: "My resume", data: profile, version: 7 },
+  ]);
+  await saveResume(userId, { ...profile, name: "Updated resume" }, 7);
+  await postgres.exec(migration);
+  expect((await getResume(userId))?.profile.name).toBe("Updated resume");
+  expect((await getResume(userId))?.version).toBe(8);
+  const source = await postgres.query<{ profile_json: string }>(
+    "SELECT profile_json FROM resume_profiles WHERE user_id = $1",
+    [userId],
+  );
+  expect(JSON.parse(source.rows[0].profile_json)).toEqual(profile);
 });

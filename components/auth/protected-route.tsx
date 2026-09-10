@@ -49,7 +49,7 @@ export function ProtectedRoute({
           <h2 id="protected-route-title">Sign up to use {featureName}.</h2>
           <p>
             {description ??
-              "RoleLens keeps live job data, resume work, and interview prep behind account access. Create an account or book a demo to continue."}
+              "RoleLens keeps your resume and saved jobs behind account access. Create an account or book a demo to continue."}
           </p>
         </div>
         <div className={styles.actions}>

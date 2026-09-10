@@ -1,14 +1,22 @@
 .shell {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 18% 0%, rgba(99, 102, 241, 0.18), transparent 32rem),
+    radial-gradient(
+      circle at 18% 0%,
+      rgba(99, 102, 241, 0.18),
+      transparent 32rem
+    ),
     linear-gradient(135deg, #f8fafc 0%, #eef2ff 48%, #f8fafc 100%);
   color: var(--mantine-color-dark-8);
 }
 
 :global(html.dark) .shell {
   background:
-    radial-gradient(circle at 18% 0%, rgba(129, 140, 248, 0.18), transparent 34rem),
+    radial-gradient(
+      circle at 18% 0%,
+      rgba(129, 140, 248, 0.18),
+      transparent 34rem
+    ),
     linear-gradient(135deg, #060816 0%, #111827 52%, #020617 100%);
   color: var(--mantine-color-gray-1);
 }
@@ -62,6 +70,7 @@
   gap: 6px;
 }
 
+.sidebarToggle,
 .mobileMenuButton {
   display: inline-flex;
   align-items: center;
@@ -79,10 +88,33 @@
     transform 160ms ease;
 }
 
+.sidebarToggle:hover,
 .mobileMenuButton:hover {
   border-color: color-mix(in srgb, var(--brand), transparent 62%);
   background: color-mix(in srgb, var(--brand), transparent 92%);
   transform: translateY(-1px);
+}
+
+.sidebarToggle,
+.compactBrand {
+  display: none;
+}
+
+.fullBrand,
+.eyebrow,
+.brandTitle {
+  display: block;
+}
+
+.sidebarToggle:focus-visible,
+.navLink:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+
+.navLink[aria-current="page"] {
+  background: color-mix(in srgb, var(--brand), transparent 90%);
+  color: var(--brand);
 }
 
 .mobileMenuPanel {
@@ -423,5 +455,46 @@
 
   .content {
     padding: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sidebarToggle {
+    display: inline-flex;
+  }
+  .gridCollapsed {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+  .gridCollapsed .sidebar {
+    padding: 10px;
+  }
+  .gridCollapsed .brandRow,
+  .gridCollapsed .brandActions {
+    flex-direction: column;
+  }
+  .gridCollapsed .brandRow {
+    gap: 12px;
+  }
+  .gridCollapsed .fullBrand,
+  .gridCollapsed .navLabel,
+  .gridCollapsed .userLabel {
+    display: none;
+  }
+  .gridCollapsed .compactBrand {
+    display: block;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--brand);
+  }
+  .gridCollapsed .navLink {
+    justify-content: center;
+    min-height: 42px;
+    padding: 10px;
+  }
+  .gridCollapsed .navLink svg,
+  .gridCollapsed .authButton svg,
+  .gridCollapsed .authPrimary svg,
+  .gridCollapsed .authSecondary svg {
+    flex-shrink: 0;
   }
 }

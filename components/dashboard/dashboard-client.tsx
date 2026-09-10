@@ -32,6 +32,8 @@ import {
   formatUpdatedAt,
 } from "@/components/dashboard/dashboard-utils";
 
+import styles from "./dashboard-client.module.css";
+
 type SourceFilterValue = "ALL" | (typeof sourceOptions)[number];
 
 export function DashboardClient() {
@@ -50,9 +52,8 @@ export function DashboardClient() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>("ALL");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [bulkStatus, setBulkStatus] = useState<(typeof statusOptions)[number]>(
-    "INTEREST",
-  );
+  const [bulkStatus, setBulkStatus] =
+    useState<(typeof statusOptions)[number]>("INTEREST");
   const [isApplyingBulk, setIsApplyingBulk] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
@@ -108,11 +109,14 @@ export function DashboardClient() {
     }
 
     try {
-      const updated = await patchPersistentJobClient(localJob.persistentId as string, {
-        op: "status",
-        expectedVersion: localJob.persistentVersion,
-        status: nextStatus,
-      });
+      const updated = await patchPersistentJobClient(
+        localJob.persistentId as string,
+        {
+          op: "status",
+          expectedVersion: localJob.persistentVersion,
+          status: nextStatus,
+        },
+      );
 
       upsertJob(toLocalJobFromPersistent(updated, localJob));
       return true;
@@ -160,7 +164,9 @@ export function DashboardClient() {
     const failures: string[] = [];
 
     const selectedSet = new Set(selectedIds);
-    const targetJobs = filteredSavedJobs.filter((job) => selectedSet.has(job.id));
+    const targetJobs = filteredSavedJobs.filter((job) =>
+      selectedSet.has(job.id),
+    );
 
     for (const job of targetJobs) {
       try {
@@ -226,19 +232,20 @@ export function DashboardClient() {
 
   if (savedJobs.length === 0) {
     return (
-      <div className="space-y-4">
-        <header>
+      <div className={styles.dashboard}>
+        <header className={styles.header}>
           <h2 className="text-2xl font-semibold">Analytics Dashboard</h2>
           <p className="text-sm text-slate-500">
-            {user.name}, your personalized metrics are ready once postings are synced.
+            {user.name}, your personalized metrics are ready once postings are
+            synced.
           </p>
         </header>
 
         <Card className="space-y-3" role="status" aria-live="polite">
           <CardTitle>No data to analyze yet</CardTitle>
           <CardDescription>
-            Only postings with status Save are included in dashboard metrics. Set
-            status to Save from the Jobs page to include it here.
+            Only postings with status Save are included in dashboard metrics.
+            Set status to Save from the Jobs page to include it here.
           </CardDescription>
           <div className="flex flex-wrap gap-2">
             <Link href="/jobs/new">
@@ -254,15 +261,18 @@ export function DashboardClient() {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold">Analytics Dashboard for {user.name}</h2>
+    <div className={styles.dashboard}>
+      <header className={styles.header}>
+        <h2 className="text-2xl font-semibold">
+          Analytics Dashboard for {user.name}
+        </h2>
         <p className="text-sm text-slate-500">
-          Monitor your application momentum and demand signals from tracked postings.
+          Monitor your application momentum and demand signals from tracked
+          postings.
         </p>
-      </div>
+      </header>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+      <div className={styles.metrics}>
         <Card>
           <p className="text-sm text-slate-500">Saved Postings</p>
           <p className="text-3xl font-semibold">{stats.totalJobs}</p>
@@ -293,18 +303,21 @@ export function DashboardClient() {
         </Card>
       </div>
 
-      <Card className="space-y-4">
+      <Card className={styles.savedCard}>
         <div className="space-y-1">
           <CardTitle>Saved postings list and bulk update</CardTitle>
           <CardDescription>
-            Review what is currently saved and update status for multiple postings
-            at once.
+            Review what is currently saved and update status for multiple
+            postings at once.
           </CardDescription>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-          <div className="space-y-1 lg:col-span-2">
-            <label htmlFor="dashboard-save-search" className="text-sm font-medium">
+        <div className={styles.filters}>
+          <div className={styles.field}>
+            <label
+              htmlFor="dashboard-save-search"
+              className="text-sm font-medium"
+            >
               Search saved postings
             </label>
             <input
@@ -320,8 +333,11 @@ export function DashboardClient() {
             />
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="dashboard-save-source" className="text-sm font-medium">
+          <div className={styles.field}>
+            <label
+              htmlFor="dashboard-save-source"
+              className="text-sm font-medium"
+            >
               Source
             </label>
             <select
@@ -343,9 +359,10 @@ export function DashboardClient() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
+        <div className={styles.resultCount}>
           <p aria-live="polite">
-            Showing {filteredSavedJobs.length} of {savedJobs.length} saved postings
+            Showing {filteredSavedJobs.length} of {savedJobs.length} saved
+            postings
           </p>
           {(searchTerm || sourceFilter !== "ALL") && (
             <Button
@@ -364,13 +381,15 @@ export function DashboardClient() {
           )}
         </div>
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className={styles.bulkToolbar}>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              onClick={() => setSelectedIds(filteredSavedJobs.map((job) => job.id))}
+              onClick={() =>
+                setSelectedIds(filteredSavedJobs.map((job) => job.id))
+              }
               disabled={filteredSavedJobs.length === 0 || isApplyingBulk}
             >
               Select all
@@ -389,9 +408,12 @@ export function DashboardClient() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-end gap-2">
+          <div className={styles.bulkActions}>
             <div className="flex flex-col gap-1">
-              <label htmlFor="dashboard-bulk-status" className="text-sm font-medium">
+              <label
+                htmlFor="dashboard-bulk-status"
+                className="text-sm font-medium"
+              >
                 Change status to
               </label>
               <select
@@ -399,7 +421,9 @@ export function DashboardClient() {
                 className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
                 value={bulkStatus}
                 onChange={(event) =>
-                  setBulkStatus(event.target.value as (typeof statusOptions)[number])
+                  setBulkStatus(
+                    event.target.value as (typeof statusOptions)[number],
+                  )
                 }
                 disabled={isApplyingBulk}
               >
@@ -450,19 +474,16 @@ export function DashboardClient() {
           </p>
         ) : null}
 
-        <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
+        <div className={styles.savedList}>
           {filteredSavedJobs.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700">
+            <div className={styles.emptyList}>
               No saved postings match the current filters.
             </div>
           ) : (
             filteredSavedJobs.map((job) => (
-              <div
-                key={job.id}
-                className="rounded-xl border border-slate-200 p-3 dark:border-slate-800"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex min-w-0 flex-1 items-start gap-3">
+              <div key={job.id} className={styles.savedRow}>
+                <div className={styles.postingRow}>
+                  <div className={styles.postingDetails}>
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(job.id)}
@@ -472,7 +493,7 @@ export function DashboardClient() {
                       aria-label={`Select ${job.title} at ${job.company}`}
                       className="mt-1 h-4 w-4"
                     />
-                    <div className="min-w-0">
+                    <div className={styles.postingText}>
                       <p className="truncate font-medium text-slate-900 dark:text-slate-100">
                         {job.title}
                       </p>
@@ -481,7 +502,8 @@ export function DashboardClient() {
                         {job.location ? ` · ${job.location}` : ""}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {sourceLabels[job.source]} · Updated {formatUpdatedAt(job.updatedAt)}
+                        {sourceLabels[job.source]} · Updated{" "}
+                        {formatUpdatedAt(job.updatedAt)}
                       </p>
                     </div>
                   </div>
@@ -509,13 +531,19 @@ export function DashboardClient() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className={styles.chartsGrid}>
         <Card>
           <CardTitle>Top Skills</CardTitle>
           <CardDescription>
             Most frequent skill keywords across saved postings.
           </CardDescription>
-          <SkillBarChart data={stats.topSkills} />
+          {stats.topSkills.length > 0 ? (
+            <SkillBarChart data={stats.topSkills} />
+          ) : (
+            <p className={styles.chartEmpty}>
+              No skill keywords found in saved postings yet.
+            </p>
+          )}
         </Card>
         <Card>
           <CardTitle>Source Distribution</CardTitle>
@@ -526,17 +554,23 @@ export function DashboardClient() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div className={styles.summaryGrid}>
         <Card>
           <CardTitle>Focus Skill Frequency</CardTitle>
-          <FocusSkillChart data={stats.focusSkills} />
+          {stats.focusSkills.some((skill) => skill.count > 0) ? (
+            <FocusSkillChart data={stats.focusSkills} />
+          ) : (
+            <p className={styles.chartEmpty}>
+              No React, TypeScript or Next.js matches in saved postings yet.
+            </p>
+          )}
         </Card>
         <Card>
           <CardTitle>Status Pipeline</CardTitle>
           <CardDescription>
             Track execution flow from new to submission.
           </CardDescription>
-          <div className="space-y-2 pt-2">
+          <div className={styles.summaryRows}>
             {Object.entries(stats.statusCounts).map(([status, value]) => (
               <div
                 key={status}
@@ -554,7 +588,7 @@ export function DashboardClient() {
         </Card>
         <Card>
           <CardTitle>Remote / Hybrid / On-site</CardTitle>
-          <div className="space-y-2 pt-2">
+          <div className={styles.summaryRows}>
             {countMapToArray(stats.remoteCounts).map((item) => (
               <div
                 key={item.name}
@@ -568,7 +602,7 @@ export function DashboardClient() {
         </Card>
         <Card>
           <CardTitle>Seniority Distribution</CardTitle>
-          <div className="space-y-2 pt-2">
+          <div className={styles.summaryRows}>
             {countMapToArray(stats.seniorityCounts).map((item) => (
               <div
                 key={item.name}

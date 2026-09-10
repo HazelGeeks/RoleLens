@@ -13,6 +13,46 @@ function normalizeErrorMessage(error: unknown) {
 
 export function toPublicServerError(error: unknown) {
   const message = normalizeErrorMessage(error);
+  if (message.includes("invalid postgres connection url")) {
+    return {
+      status: 503,
+      message:
+        "Invalid database connection URL. Use a postgres:// or postgresql:// connection string from Supabase Connect, not an https:// project or dashboard URL.",
+    };
+  }
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String(error.code).toUpperCase()
+      : "";
+  const connectionCodes = [
+    "ECONNREFUSED",
+    "ECONNRESET",
+    "ENOTFOUND",
+    "EAI_AGAIN",
+    "ETIMEDOUT",
+    "CONNECT_TIMEOUT",
+    "CONNECTION_CLOSED",
+  ];
+  if (
+    connectionCodes.some(
+      (value) => code === value || message.includes(value.toLowerCase()),
+    )
+  ) {
+    return {
+      status: 503,
+      message:
+        process.env.NODE_ENV === "production"
+          ? "Database connection failed. Check the Hyperdrive database connection and retry."
+          : "Database connection failed. Set DATABASE_URL in .env.local for next dev, or configure the Hyperdrive local connection for Worker preview, then restart the server.",
+    };
+  }
+  if (code === "28P01" || code === "28000") {
+    return {
+      status: 503,
+      message:
+        "Database authentication failed. Check the database connection credentials. This is separate from your RoleLens login password.",
+    };
+  }
   if (message.includes("password reset email"))
     return {
       status: 503,

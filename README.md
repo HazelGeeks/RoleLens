@@ -1,6 +1,6 @@
 # RoleLens MVP
 
-RoleLens is a personal frontend-job tracking app focused on manual capture, structured storage, analysis, and status tracking.
+RoleLens builds a one-page resume from saved personal details, career history, projects, education, and skills, alongside a job tracking workspace.
 
 Production is configured for **Cloudflare Workers** through the OpenNext adapter.
 
@@ -28,6 +28,20 @@ Production is configured for **Cloudflare Workers** through the OpenNext adapter
    - `SUBMITTED`
    - `ARCHIVE`
 7. Login / Sign-up with server-side session auth (Supabase Postgres in Cloudflare runtime, memory fallback locally)
+
+## Resume and Cover Letter builders
+
+- `/resume` edits structured profile data and generates a basic A4 one-page preview.
+- `/cover-letter` edits sender, recipient, application details and letter text with an A4 one-page preview.
+- Save up to **5 resumes and 5 cover letters per account**. Give each version a name, create a blank document, duplicate an existing draft, switch documents, or delete one to free a slot. Document names are for organization and are not printed.
+- `GET /api/documents?kind=resume|cover-letter` lists documents; `PUT/DELETE /api/documents` saves or deletes by ID and expected version. Production uses Postgres; local memory storage is lost on server restart. The original `/api/resume` endpoint remains compatible with the migrated primary resume.
+- Database slot constraints enforce each five-document limit even under concurrent requests. Every operation is scoped to the authenticated account.
+- Saves are explicit. Unsaved changes remain in the editor on failures; concurrent changes are rejected with a version conflict.
+- Print / Save PDF uses the browser print dialog. Use A4, 100% scale, no margins, and disable browser headers/footers. Printing is disabled when content exceeds one page; shorten highlights without losing the ability to save the full profile.
+- The final resume template is pending. Profile data is stored separately from the presentation.
+- Apply `supabase/migrations/20260910000000_resume_profiles.sql`, then `supabase/migrations/20260910010000_application_documents.sql` after the existing migrations before deploying. The second migration copies existing resumes, preserving their versions; the old table remains available for recovery. Deploy scripts do not apply migrations.
+- Goal and Interview functionality and APIs are retired. Old page URLs redirect to Resume. Existing goal tables and browser interview drafts are retained for recovery; no destructive migration is included.
+- Older resume text drafts remain in browser storage and appear read-only under Previous resume draft for manual copying.
 
 ## Stable Feed Storage
 
@@ -279,9 +293,45 @@ nvm use
 npm run dev
 ```
 
+## Local login and shared Supabase data
+
+`npm run dev` and `npm run preview` run locally. They do not automatically fetch
+the production Hyperdrive credentials or Worker secrets. The checked-in
+`localConnectionString` is a build placeholder pointing at `127.0.0.1:5432`; it
+is not the Supabase connection. Without a running database there, login fails.
+
+To use existing Supabase accounts with `npm run dev`, set these in `.env.local`:
+
+- `DATABASE_URL`: the Postgres connection string for that Supabase database and the configured app database role (not a Supabase HTTP URL or API key). Include the provider-required TLS settings.
+- `AUTH_PASSWORD_PEPPER`: the same value used by the deployed Worker for those accounts. A different pepper makes existing passwords and sessions fail verification.
+- `AUTH_BACKEND=postgres` and `PERSISTENCE_BACKEND=postgres`.
+
+Restart the dev server after changing configuration. An explicit `DATABASE_URL`
+takes precedence over the emulated binding only outside production. Production
+continues to use Hyperdrive.
+
+For `npm run preview`, provide the database URL through the shell environment
+variable `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` before starting
+the command, and provide the matching pepper in the local Worker secrets
+(`.dev.vars`). `DATABASE_URL` alone does not configure production-mode Worker
+preview. Never commit either file or put real credentials in `wrangler.toml`.
+
+Deployed preview versions share the database only when their Hyperdrive binding
+points to the same database; a separately configured Worker environment can use a
+different binding. The repository currently defines one top-level Hyperdrive
+binding and no separate staging environment. Sharing the database also shares
+account and resume edits; localhost sessions still use their own cookies.
+
+For an isolated in-memory test, explicitly set both backend values to `memory`.
+Production accounts do not exist in that memory store, and restarting clears it.
+A configured but unreachable database does not silently switch to memory.
+
+See [Hyperdrive local development](https://developers.cloudflare.com/hyperdrive/configuration/local-development/)
+and [OpenNext environment variables](https://opennext.js.org/cloudflare/howtos/env-vars).
+
 ## Scripts
 
-- `npm run dev` - local dev (memory fallback)
+- `npm run dev` - Next.js local development (configure DATABASE_URL for shared Postgres)
 - `npm run dev:cloudflare` - build and preview the Cloudflare Worker runtime
 - `npm run build` - production build
 - `npm run lint` - lint

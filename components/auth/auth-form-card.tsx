@@ -93,6 +93,12 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
       }
 
       router.replace("/dashboard");
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to sign in. Check your connection and try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }

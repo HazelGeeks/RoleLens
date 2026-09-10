@@ -8,7 +8,7 @@ function Loading() {
 
 export default function ResumePage() {
   return (
-    <ProtectedRoute featureName="resume review">
+    <ProtectedRoute featureName="resume builder">
       <Suspense fallback={<Loading />}>
         <ResumePageClient />
       </Suspense>

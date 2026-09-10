@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Menu, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, Menu, Search, SlidersHorizontal, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -204,10 +204,44 @@ export function JobsFiltersCard({
 
   return (
     <section className={styles.filtersSection} aria-label="Jobs filters">
+      <div className={styles.searchBar} role="search" aria-label="Job postings">
+        <label className={styles.filterField} htmlFor="jobs-search">
+          <span>Search job postings</span>
+          <div className={styles.searchInput}>
+            <Search size={18} aria-hidden="true" />
+            <Input
+              id="jobs-search"
+              type="search"
+              value={filters.q}
+              onChange={(event) => actions.setQ(event.target.value)}
+              placeholder="Role, company, location, skills or description"
+              aria-describedby="jobs-search-help"
+            />
+          </div>
+        </label>
+        {filters.q && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => actions.setQ("")}
+          >
+            Clear search
+          </Button>
+        )}
+      </div>
+      <p id="jobs-search-help" className={styles.searchHelp}>
+        Search available postings as you type. Use multiple words to narrow
+        results.
+      </p>
       <div className={styles.filtersToolbar}>
         <div>
           <p className={styles.filtersEyebrow}>Filters</p>
-          <p className={styles.filtersCount}>
+          <p
+            className={styles.filtersCount}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             Showing <strong>{rowsCount}</strong> of {totalJobs} postings
           </p>
         </div>
@@ -246,14 +280,6 @@ export function JobsFiltersCard({
       >
         <div className={styles.filtersBodyInner}>
           <div className={styles.filtersGrid}>
-            <label className={`${styles.filterField} ${styles.filterSearch}`}>
-              <span>Search</span>
-              <Input
-                value={filters.q}
-                onChange={(event) => actions.setQ(event.target.value)}
-                placeholder="Role, company, skills, next action"
-              />
-            </label>
             <label className={styles.filterField}>
               <span>Status</span>
               <Select

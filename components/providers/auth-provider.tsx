@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       try {
         const syncedUser = await syncAuthSessionFromServer();
-        if (syncedUser) await claimJobs();
+        if (syncedUser) void claimJobs();
       } catch {
         setSyncError(
           "Unable to verify your session. Reconnect and reload to retry.",
@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.ok) {
         setUser(result.user);
         setStatus("authenticated");
-        await claimJobs();
+        void claimJobs();
         return { ok: true };
       }
 
@@ -139,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.ok) {
         setUser(result.user);
         setStatus("authenticated");
-        await claimJobs();
+        void claimJobs();
         return { ok: true };
       }
 

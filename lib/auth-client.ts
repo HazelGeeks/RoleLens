@@ -101,6 +101,36 @@ function getApiErrorMessage(payload: unknown) {
   return typeof maybeMessage === "string" ? maybeMessage : null;
 }
 
+const AUTH_REQUEST_TIMEOUT_MS = 15_000;
+
+async function requestAuth<T>(
+  url: string,
+  options: RequestInit,
+  read: (response: Response) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    const result = await read(response);
+    if (controller.signal.aborted)
+      throw new Error("Authentication request timed out.");
+    return result;
+  } catch (cause) {
+    if (controller.signal.aborted) {
+      throw new Error(
+        "Authentication request timed out. Please check the server connection and try again.",
+      );
+    }
+    throw cause;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function parseAuthResponse(
   response: Response,
 ): Promise<AuthOperationResult> {
@@ -123,7 +153,6 @@ async function parseAuthResponse(
     };
   }
 
-  writeSessionUser(user);
   return {
     ok: true,
     user,
@@ -139,26 +168,28 @@ export function getActiveAuthSessionUserId() {
 }
 
 export async function syncAuthSessionFromServer() {
-  const response = await fetch("/api/auth/session", {
-    method: "GET",
-    cache: "no-store",
-    credentials: "include",
-  }).catch((error: unknown) => {
+  try {
+    const user = await requestAuth(
+      "/api/auth/session",
+      {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+      },
+      async (response) => {
+        if (!response.ok) return null;
+        const payload = (await response.json().catch(() => null)) as {
+          user?: unknown;
+        } | null;
+        return parseSessionUser(payload?.user);
+      },
+    );
+    writeSessionUser(user);
+    return user;
+  } catch (cause) {
     writeSessionUser(null);
-    throw error;
-  });
-
-  if (!response.ok) {
-    writeSessionUser(null);
-    return null;
+    throw cause;
   }
-
-  const payload = (await response.json().catch(() => null)) as {
-    user?: unknown;
-  } | null;
-  const user = parseSessionUser(payload?.user);
-  writeSessionUser(user);
-  return user;
 }
 
 export async function signUpLocalAuth(input: {
@@ -166,39 +197,49 @@ export async function signUpLocalAuth(input: {
   email: string;
   password: string;
 }): Promise<AuthOperationResult> {
-  const response = await fetch("/api/auth/signup", {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "content-type": "application/json",
+  const result = await requestAuth(
+    "/api/auth/signup",
+    {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name: input.name,
+        email: input.email,
+        password: input.password,
+      }),
     },
-    body: JSON.stringify({
-      name: input.name,
-      email: input.email,
-      password: input.password,
-    }),
-  });
+    parseAuthResponse,
+  );
 
-  return parseAuthResponse(response);
+  if (result.ok) writeSessionUser(result.user);
+  return result;
 }
 
 export async function signInLocalAuth(input: {
   email: string;
   password: string;
 }): Promise<AuthOperationResult> {
-  const response = await fetch("/api/auth/login", {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "content-type": "application/json",
+  const result = await requestAuth(
+    "/api/auth/login",
+    {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        email: input.email,
+        password: input.password,
+      }),
     },
-    body: JSON.stringify({
-      email: input.email,
-      password: input.password,
-    }),
-  });
+    parseAuthResponse,
+  );
 
-  return parseAuthResponse(response);
+  if (result.ok) writeSessionUser(result.user);
+  return result;
 }
 
 export async function signOutLocalAuth() {

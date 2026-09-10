@@ -40,3 +40,60 @@ describe("buildRows", () => {
     });
   });
 });
+
+const searchFilters = {
+  q: "",
+  status: "ALL",
+  source: "ALL",
+  remoteType: "ALL",
+  minFit: "",
+  requiredSkill: "",
+  sortBy: "SMART",
+} as const;
+
+describe("job posting search", () => {
+  it.each([
+    " frontend ",
+    "EXAMPLE",
+    "vancouver",
+    "react",
+    "web products",
+    "REACT   canada",
+    "Canada\tFrontend",
+    "Ｆｒｏｎｔｅｎｄ",
+  ])("finds postings for %j", (q) => {
+    expect(buildRows([importedJob], { ...searchFilters, q })).toHaveLength(1);
+  });
+  it("supports Korean text and finds terms across fields", () => {
+    const job = {
+      ...importedJob,
+      company: "서울테크",
+      descriptionRaw: "접근성 개선 및 웹 개발",
+    };
+    expect(
+      buildRows([job], { ...searchFilters, q: "서울테크 접근성" }),
+    ).toHaveLength(1);
+  });
+  it("returns no results when any search word is missing", () => {
+    expect(
+      buildRows([importedJob], { ...searchFilters, q: "React Python" }),
+    ).toEqual([]);
+  });
+  it("treats whitespace as empty and keeps the other filters applied", () => {
+    const jobs = [
+      importedJob,
+      { ...importedJob, id: "other", source: "MANUAL" as const },
+    ];
+    expect(
+      buildRows(jobs, { ...searchFilters, q: " \t ", source: "LINKEDIN" }).map(
+        (job) => job.id,
+      ),
+    ).toEqual(["job-1"]);
+    expect(
+      buildRows(jobs, { ...searchFilters, q: "react", status: "SAVE" }),
+    ).toEqual([]);
+    expect(
+      buildRows(jobs, { ...searchFilters, q: "react", remoteType: "REMOTE" }),
+    ).toEqual([]);
+  });
+});

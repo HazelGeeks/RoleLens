@@ -90,12 +90,22 @@ export function normalizePostgresQuery(query: string) {
 }
 
 function createPostgresDatabase(connectionString: string): DatabaseLike {
+  let url: URL;
+  try {
+    url = new URL(connectionString);
+  } catch {
+    throw new Error("Invalid Postgres connection URL");
+  }
+  if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname) {
+    throw new Error("Invalid Postgres connection URL");
+  }
   const sql = postgres(connectionString, {
     max: 5,
     fetch_types: false,
     prepare: true,
     idle_timeout: 5,
     max_lifetime: 60,
+    connect_timeout: 10,
   });
 
   return {
@@ -171,6 +181,15 @@ export async function getDatabaseFromContext(
   bindingName = process.env.PERSISTENCE_DATABASE_BINDING?.trim() ||
     DEFAULT_HYPERDRIVE_BINDING,
 ): Promise<DatabaseLike | undefined> {
+  // OpenNext also supplies an emulated Hyperdrive binding in `next dev`.
+  // An explicit local URL must win over its build-only placeholder.
+  if (process.env.NODE_ENV !== "production") {
+    const localConnectionString = process.env.DATABASE_URL?.trim();
+    if (localConnectionString) {
+      return createPostgresDatabase(localConnectionString);
+    }
+  }
+
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
     const context = await getCloudflareContext({ async: true });
@@ -186,13 +205,6 @@ export async function getDatabaseFromContext(
   const globalBinding = getHyperdriveFromGlobalScope(bindingName);
   if (globalBinding) {
     return createPostgresDatabase(globalBinding.connectionString);
-  }
-
-  if (process.env.NODE_ENV !== "production") {
-    const localConnectionString = process.env.DATABASE_URL?.trim();
-    if (localConnectionString) {
-      return createPostgresDatabase(localConnectionString);
-    }
   }
 
   return undefined;

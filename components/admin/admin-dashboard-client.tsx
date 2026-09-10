@@ -63,9 +63,6 @@ type AdminSummary = {
       updatedAt: string | null;
     }>;
   };
-  goals: {
-    totalCount: number | null;
-  };
 };
 
 type ErrorPayload = {
@@ -113,9 +110,7 @@ export function AdminDashboardClient() {
       credentials: "include",
     });
     const payload = (await response.json().catch(() => null)) as
-      | AdminSummary
-      | ErrorPayload
-      | null;
+      AdminSummary | ErrorPayload | null;
 
     if (!response.ok || !payload || !payload.ok) {
       setSummary(null);
@@ -138,8 +133,10 @@ export function AdminDashboardClient() {
 
   const healthTone = useMemo(() => {
     if (!summary) return "neutral";
-    if (!summary.database.available || summary.database.issues.length > 0) return "danger";
-    if (summary.feed.errorCount > 0 || summary.feed.failedSourceCount > 0) return "warning";
+    if (!summary.database.available || summary.database.issues.length > 0)
+      return "danger";
+    if (summary.feed.errorCount > 0 || summary.feed.failedSourceCount > 0)
+      return "warning";
     return "healthy";
   }, [summary]);
 
@@ -157,9 +154,12 @@ export function AdminDashboardClient() {
       body: JSON.stringify({ platform: "all" }),
     });
 
-    const payload = (await response.json().catch(() => null)) as
-      | { ok?: boolean; message?: string; jobs?: unknown[]; refreshed?: boolean }
-      | null;
+    const payload = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      message?: string;
+      jobs?: unknown[];
+      refreshed?: boolean;
+    } | null;
 
     if (!response.ok) {
       setError(payload?.message || `Feed sync failed (${response.status})`);
@@ -187,7 +187,10 @@ export function AdminDashboardClient() {
 
   if (error && !summary) {
     return (
-      <section className={styles.accessDenied} aria-labelledby="admin-denied-title">
+      <section
+        className={styles.accessDenied}
+        aria-labelledby="admin-denied-title"
+      >
         <ShieldCheck size={28} />
         <p className={styles.eyebrow}>Admin access</p>
         <h2 id="admin-denied-title">This account cannot open admin.</h2>
@@ -208,8 +211,8 @@ export function AdminDashboardClient() {
           <p className={styles.eyebrow}>Admin</p>
           <h2>RoleLens operations</h2>
           <p>
-            Signed in as {summary.admin.name || summary.admin.email}. Last checked{" "}
-            {formatDateTime(summary.generatedAt)}.
+            Signed in as {summary.admin.name || summary.admin.email}. Last
+            checked {formatDateTime(summary.generatedAt)}.
           </p>
         </div>
         <div className={styles.actions}>
@@ -238,7 +241,11 @@ export function AdminDashboardClient() {
 
       <section className={styles.healthGrid} aria-label="Admin health summary">
         <article className={styles.healthCard} data-tone={healthTone}>
-          {healthTone === "healthy" ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+          {healthTone === "healthy" ? (
+            <CheckCircle2 size={20} />
+          ) : (
+            <AlertTriangle size={20} />
+          )}
           <div>
             <span>System health</span>
             <strong>
@@ -254,7 +261,9 @@ export function AdminDashboardClient() {
           <Database size={20} />
           <div>
             <span>Supabase Postgres</span>
-            <strong>{summary.database.available ? "Connected" : "Unavailable"}</strong>
+            <strong>
+              {summary.database.available ? "Connected" : "Unavailable"}
+            </strong>
           </div>
         </article>
         <article className={styles.healthCard}>
@@ -285,7 +294,7 @@ export function AdminDashboardClient() {
         <article>
           <span>Active sessions</span>
           <strong>{formatCount(summary.auth.activeSessionCount)}</strong>
-          <p>{formatCount(summary.goals.totalCount)} goals</p>
+          <p>{formatCount(summary.auth.userCount)} accounts</p>
         </article>
       </section>
 
@@ -372,7 +381,9 @@ export function AdminDashboardClient() {
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <h3>Issues</h3>
-            <span>{summary.database.issues.length + summary.feed.errors.length}</span>
+            <span>
+              {summary.database.issues.length + summary.feed.errors.length}
+            </span>
           </div>
           <ul className={styles.issueList}>
             {summary.database.issues.map((issue) => (

@@ -104,14 +104,26 @@ export function isJobInView(jobStatus: JobStatus, view: JobsViewFilter) {
 }
 
 export function buildRows(jobs: LocalJobPosting[], filters: RowsFilterInput) {
+  const searchTerms = filters.q
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
   const normalizedSkill = filters.requiredSkill.trim().toLowerCase();
   const minFitValue = filters.minFit ? Number(filters.minFit) : null;
 
   return jobs
-    .filter((job) => (filters.status === "ALL" ? true : job.status === filters.status))
-    .filter((job) => (filters.source === "ALL" ? true : job.source === filters.source))
     .filter((job) =>
-      filters.remoteType === "ALL" ? true : job.remoteType === filters.remoteType,
+      filters.status === "ALL" ? true : job.status === filters.status,
+    )
+    .filter((job) =>
+      filters.source === "ALL" ? true : job.source === filters.source,
+    )
+    .filter((job) =>
+      filters.remoteType === "ALL"
+        ? true
+        : job.remoteType === filters.remoteType,
     )
     .filter((job) =>
       minFitValue == null || Number.isNaN(minFitValue)
@@ -126,18 +138,19 @@ export function buildRows(jobs: LocalJobPosting[], filters: RowsFilterInput) {
           ),
     )
     .filter((job) => {
-      if (!filters.q.trim()) return true;
-      const value = filters.q.toLowerCase();
-      return [
+      if (searchTerms.length === 0) return true;
+      const searchableText = [
         job.title,
         job.company,
         job.location || "",
         job.extractedSkills.join(" "),
+        job.descriptionRaw,
         job.nextAction || "",
       ]
         .join(" ")
-        .toLowerCase()
-        .includes(value);
+        .normalize("NFKC")
+        .toLowerCase();
+      return searchTerms.every((term) => searchableText.includes(term));
     })
     .map(toJobRow)
     .sort((left, right) => {

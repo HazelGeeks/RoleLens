@@ -182,3 +182,63 @@ describe("auth client API session cache", () => {
     }
   });
 });
+
+describe("authentication request deadline", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+  it("aborts a stalled login so the form can retry", async () => {
+    setupWindow();
+    vi.useFakeTimers();
+    let requestSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url, options: RequestInit) => {
+        requestSignal = options.signal as AbortSignal;
+        return new Promise<Response>((_resolve, reject) => {
+          requestSignal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        });
+      }),
+    );
+    const pending = signInLocalAuth({
+      email: "test@example.com",
+      password: "test-only-password",
+    });
+    const assertion = expect(pending).rejects.toThrow(
+      "Authentication request timed out",
+    );
+    await vi.advanceTimersByTimeAsync(15_000);
+    await assertion;
+    expect(requestSignal?.aborted).toBe(true);
+    expect(getActiveAuthSessionUser()).toBeNull();
+  });
+  it("keeps the deadline active while reading the response body", async () => {
+    setupWindow();
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url, options: RequestInit) => ({
+        ok: true,
+        json: () =>
+          new Promise((_resolve, reject) => {
+            options.signal?.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError")),
+            );
+          }),
+      })),
+    );
+    const pending = signInLocalAuth({
+      email: "test@example.com",
+      password: "test-only-password",
+    });
+    const assertion = expect(pending).rejects.toThrow(
+      "Authentication request timed out",
+    );
+    await vi.advanceTimersByTimeAsync(15_000);
+    await assertion;
+    expect(getActiveAuthSessionUser()).toBeNull();
+  });
+});

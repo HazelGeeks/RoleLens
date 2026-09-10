@@ -7,11 +7,9 @@ import {
   ClipboardList,
   FileText,
   LockKeyhole,
-  MessageSquareText,
   Search,
   ShieldCheck,
   Sparkles,
-  Target,
 } from "lucide-react";
 import styles from "./landing-page.module.css";
 
@@ -27,19 +25,14 @@ const capabilities = [
   {
     icon: FileText,
     title: "Resume focus",
-    text: "Turn each posting into resume notes and keyword checks before you submit.",
-  },
-  {
-    icon: MessageSquareText,
-    title: "Interview prep",
-    text: "Keep practice prompts, goals, and next actions connected to your search.",
+    text: "Save your experience, career history, and education to build a one-page resume.",
   },
 ];
 
 const workflowSteps = [
   "Sign up or book a demo",
   "Import and save target roles",
-  "Review fit, resume notes, and practice goals",
+  "Build your one-page resume",
 ];
 
 const faqs = [
@@ -51,7 +44,7 @@ const faqs = [
   {
     question: "What happens after signup?",
     answer:
-      "You land in the RoleLens dashboard and can use jobs, resume review, interview prep, and goals.",
+      "You can build your resume, save jobs, and track your applications.",
   },
   {
     question: "How do demos work?",
@@ -92,9 +85,8 @@ export function LandingPage() {
           <p className={styles.eyebrow}>Private career ops workspace</p>
           <h1 id="landing-title">RoleLens</h1>
           <p className={styles.heroLead}>
-            Replace the exposed job board feel with a focused landing page, then
-            keep the live jobs, resume work, and interview prep behind account
-            access.
+            Keep your experience, career history, and education together. Build
+            a concise resume and track the roles you want to apply for.
           </p>
           <div className={styles.heroActions}>
             <Link href="/signup" className={styles.primaryButtonLarge}>
@@ -122,7 +114,10 @@ export function LandingPage() {
           </div>
         </div>
 
-        <div className={styles.productPreview} aria-label="RoleLens product preview">
+        <div
+          className={styles.productPreview}
+          aria-label="RoleLens product preview"
+        >
           <div className={styles.previewTopbar}>
             <div>
               <p>Application Match</p>
@@ -136,30 +131,36 @@ export function LandingPage() {
                 <span>82%</span>
               </div>
               <p>Role fit</p>
-              <button type="button">Review Resume</button>
+              <button type="button">Build Resume</button>
             </aside>
             <section className={styles.matchPanel}>
               <div className={styles.tabs} aria-hidden="true">
                 <span className={styles.activeTab}>Jobs</span>
                 <span>Resume</span>
-                <span>Interview</span>
               </div>
               <div className={styles.searchBar}>
                 <Search size={15} />
                 <span>Senior React, Remote, Vancouver</span>
               </div>
               <div className={styles.jobRows}>
-                {["Design systems", "Product analytics", "TypeScript", "Interview loop"].map(
-                  (item, index) => (
-                    <div className={styles.jobRow} key={item}>
-                      <CheckCircle2 size={16} />
-                      <div>
-                        <strong>{item}</strong>
-                        <span>{index === 3 ? "Practice queued" : "Matched in posting"}</span>
-                      </div>
+                {[
+                  "Design systems",
+                  "Product analytics",
+                  "TypeScript",
+                  "Education",
+                ].map((item, index) => (
+                  <div className={styles.jobRow} key={item}>
+                    <CheckCircle2 size={16} />
+                    <div>
+                      <strong>{item}</strong>
+                      <span>
+                        {index === 3
+                          ? "Ready for your resume"
+                          : "Matched in posting"}
+                      </span>
                     </div>
-                  ),
-                )}
+                  </div>
+                ))}
               </div>
             </section>
           </div>
@@ -169,7 +170,7 @@ export function LandingPage() {
       <section className={styles.signalBand} aria-label="RoleLens outcomes">
         <div>
           <strong>One workspace</strong>
-          <span>for saved roles, resume notes, and interview practice</span>
+          <span>for your resume and saved roles</span>
         </div>
         <div>
           <strong>Zero public feed</strong>
@@ -215,7 +216,9 @@ export function LandingPage() {
         </div>
         <div className={styles.workflowCopy}>
           <p className={styles.eyebrow}>Workflow</p>
-          <h2>Let visitors choose the right path before they touch product data.</h2>
+          <h2>
+            Let visitors choose the right path before they touch product data.
+          </h2>
           <p>
             New users can create an account, teams can request a demo, and the
             app routes stay protected until a session is active.
@@ -232,7 +235,10 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className={styles.featureRows} aria-label="RoleLens feature previews">
+      <section
+        className={styles.featureRows}
+        aria-label="RoleLens feature previews"
+      >
         <article>
           <div>
             <p className={styles.eyebrow}>Job search</p>
@@ -249,14 +255,14 @@ export function LandingPage() {
               <span>12 active roles</span>
             </div>
             <div className={styles.metricCard}>
-              <Target size={18} />
-              <strong>Goals</strong>
-              <span>3 next actions</span>
+              <FileText size={18} />
+              <strong>Experience</strong>
+              <span>Career history in one place</span>
             </div>
             <div className={styles.metricCard}>
               <FileText size={18} />
               <strong>Resume</strong>
-              <span>5 fit notes</span>
+              <span>One-page preview</span>
             </div>
           </div>
         </article>
