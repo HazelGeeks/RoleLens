@@ -168,15 +168,3 @@ export function emptyEducationEntry(): EducationEntry {
     showDetails: false,
   };
 }
-
-export const resumeResponseSchema = z.object({
-  resume: z
-    .object({
-      profile: resumeProfileSchema,
-      version: z.number().int().min(1),
-      updatedAt: z.string(),
-    })
-    .nullable()
-    .optional(),
-  message: z.string().optional(),
-});

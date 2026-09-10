@@ -13,7 +13,13 @@ import {
 } from "@/lib/feed-sync-alert";
 import type { FeedImportDiagnostics, FeedSourceResult } from "@/lib/feed-types";
 import { feedPlatformLabels, type FeedPlatform } from "@/lib/feed-platform";
-import { EMPTY_DIAGNOSTICS } from "@/components/jobs/jobs-page-utils";
+import { createEmptyFeedDiagnostics } from "@/lib/feed-diagnostics";
+
+import {
+  buildSyncSuccessMessage,
+  buildLastSyncMessage,
+  describeSyncFailure,
+} from "./feed-sync-messages";
 
 type SyncToast = {
   id: number;
@@ -29,20 +35,6 @@ type SyncOptions = {
 
 const LAST_SHOWN_SYNC_WARNING_KEY = "rolelens.feed.lastShownWarning";
 
-function buildRecoveryMessage(message: string) {
-  const safeMessage = message.endsWith(".") ? message.slice(0, -1) : message;
-  const recovery =
-    "Recovery: verify the Postgres feed snapshot ingestion, then retry sync.";
-  return safeMessage + ". " + recovery;
-}
-
-function countRawImportedPostings(sourceResults: FeedSourceResult[]) {
-  return sourceResults.reduce(
-    (total, result) => total + (result.ok ? result.importedJobs : 0),
-    0,
-  );
-}
-
 export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -54,8 +46,9 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
   const [syncSourceResults, setSyncSourceResults] = useState<
     FeedSourceResult[]
   >([]);
-  const [syncDiagnostics, setSyncDiagnostics] =
-    useState<FeedImportDiagnostics>(EMPTY_DIAGNOSTICS);
+  const [syncDiagnostics, setSyncDiagnostics] = useState<FeedImportDiagnostics>(
+    createEmptyFeedDiagnostics,
+  );
   const [syncRecoveryGuide, setSyncRecoveryGuide] = useState<string[]>([]);
   const [activeSyncPlatform, setActiveSyncPlatform] =
     useState<FeedPlatform | null>(null);
@@ -134,30 +127,7 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
         setSyncSourceResults(result.sourceResults);
         setSyncDiagnostics(result.diagnostics);
         setSyncRecoveryGuide(result.recoveryGuide);
-        const platformLabel = feedPlatformLabels[platform];
-        const targetLabel =
-          platform === "all" ? "all feeds" : platformLabel + " feed";
-        const rawImported = countRawImportedPostings(result.sourceResults);
-        const rawImportPrefix =
-          rawImported > result.totalImported
-            ? rawImported + " raw scraped postings matched to "
-            : "";
-        setSyncMessage(
-          "Synced " +
-            rawImportPrefix +
-            result.totalImported +
-            " postings (" +
-            result.added +
-            " new, " +
-            result.updated +
-            " updated) from " +
-            targetLabel +
-            " using " +
-            result.importedSourceCount +
-            " source(s) at " +
-            new Date(result.syncedAt).toLocaleString() +
-            ".",
-        );
+        setSyncMessage(buildSyncSuccessMessage(result, platform));
 
         applySyncAlert(
           {
@@ -169,68 +139,10 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
         );
       } catch (error) {
         setSyncWarning(null);
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Failed to sync crawled feed";
-
-        if (message.includes("failed to write DB")) {
-          const marker = "failed to write DB";
-          const markerIndex = message
-            .toLowerCase()
-            .indexOf(marker.toLowerCase());
-          const detail =
-            markerIndex >= 0
-              ? message
-                  .slice(markerIndex + marker.length)
-                  .replace(/^[:\s]+/, "")
-              : "";
-
-          setSyncMessage(
-            "Feed data was imported locally, but server persistence sync is currently unavailable.",
-          );
-          showSyncToast(
-            "Local import succeeded. Cross-device persistence sync failed; check Hyperdrive binding, Supabase migrations, and auth.",
-          );
-          setSyncError(
-            detail
-              ? "Persistence sync failed: " + detail
-              : "Persistence sync failed while writing to the server database.",
-          );
-          return;
-        }
-
-        if (message.includes("Rate limit exceeded")) {
-          setSyncError(null);
-          showSyncToast(
-            "Sync is temporarily rate-limited. Please wait and retry.",
-          );
-          return;
-        }
-
-        if (
-          message.includes("status 401") ||
-          message.includes("Login required")
-        ) {
-          setSyncError(null);
-          showSyncToast("Login required. Please sign in and retry sync.");
-          return;
-        }
-
-        if (
-          message.includes("Admin access required") ||
-          message.includes("Sync admin emails are not configured") ||
-          message.includes("status 403")
-        ) {
-          setSyncError(null);
-          showSyncToast("Admin access is required to sync feeds.");
-          setSyncMessage(
-            "Manual sync is restricted to configured admin accounts on this deployment.",
-          );
-          return;
-        }
-
-        setSyncError(buildRecoveryMessage(message));
+        const failure = describeSyncFailure(error);
+        setSyncError(failure.error);
+        if (failure.message !== undefined) setSyncMessage(failure.message);
+        if (failure.toast !== undefined) showSyncToast(failure.toast);
       } finally {
         setIsSyncing(false);
         setActiveSyncPlatform(null);
@@ -271,19 +183,11 @@ export function useJobsFeedSync(refreshJobs: () => Promise<void>) {
     setLastSyncAt(getLastFeedSyncAt());
     const lastSummary = getLastFeedSyncSummary();
     if (lastSummary) {
-      const rawImported = countRawImportedPostings(lastSummary.sourceResults);
-      const rawImportPrefix =
-        rawImported > lastSummary.totalImported
-          ? rawImported + " raw scraped postings matched to "
-          : "";
-
       setSyncSourceResults(lastSummary.sourceResults);
       setFeedGeneratedAt(lastSummary.feedGeneratedAt ?? null);
       setSyncDiagnostics(lastSummary.diagnostics);
       setSyncRecoveryGuide(lastSummary.recoveryGuide);
-      setSyncMessage(
-        `Last sync imported ${rawImportPrefix}${lastSummary.totalImported} postings from ${lastSummary.importedSourceCount} source(s).`,
-      );
+      setSyncMessage(buildLastSyncMessage(lastSummary));
 
       // Cached diagnostics are historical; only the fresh response sets current alerts.
     }

@@ -2,7 +2,7 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useJobsFeedSync } from "@/components/jobs/use-jobs-feed-sync";
-import { EMPTY_DIAGNOSTICS } from "@/components/jobs/jobs-page-utils";
+import { createEmptyFeedDiagnostics } from "@/lib/feed-diagnostics";
 import type { FeedSyncSummary, SyncJobsFromFeedsResult } from "@/lib/feed-sync";
 
 const { sync, readSummary } = vi.hoisted(() => ({
@@ -35,7 +35,7 @@ const healthy: SyncJobsFromFeedsResult = {
       importedJobs: 0,
     },
   ],
-  diagnostics: EMPTY_DIAGNOSTICS,
+  diagnostics: createEmptyFeedDiagnostics(),
   recoveryGuide: [],
   syncedAt: "2026-09-09T12:00:00.000Z",
   feedGeneratedAt: "2026-09-09T05:03:14.000Z",
@@ -145,5 +145,50 @@ it("clears the previous warning when sources recover", async () => {
   act(() => result.current.runManualSyncAll());
   await waitFor(() => expect(result.current.isSyncing).toBe(false));
   expect(result.current.syncWarning).toBeNull();
+  expect(result.current.syncToast).toBeNull();
+});
+
+it.each([
+  [
+    "Rate limit exceeded",
+    "Sync is temporarily rate-limited. Please wait and retry.",
+  ],
+  [
+    "Request failed with status 401",
+    "Login required. Please sign in and retry sync.",
+  ],
+  ["Admin access required", "Admin access is required to sync feeds."],
+])("reports %s and releases the sync controls", async (message, toast) => {
+  sync.mockRejectedValueOnce(new Error(message));
+  const { result } = renderHook(() => useJobsFeedSync(refreshJobs));
+  await waitFor(() => expect(result.current.isSyncing).toBe(false));
+  expect(result.current.activeSyncPlatform).toBeNull();
+  expect(result.current.syncError).toBeNull();
+  expect(result.current.syncToast?.message).toBe(toast);
+  expect(refreshJobs).not.toHaveBeenCalled();
+});
+
+it("preserves persistence failure details while reporting the local import", async () => {
+  sync.mockRejectedValueOnce(
+    new Error("failed to write DB: database unavailable"),
+  );
+  const { result } = renderHook(() => useJobsFeedSync(refreshJobs));
+  await waitFor(() => expect(result.current.isSyncing).toBe(false));
+  expect(result.current.syncError).toBe(
+    "Persistence sync failed: database unavailable",
+  );
+  expect(result.current.syncMessage).toContain("imported locally");
+  expect(result.current.syncToast?.message).toContain(
+    "Cross-device persistence sync failed",
+  );
+});
+
+it("shows recovery instructions for unexpected failures", async () => {
+  sync.mockRejectedValueOnce(new Error("Network unavailable."));
+  const { result } = renderHook(() => useJobsFeedSync(refreshJobs));
+  await waitFor(() => expect(result.current.isSyncing).toBe(false));
+  expect(result.current.syncError).toBe(
+    "Network unavailable. Recovery: verify the Postgres feed snapshot ingestion, then retry sync.",
+  );
   expect(result.current.syncToast).toBeNull();
 });

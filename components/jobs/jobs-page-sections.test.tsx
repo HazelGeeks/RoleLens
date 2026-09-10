@@ -3,12 +3,9 @@ import { useState, type ComponentProps } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { JobsFiltersCard } from "./jobs-page-sections";
-import {
-  buildRows,
-  buildSourceCounts,
-  EMPTY_DIAGNOSTICS,
-} from "./jobs-page-utils";
+import { createEmptyFeedDiagnostics } from "@/lib/feed-diagnostics";
+import { JobsFiltersCard } from "./jobs-filters-card";
+import { buildRows, buildSourceCounts } from "./jobs-page-utils";
 import type { LocalJobPosting } from "@/lib/local-jobs";
 
 const defaults: ComponentProps<typeof JobsFiltersCard>["filters"] = {
@@ -69,7 +66,7 @@ function Harness() {
         feedGeneratedAt={null}
         syncMessage={null}
         syncError={null}
-        syncDiagnostics={EMPTY_DIAGNOSTICS}
+        syncDiagnostics={createEmptyFeedDiagnostics()}
         syncRecoveryGuide={[]}
         syncSourceResults={[]}
         sourceCounts={buildSourceCounts(jobs)}

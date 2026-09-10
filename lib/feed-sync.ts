@@ -30,7 +30,6 @@ import {
 } from "@/lib/feed-sync-utils";
 
 const LAST_SYNC_KEY = "rolelens.feed.lastSyncAt";
-const LAST_SYNC_DATE_KEY = "rolelens.feed.lastSyncDate";
 const LAST_SYNC_RESULT_KEY = "rolelens.feed.lastSyncResult";
 
 export type SyncJobsFromFeedsResult = {
@@ -48,19 +47,7 @@ export type SyncJobsFromFeedsResult = {
   syncedAt: string;
 };
 
-export type FeedSyncSummary = {
-  feedGeneratedAt?: string;
-  syncedAt: string;
-  sourceCount: number;
-  importedSourceCount: number;
-  totalImported: number;
-  added: number;
-  updated: number;
-  errors: FeedImportSnapshot["errors"];
-  sourceResults: FeedSourceResult[];
-  diagnostics: FeedImportDiagnostics;
-  recoveryGuide: string[];
-};
+export type FeedSyncSummary = Omit<SyncJobsFromFeedsResult, "cached">;
 
 export async function syncJobsFromFeeds(options?: {
   refresh?: boolean;
@@ -206,7 +193,6 @@ export async function syncJobsFromFeeds(options?: {
   assertJobsStorageScope(scope);
   saveJobsToStorage(mergedJobs);
 
-  const today = new Date().toISOString().slice(0, 10);
   const syncedAt = new Date().toISOString();
   const errors = [...payload.errors, ...persistenceErrors];
 
@@ -225,23 +211,9 @@ export async function syncJobsFromFeeds(options?: {
   };
 
   window.localStorage.setItem(LAST_SYNC_KEY, syncedAt);
-  window.localStorage.setItem(LAST_SYNC_DATE_KEY, today);
   window.localStorage.setItem(LAST_SYNC_RESULT_KEY, JSON.stringify(summary));
 
-  return {
-    feedGeneratedAt: payload.generatedAt,
-    added,
-    updated,
-    totalImported: freshImportedJobs.length,
-    sourceCount: payload.sourceCount,
-    importedSourceCount,
-    cached: payload.cached === true,
-    errors,
-    sourceResults,
-    diagnostics,
-    recoveryGuide,
-    syncedAt,
-  };
+  return { ...summary, cached: payload.cached === true };
 }
 
 export function getLastFeedSyncAt() {
@@ -294,10 +266,4 @@ export function getLastFeedSyncSummary(): FeedSyncSummary | null {
   } catch {
     return null;
   }
-}
-
-export function shouldAutoSyncToday() {
-  if (typeof window === "undefined") return false;
-  const today = new Date().toISOString().slice(0, 10);
-  return window.localStorage.getItem(LAST_SYNC_DATE_KEY) !== today;
 }

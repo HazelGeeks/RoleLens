@@ -1,29 +1,7 @@
 import type { JobRow } from "@/components/jobs/jobs-table";
 import type { JobsSortOption } from "@/lib/jobs-sort";
-import type { FeedImportDiagnostics } from "@/lib/feed-types";
 import type { LocalJobPosting } from "@/lib/local-jobs";
 import type { JobSource, JobStatus, RemoteType } from "@/lib/local-jobs";
-
-export const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
-  ats: {
-    greenhouseBoardCount: 0,
-    leverCompanyCount: 0,
-    ashbyOrganizationCount: 0,
-    smartRecruitersCompanyCount: 0,
-    configuredSourceCount: 0,
-  },
-  rss: {
-    linkedinConfigured: false,
-    indeedConfigured: false,
-    thirdConfigured: false,
-    configuredSourceCount: 0,
-  },
-  python: {
-    scrapedFeedConfigured: false,
-    configuredSourceCount: 0,
-  },
-  sourceCount: 0,
-};
 
 export type JobsViewFilter = "ALL" | "RESUME" | "INTERVIEW";
 

@@ -55,11 +55,3 @@ export const createJobSchema = z
 
 export type CreateJobInput = z.input<typeof createJobSchema>;
 export type CreateJobParsed = z.output<typeof createJobSchema>;
-
-export const updateStatusSchema = z.object({
-  status: z.enum(statusOptions),
-});
-
-export const addNoteSchema = z.object({
-  content: z.string().trim().min(2).max(1000),
-});

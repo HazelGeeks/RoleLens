@@ -1,3 +1,4 @@
+import { createEmptyFeedDiagnostics } from "@/lib/feed-diagnostics";
 import type { FeedImportSnapshot } from "@/lib/feed-types";
 import {
   type FeedPlatform,
@@ -26,26 +27,7 @@ export function buildMissingDatabaseFeedSnapshot(): FeedImportSnapshot {
       },
     ],
     sourceResults: [],
-    diagnostics: {
-      ats: {
-        greenhouseBoardCount: 0,
-        leverCompanyCount: 0,
-        ashbyOrganizationCount: 0,
-        smartRecruitersCompanyCount: 0,
-        configuredSourceCount: 0,
-      },
-      rss: {
-        linkedinConfigured: false,
-        indeedConfigured: false,
-        thirdConfigured: false,
-        configuredSourceCount: 0,
-      },
-      python: {
-        scrapedFeedConfigured: false,
-        configuredSourceCount: 0,
-      },
-      sourceCount: 0,
-    },
+    diagnostics: createEmptyFeedDiagnostics(),
     recoveryGuide: DATABASE_RECOVERY_GUIDE,
   };
 }
@@ -57,7 +39,9 @@ export function filterFeedSnapshotByPlatform(
   const platform = parseFeedPlatform(inputPlatform);
   if (platform === "all") return snapshot;
 
-  const jobs = snapshot.jobs.filter((job) => matchesFeedPlatform(job, platform));
+  const jobs = snapshot.jobs.filter((job) =>
+    matchesFeedPlatform(job, platform),
+  );
   const importedSourceCount = new Set(
     jobs.map((job) => job.sourceLabel || job.source),
   ).size;

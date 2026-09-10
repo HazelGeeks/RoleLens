@@ -412,17 +412,6 @@ export function updateFollowUp(
   saveJobsToStorage(jobs, "follow-up");
 }
 
-export function getDueFollowUps(referenceDate = new Date()) {
-  const reference = referenceDate.toISOString().slice(0, 10);
-  return getJobsFromStorage().filter((job) => {
-    if (!job.followUpDate) return false;
-    if (job.status === "ARCHIVE") {
-      return false;
-    }
-    return job.followUpDate <= reference;
-  });
-}
-
 export function getJobById(jobId: string) {
   return getJobsFromStorage().find((job) => job.id === jobId) ?? null;
 }

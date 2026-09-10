@@ -8,13 +8,9 @@ import { JobsTable } from "@/components/jobs/jobs-table";
 import type { JobSource, JobStatus, RemoteType } from "@/lib/local-jobs";
 import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
 import type { JobsSortOption } from "@/lib/jobs-sort";
-import {
-  CompareShortlistCard,
-  DueFollowUpsCard,
-  JobsEmptyStateCard,
-  JobsFiltersCard,
-  JobsPageHeader,
-} from "@/components/jobs/jobs-page-sections";
+import { JobsPageHeader, JobsEmptyStateCard } from "./jobs-page-actions";
+import { JobsFiltersCard } from "./jobs-filters-card";
+import { DueFollowUpsCard, CompareShortlistCard } from "./jobs-shortlist-cards";
 import {
   buildDueFollowUps,
   buildRows,

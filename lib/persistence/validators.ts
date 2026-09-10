@@ -128,10 +128,3 @@ export const patchPersistentJobSchema = z.discriminatedUnion("op", [
     content: z.string().trim().min(2).max(1000),
   }),
 ]);
-
-export type CreatePersistentJobPayload = z.infer<
-  typeof createPersistentJobSchema
->;
-export type PatchPersistentJobPayload = z.infer<
-  typeof patchPersistentJobSchema
->;

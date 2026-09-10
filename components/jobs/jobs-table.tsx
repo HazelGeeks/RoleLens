@@ -73,6 +73,10 @@ export function JobsTable({
   selectedIds,
   onToggleSelect,
 }: JobsTableProps) {
+  // TanStack Table v8 uses mutable getters that React Compiler cannot memoize safely.
+  // Remove this opt-out when the table adapter supports React Compiler.
+  "use no memo";
+
   const today = new Date().toISOString().slice(0, 10);
 
   const columns = React.useMemo<ColumnDef<JobRow>[]>(
@@ -267,6 +271,7 @@ export function JobsTable({
   );
   const mobileLoadMoreRef = React.useRef<HTMLDivElement | null>(null);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- This component opts out of React Compiler above for TanStack Table v8.
   const table = useReactTable({
     data,
     columns,
@@ -344,7 +349,10 @@ export function JobsTable({
             const encoded = encodeURIComponent(job.id);
             const checked = selectedIds.includes(job.id);
             const salary = formatSalary(job);
-            const sourceDisplay = getJobSourceDisplay(job.source, job.sourceUrl);
+            const sourceDisplay = getJobSourceDisplay(
+              job.source,
+              job.sourceUrl,
+            );
             const hasStatus = job.status !== "NONE";
             const isInactive = job.status === "ARCHIVE";
             const due =
@@ -517,7 +525,10 @@ export function JobsTable({
                 <Table.Tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <Table.Td key={cell.id} style={{ verticalAlign: "top" }}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </Table.Td>
                   ))}
                 </Table.Tr>

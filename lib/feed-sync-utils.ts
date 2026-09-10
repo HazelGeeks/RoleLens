@@ -1,27 +1,9 @@
+import { createEmptyFeedDiagnostics } from "@/lib/feed-diagnostics";
 import { calculateFitScore, extractSkills } from "@/lib/fit-score";
 import type { FeedImportDiagnostics, ImportedFeedJob } from "@/lib/feed-types";
 import type { LocalJobPosting } from "@/lib/local-jobs";
 
-const EMPTY_DIAGNOSTICS: FeedImportDiagnostics = {
-  ats: {
-    greenhouseBoardCount: 0,
-    leverCompanyCount: 0,
-    ashbyOrganizationCount: 0,
-    smartRecruitersCompanyCount: 0,
-    configuredSourceCount: 0,
-  },
-  rss: {
-    linkedinConfigured: false,
-    indeedConfigured: false,
-    thirdConfigured: false,
-    configuredSourceCount: 0,
-  },
-  python: {
-    scrapedFeedConfigured: false,
-    configuredSourceCount: 0,
-  },
-  sourceCount: 0,
-};
+const EMPTY_DIAGNOSTICS = createEmptyFeedDiagnostics();
 
 export const DEFAULT_RECOVERY_GUIDE = [
   "Production: run the Daily Feed Sync workflow so the Python scraper posts a fresh snapshot to /api/jobs/ingest.",
@@ -51,7 +33,9 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function asBoolean(value: unknown): boolean | undefined {
@@ -132,7 +116,9 @@ function findExistingJob(
   );
 }
 
-function shouldResetLegacyImportedSaveStatus(existing: LocalJobPosting | undefined) {
+function shouldResetLegacyImportedSaveStatus(
+  existing: LocalJobPosting | undefined,
+) {
   if (!existing) return false;
   if (existing.status !== "SAVE") return false;
   if (existing.statusHistory.length !== 1) return false;
@@ -146,12 +132,8 @@ function shouldResetLegacyImportedSaveStatus(existing: LocalJobPosting | undefin
     .includes("imported from external feed");
 }
 
-function hasLegacyImportedDefaultStatus(existing: LocalJobPosting) {
-  return shouldResetLegacyImportedSaveStatus(existing);
-}
-
 export function hasUserTrackedImportedJob(job: LocalJobPosting) {
-  if (job.status !== "NONE" && !hasLegacyImportedDefaultStatus(job)) {
+  if (job.status !== "NONE" && !shouldResetLegacyImportedSaveStatus(job)) {
     return true;
   }
 
@@ -310,8 +292,13 @@ export function mergeImportedJob(
       ...imported.extractedSkills,
     ]),
   );
-  const tags = Array.from(new Set([...(existing?.tags || []), ...imported.tags]));
-  const importedDefaultStatusState = buildImportedDefaultStatusState(existing, now);
+  const tags = Array.from(
+    new Set([...(existing?.tags || []), ...imported.tags]),
+  );
+  const importedDefaultStatusState = buildImportedDefaultStatusState(
+    existing,
+    now,
+  );
 
   return {
     existing,
