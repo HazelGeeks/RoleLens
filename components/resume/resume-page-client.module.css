@@ -131,6 +131,21 @@
 .previewNote {
   margin-bottom: 14px;
 }
+.previewHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.paperSizeSelect {
+  padding: 6px 10px;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: 8px;
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  font: inherit;
+  font-size: 13px;
+}
 .paperViewport {
   overflow: auto;
   padding: 12px;
@@ -140,8 +155,6 @@
 }
 .paper {
   box-sizing: border-box;
-  width: 210mm;
-  height: 297mm;
   padding: 15mm;
   background: #fff;
   color: #17202a;
@@ -241,10 +254,6 @@
   }
 }
 @media print {
-  @page {
-    size: A4;
-    margin: 0;
-  }
   :global(body):has(.workspace) {
     margin: 0 !important;
     background: white !important;

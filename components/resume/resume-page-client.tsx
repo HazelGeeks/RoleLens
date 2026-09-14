@@ -63,8 +63,12 @@ export function ResumePageClient() {
       editor={(profile, change) => (
         <ResumeFields userId={user.id} profile={profile} change={change} />
       )}
-      preview={(profile, onOverflow) => (
-        <ResumePreview profile={profile} onOverflow={onOverflow} />
+      preview={(profile, onOverflow, paperSize) => (
+        <ResumePreview
+          profile={profile}
+          onOverflow={onOverflow}
+          paperSize={paperSize}
+        />
       )}
     />
   );

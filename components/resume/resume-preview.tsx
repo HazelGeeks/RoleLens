@@ -1,6 +1,9 @@
 "use client";
 
-import { DocumentPaper } from "@/components/documents/document-paper";
+import {
+  DocumentPaper,
+  type PaperSize,
+} from "@/components/documents/document-paper";
 import { getResumeWebsiteHref } from "@/lib/resume/website";
 import { formatResumePeriod } from "@/lib/resume/duration";
 import {
@@ -18,16 +21,22 @@ const sections: { key: Exclude<ResumeSection, "education">; label: string }[] =
 export function ResumePreview({
   profile,
   onOverflow,
+  paperSize,
 }: {
   profile: ResumeProfile;
   onOverflow: (overflow: boolean) => void;
+  paperSize?: PaperSize;
 }) {
   const websiteHref = getResumeWebsiteHref(profile.website);
   const contactDetails = [profile.email, profile.phone, profile.location]
     .filter(Boolean)
     .join(" · ");
   return (
-    <DocumentPaper label="Resume preview" onOverflow={onOverflow}>
+    <DocumentPaper
+      label="Resume preview"
+      onOverflow={onOverflow}
+      paperSize={paperSize}
+    >
       <header className={styles.resumeHeader}>
         <h2>{profile.name || "Your name"}</h2>
         {profile.headline && <p>{profile.headline}</p>}

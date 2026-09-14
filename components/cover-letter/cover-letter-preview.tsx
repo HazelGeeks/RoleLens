@@ -1,6 +1,9 @@
 "use client";
 
-import { DocumentPaper } from "@/components/documents/document-paper";
+import {
+  DocumentPaper,
+  type PaperSize,
+} from "@/components/documents/document-paper";
 import type { CoverLetter } from "@/lib/cover-letter/profile";
 import { getResumeWebsiteHref } from "@/lib/resume/website";
 import styles from "@/components/resume/resume-page-client.module.css";
@@ -8,16 +11,22 @@ import styles from "@/components/resume/resume-page-client.module.css";
 export function CoverLetterPreview({
   letter,
   onOverflow,
+  paperSize,
 }: {
   letter: CoverLetter;
   onOverflow: (overflow: boolean) => void;
+  paperSize?: PaperSize;
 }) {
   const websiteHref = getResumeWebsiteHref(letter.website);
   const contact = [letter.email, letter.phone, letter.location]
     .filter(Boolean)
     .join(" · ");
   return (
-    <DocumentPaper label="Cover letter preview" onOverflow={onOverflow}>
+    <DocumentPaper
+      label="Cover letter preview"
+      onOverflow={onOverflow}
+      paperSize={paperSize}
+    >
       <header className={styles.resumeHeader}>
         <h2>{letter.name || "Your name"}</h2>
         <p className={styles.contact}>

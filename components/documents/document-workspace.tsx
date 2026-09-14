@@ -10,6 +10,7 @@ import {
   documentSaveSchema,
   type DocumentKind,
 } from "@/lib/documents/types";
+import type { PaperSize } from "./document-paper";
 import styles from "@/components/resume/resume-page-client.module.css";
 
 type Document<T> = {
@@ -28,7 +29,11 @@ type Props<T> = {
   empty: () => T;
   canPrint: (data: T) => boolean;
   editor: (data: T, change: (data: T) => void) => ReactNode;
-  preview: (data: T, onOverflow: (overflow: boolean) => void) => ReactNode;
+  preview: (
+    data: T,
+    onOverflow: (overflow: boolean) => void,
+    paperSize: PaperSize,
+  ) => ReactNode;
 };
 
 /** Account-keyed by callers; switching documents never refetches over a draft. */
@@ -54,6 +59,7 @@ export function DocumentWorkspace<T>({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState("Loading saved documents...");
   const [attempt, setAttempt] = useState(0);
+  const [paperSize, setPaperSize] = useState<PaperSize>("A4");
   const [overflow, setOverflow] = useState(false);
   const active = useRef(true);
   useEffect(() => {
@@ -397,7 +403,21 @@ export function DocumentWorkspace<T>({
         </fieldset>
         <section className={styles.previewPanel} aria-label="One-page preview">
           <div className={styles.previewNote}>
-            <h2>One-page preview</h2>
+            <div className={styles.previewHeading}>
+              <h2>One-page preview</h2>
+              <select
+                className={styles.paperSizeSelect}
+                aria-label="Paper size"
+                value={paperSize}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  if (value === "A4" || value === "Letter") setPaperSize(value);
+                }}
+              >
+                <option value="A4">A4</option>
+                <option value="Letter">Letter</option>
+              </select>
+            </div>
             <p>Basic layout · your template can be applied later.</p>
             {overflow && (
               <p role="alert">
@@ -407,7 +427,7 @@ export function DocumentWorkspace<T>({
             )}
           </div>
           <div className={styles.paperViewport}>
-            {preview(data, setOverflow)}
+            {preview(data, setOverflow, paperSize)}
           </div>
         </section>
       </div>

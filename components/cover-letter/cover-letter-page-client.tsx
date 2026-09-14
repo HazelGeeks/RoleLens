@@ -43,8 +43,12 @@ export function CoverLetterPageClient() {
       editor={(letter, change) => (
         <CoverLetterFields letter={letter} change={change} />
       )}
-      preview={(letter, onOverflow) => (
-        <CoverLetterPreview letter={letter} onOverflow={onOverflow} />
+      preview={(letter, onOverflow, paperSize) => (
+        <CoverLetterPreview
+          letter={letter}
+          onOverflow={onOverflow}
+          paperSize={paperSize}
+        />
       )}
     />
   );

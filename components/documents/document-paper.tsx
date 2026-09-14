@@ -3,15 +3,25 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import styles from "@/components/resume/resume-page-client.module.css";
 
+export type PaperSize = "A4" | "Letter";
+
+const paperDimensions = {
+  A4: { width: 210, height: 297 },
+  Letter: { width: 215.9, height: 279.4 },
+};
+
 export function DocumentPaper({
   children,
   label,
   onOverflow,
+  paperSize = "A4",
 }: {
+  paperSize?: PaperSize;
   children: ReactNode;
   label: string;
   onOverflow: (overflow: boolean) => void;
 }) {
+  const { width, height } = paperDimensions[paperSize];
   const pageRef = useRef<HTMLElement>(null);
   const [scale, setScale] = useState(1);
   useLayoutEffect(() => {
@@ -19,11 +29,11 @@ export function DocumentPaper({
     if (!parent) return;
     const observer = new ResizeObserver(([entry]) => {
       if (entry)
-        setScale(Math.min(1, entry.contentRect.width / ((210 * 96) / 25.4)));
+        setScale(Math.min(1, entry.contentRect.width / ((width * 96) / 25.4)));
     });
     observer.observe(parent);
     return () => observer.disconnect();
-  }, []);
+  }, [width]);
   useLayoutEffect(() => {
     const page = pageRef.current;
     if (!page) return;
@@ -33,15 +43,18 @@ export function DocumentPaper({
     observer.observe(page);
     if (page.firstElementChild) observer.observe(page.firstElementChild);
     return () => observer.disconnect();
-  }, [children, onOverflow]);
+  }, [children, onOverflow, paperSize]);
   return (
-    <article
-      ref={pageRef}
-      className={styles.paper}
-      style={{ zoom: scale }}
-      aria-label={label}
-    >
-      <div>{children}</div>
-    </article>
+    <>
+      <style>{`@media print { @page { size: ${paperSize}; margin: 0; } }`}</style>
+      <article
+        ref={pageRef}
+        className={styles.paper}
+        style={{ zoom: scale, width: `${width}mm`, height: `${height}mm` }}
+        aria-label={label}
+      >
+        <div>{children}</div>
+      </article>
+    </>
   );
 }

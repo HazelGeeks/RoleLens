@@ -193,3 +193,24 @@ it("preserves unsaved text on failed save and canceled document switches", async
   await screen.findByText("Cover Letter saved.");
   expect(stored[0].data).toMatchObject({ body: "Keep this draft" });
 });
+
+it("switches preview and print paper sizes between A4 and Letter", async () => {
+  mount();
+  await screen.findByText("Add your details, then save your document.");
+  const selector = screen.getByRole("combobox", { name: "Paper size" });
+  const paper = screen.getByRole("article", { name: "Cover letter preview" });
+  expect(paper.style.width).toBe("210mm");
+  expect(paper.style.height).toBe("297mm");
+  fireEvent.change(selector, { target: { value: "Letter" } });
+  expect(paper.style.width).toBe("215.9mm");
+  expect(paper.style.height).toBe("279.4mm");
+  expect(document.head.innerHTML + document.body.innerHTML).toContain(
+    "size: Letter;",
+  );
+  fireEvent.change(selector, { target: { value: "A4" } });
+  expect(paper.style.width).toBe("210mm");
+  expect(paper.style.height).toBe("297mm");
+  expect(document.head.innerHTML + document.body.innerHTML).toContain(
+    "size: A4;",
+  );
+});
