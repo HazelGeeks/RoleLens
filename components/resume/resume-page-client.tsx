@@ -14,6 +14,8 @@ import {
   type ResumeProfile,
   type ResumeSection,
 } from "@/lib/resume/profile";
+import { parseResumePdfText } from "@/lib/resume/pdf-import";
+import { extractPdfText } from "@/lib/documents/pdf-text";
 import { EducationFields } from "./education-fields";
 import { ResumePreview } from "./resume-preview";
 import styles from "./resume-page-client.module.css";
@@ -60,6 +62,7 @@ export function ResumePageClient() {
       schema={resumeProfileSchema}
       empty={emptyResumeProfile}
       canPrint={(profile) => Boolean(profile.name.trim())}
+      pdfImport={{ extract: extractPdfText, parse: parseResumePdfText }}
       editor={(profile, change) => (
         <ResumeFields userId={user.id} profile={profile} change={change} />
       )}

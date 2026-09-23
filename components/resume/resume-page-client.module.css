@@ -23,6 +23,31 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.importLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--mantine-color-indigo-light);
+  color: var(--mantine-color-indigo-light-color);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.importLabel:hover {
+  background: var(--mantine-color-indigo-light-hover);
+}
+.importLabel:focus-within {
+  outline: 2px solid var(--mantine-color-indigo-5);
+  outline-offset: 2px;
+}
+.importLabel:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .documentLibrary {
   border: 1px solid var(--mantine-color-default-border);
   border-radius: 14px;

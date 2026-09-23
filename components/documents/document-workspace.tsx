@@ -29,6 +29,10 @@ type Props<T> = {
   schema: z.ZodType<T>;
   empty: () => T;
   canPrint: (data: T) => boolean;
+  pdfImport?: {
+    extract: (file: File) => Promise<string>;
+    parse: (text: string) => T | null;
+  };
   editor: (data: T, change: (data: T) => void) => ReactNode;
   preview: (
     data: T,
@@ -48,6 +52,7 @@ export function DocumentWorkspace<T>({
   canPrint,
   editor,
   preview,
+  pdfImport,
 }: Props<T>) {
   const [documents, setDocuments] = useState<Document<T>[]>([]);
   const [data, setData] = useState<T>(empty);
@@ -317,6 +322,34 @@ export function DocumentWorkspace<T>({
       window.setTimeout(restoreTitle, 1000);
     }
   }
+  async function importPdf(file: File) {
+    if (!pdfImport) return;
+    if (
+      dirty &&
+      !window.confirm(
+        "Replace the current draft with the imported PDF content? Unsaved changes will be lost.",
+      )
+    )
+      return;
+    setBusy(true);
+    setError(null);
+    try {
+      const text = await pdfImport.extract(file);
+      const parsed = pdfImport.parse(text);
+      if (!parsed || !active.current) {
+        throw new Error(
+          "No resume details were recognized in this PDF. The form is unchanged.",
+        );
+      }
+      setData(parsed);
+      setDirty(true);
+      setNotice(`Imported from ${file.name}. Review the details and save.`);
+    } catch (cause) {
+      if (active.current) setError(errorMessage(cause));
+    } finally {
+      if (active.current) setBusy(false);
+    }
+  }
   const full = documents.length >= MAX_DOCUMENTS;
   return (
     <div className={styles.workspace}>
@@ -339,6 +372,22 @@ export function DocumentWorkspace<T>({
           >
             Print / Save PDF
           </Button>
+          {pdfImport && (
+            <label className={styles.importLabel}>
+              Import PDF
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                hidden
+                disabled={!ready || busy}
+                onChange={(event) => {
+                  const picked = event.target.files?.[0];
+                  event.target.value = "";
+                  if (picked) void importPdf(picked);
+                }}
+              />
+            </label>
+          )}
         </div>
       </header>
       <fieldset className={styles.documentLibrary} disabled={!ready || busy}>

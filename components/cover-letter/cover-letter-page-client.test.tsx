@@ -157,6 +157,12 @@ it("disables creation at five, permits editing and frees a slot after confirmed 
   ).toBe(false);
 });
 
+it("does not offer PDF import on cover letters", async () => {
+  mount();
+  await screen.findByText("Add your details, then save your document.");
+  expect(screen.queryByLabelText("Import PDF")).toBeNull();
+});
+
 it("preserves unsaved text on failed save and canceled document switches", async () => {
   stored = [
     {

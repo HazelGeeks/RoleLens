@@ -18,6 +18,10 @@ vi.mock("@/components/providers/auth-provider", () => ({
   useAuth: () => auth,
 }));
 const fetchMock = vi.fn();
+const { extractPdfText } = vi.hoisted(() => ({
+  extractPdfText: vi.fn(),
+}));
+vi.mock("@/lib/documents/pdf-text", () => ({ extractPdfText }));
 function mount() {
   return render(
     <MantineProvider>
@@ -41,6 +45,7 @@ beforeEach(() => {
     removeEventListener: vi.fn(),
   });
   fetchMock.mockReset().mockResolvedValue(Response.json({ documents: [] }));
+  extractPdfText.mockReset();
 });
 afterEach(() => {
   cleanup();
@@ -328,6 +333,46 @@ it("sanitizes illegal file name characters when printing", async () => {
   } finally {
     window.print = previousPrint;
   }
+});
+
+it("imports resume details from an uploaded PDF", async () => {
+  extractPdfText.mockResolvedValue(
+    "Jordan Lee\nProduct Designer\njordan@example.com | 010-1111-2222\nExperience\nDesigner @ Acme 2020-05 - Present\n- Shipped onboarding",
+  );
+  mount();
+  await screen.findByText("Add your details, then save your document.");
+  const picker = screen.getByLabelText("Import PDF");
+  fireEvent.change(picker, {
+    target: {
+      files: [
+        new File(["%PDF-1.4"], "resume.pdf", { type: "application/pdf" }),
+      ],
+    },
+  });
+  await screen.findByText(
+    "Imported from resume.pdf. Review the details and save.",
+  );
+  expect((screen.getByLabelText("Full name") as HTMLInputElement).value).toBe(
+    "Jordan Lee",
+  );
+  expect(extractPdfText).toHaveBeenCalledTimes(1);
+});
+
+it("keeps the form unchanged when PDF import fails", async () => {
+  extractPdfText.mockRejectedValue(
+    new Error("This file does not look like a PDF."),
+  );
+  mount();
+  await screen.findByText("Add your details, then save your document.");
+  fireEvent.change(screen.getByLabelText("Import PDF"), {
+    target: {
+      files: [new File(["nope"], "notes.txt", { type: "text/plain" })],
+    },
+  });
+  await screen.findByText("This file does not look like a PDF.");
+  expect((screen.getByLabelText("Full name") as HTMLInputElement).value).toBe(
+    "",
+  );
 });
 
 it("rechecks the page overflow warning when the paper size changes", async () => {
