@@ -10,6 +10,7 @@ import {
   documentSaveSchema,
   type DocumentKind,
 } from "@/lib/documents/types";
+import { toPrintFileName } from "@/lib/documents/print-filename";
 import type { PaperSize } from "./document-paper";
 import styles from "@/components/resume/resume-page-client.module.css";
 
@@ -295,6 +296,27 @@ export function DocumentWorkspace<T>({
       if (active.current) setBusy(false);
     }
   }
+  function printDocument() {
+    // Browsers suggest document.title as the default file name in the
+    // "Save as PDF" dialog, so temporarily use the document's name.
+    const previousTitle = document.title;
+    document.title = toPrintFileName(title, label);
+    let restored = false;
+    const restoreTitle = () => {
+      if (restored) return;
+      restored = true;
+      document.title = previousTitle;
+      window.removeEventListener("afterprint", restoreTitle);
+    };
+    window.addEventListener("afterprint", restoreTitle);
+    try {
+      window.print();
+    } finally {
+      // afterprint does not fire everywhere (e.g. cancelled dialogs),
+      // so restore on a fallback timer as well.
+      window.setTimeout(restoreTitle, 1000);
+    }
+  }
   const full = documents.length >= MAX_DOCUMENTS;
   return (
     <div className={styles.workspace}>
@@ -313,7 +335,7 @@ export function DocumentWorkspace<T>({
           <Button
             variant="secondary"
             disabled={!ready || busy || overflow || !canPrint(data)}
-            onClick={() => window.print()}
+            onClick={printDocument}
           >
             Print / Save PDF
           </Button>

@@ -258,46 +258,50 @@
     margin: 0 !important;
     background: white !important;
   }
-  :global(body):has(.workspace) * {
-    visibility: hidden;
-    animation: none !important;
-    transform: none !important;
-  }
-  .paper,
-  .paper * {
-    visibility: visible !important;
-  }
-  .paper {
-    zoom: 1 !important;
-    position: absolute;
-    top: 0;
-    left: 0;
-    margin: 0;
+  :global(body):has(.workspace) > :global(div) {
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
   }
   .workspace,
   .columns,
   .previewPanel,
   .paperViewport {
-    position: static;
-    display: block;
-    overflow: visible;
-    height: auto;
-    max-height: none;
-    padding: 0;
-    margin: 0;
+    position: static !important;
+    display: block !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .paper {
+    zoom: 1 !important;
+    position: static !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
   .toolbar,
   .documentLibrary,
   .feedback,
   .editor,
   .previewNote {
-    display: none;
+    display: none !important;
   }
   :global(body):has(.workspace) :global(aside),
-  :global(body):has(.workspace) :global(a[href="#main-content"]) {
+  :global(body):has(.workspace) :global(a[href="#main-content"]),
+  :global(body):has(.workspace) :global([data-portal]) {
     display: none !important;
   }
   :global(body):has(.workspace) :global(main) {
+    display: block !important;
     padding: 0 !important;
     margin: 0 !important;
   }

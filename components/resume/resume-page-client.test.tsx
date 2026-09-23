@@ -284,6 +284,52 @@ it("switches preview and print paper sizes between A4 and Letter", async () => {
   );
 });
 
+it("uses the resume name as the PDF file name when printing", async () => {
+  const previousPrint = window.print;
+  const printSpy = vi.fn();
+  window.print = printSpy;
+  try {
+    mount();
+    await screen.findByText("Add your details, then save your document.");
+    fireEvent.change(screen.getByLabelText("Full name"), {
+      target: { value: "Alex Kim" },
+    });
+    fireEvent.change(screen.getByLabelText("Document name"), {
+      target: { value: "Alex Kim - Frontend" },
+    });
+    const originalTitle = document.title;
+    fireEvent.click(screen.getByRole("button", { name: "Print / Save PDF" }));
+    expect(printSpy).toHaveBeenCalledTimes(1);
+    expect(document.title).toBe("Alex Kim - Frontend");
+    window.dispatchEvent(new Event("afterprint"));
+    expect(document.title).toBe(originalTitle);
+  } finally {
+    window.print = previousPrint;
+  }
+});
+
+it("sanitizes illegal file name characters when printing", async () => {
+  const previousPrint = window.print;
+  const printSpy = vi.fn();
+  window.print = printSpy;
+  try {
+    mount();
+    await screen.findByText("Add your details, then save your document.");
+    fireEvent.change(screen.getByLabelText("Full name"), {
+      target: { value: "Alex Kim" },
+    });
+    fireEvent.change(screen.getByLabelText("Document name"), {
+      target: { value: "  a/b:c  " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Print / Save PDF" }));
+    expect(printSpy).toHaveBeenCalledTimes(1);
+    expect(document.title).toBe("a b c");
+    window.dispatchEvent(new Event("afterprint"));
+  } finally {
+    window.print = previousPrint;
+  }
+});
+
 it("rechecks the page overflow warning when the paper size changes", async () => {
   mount();
   await screen.findByText("Add your details, then save your document.");
