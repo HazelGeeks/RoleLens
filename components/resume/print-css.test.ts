@@ -39,4 +39,23 @@ describe("resume print CSS", () => {
   it("does not hide content with the old visibility technique", () => {
     expect(printBlock()).not.toContain("visibility: hidden");
   });
+
+  it("uses only pure selectors so the production build passes", () => {
+    // Turbopack rejects CSS-module selectors without a local class or id
+    // ("Selector X is not pure"), which fails `next build` and deployment.
+    const withoutGlobals = css.replace(/:global\([^()]*\)/g, "");
+    for (const match of withoutGlobals.matchAll(/([^{}]+)\{/g)) {
+      const prelude = match[1].trim();
+      if (
+        !prelude ||
+        prelude.startsWith("@") ||
+        prelude === "from" ||
+        prelude === "to"
+      )
+        continue;
+      for (const selector of prelude.split(",")) {
+        expect(selector.trim()).toMatch(/[.#][\w-]/);
+      }
+    }
+  });
 });

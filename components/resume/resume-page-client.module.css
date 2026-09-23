@@ -256,9 +256,8 @@
 @media print {
   /* Entrance animations (e.g. the app frame fade-up with opacity: 0 start)
      must not affect print: Firefox snapshots them unstarted, which prints
-     a blank page. Bare element selectors keep this working regardless of
-     CSS-module hashing inside :has(). */
-  main,
+     a blank page. */
+  :global(body):has(.workspace) :global(main),
   .workspace,
   .workspace * {
     animation: none !important;
