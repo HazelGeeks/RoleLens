@@ -57,26 +57,28 @@ export function LandingPage() {
   return (
     <main className={styles.page}>
       <header className={styles.navbar}>
-        <Link href="/" className={styles.brand} aria-label="RoleLens home">
-          <span className={styles.brandMark}>R</span>
-          <span>RoleLens</span>
-        </Link>
-        <nav className={styles.navLinks} aria-label="Landing navigation">
-          <a href="#platform">Platform</a>
-          <a href="#workflow">Workflow</a>
-          <a href="#faq">FAQ</a>
-        </nav>
-        <div className={styles.navActions}>
-          <Link href="/login" className={styles.textButton}>
-            Login
+        <div className={styles.navbarInner}>
+          <Link href="/" className={styles.brand} aria-label="RoleLens home">
+            <span className={styles.brandMark}>R</span>
+            <span>RoleLens</span>
           </Link>
-          <a href={demoHref} className={styles.secondaryButton}>
-            <CalendarCheck size={16} />
-            Book a Demo
-          </a>
-          <Link href="/signup" className={styles.primaryButton}>
-            Sign up
-          </Link>
+          <nav className={styles.navLinks} aria-label="Landing navigation">
+            <a href="#platform">Platform</a>
+            <a href="#workflow">Workflow</a>
+            <a href="#faq">FAQ</a>
+          </nav>
+          <div className={styles.navActions}>
+            <Link href="/login" className={styles.textButton}>
+              Login
+            </Link>
+            <a href={demoHref} className={styles.secondaryButton}>
+              <CalendarCheck size={16} />
+              Book a Demo
+            </a>
+            <Link href="/signup" className={styles.primaryButton}>
+              Sign up
+            </Link>
+          </div>
         </div>
       </header>
 

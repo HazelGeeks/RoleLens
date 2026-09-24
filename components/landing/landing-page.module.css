@@ -1,14 +1,34 @@
 .page {
   min-height: 100vh;
-  background:
-    linear-gradient(180deg, #eef7ff 0%, #ffffff 34%, #f6faf8 66%, #eef4f7 100%);
-  color: #102033;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand), white 90%) 0%,
+    var(--surface) 34%,
+    color-mix(in srgb, #16a34a, white 94%) 66%,
+    color-mix(in srgb, var(--brand), white 94%) 100%
+  );
+  color: var(--foreground);
+}
+
+:global(html.dark) .page {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand), black 74%) 0%,
+    var(--background) 42%,
+    var(--background) 100%
+  );
 }
 
 .navbar {
   position: sticky;
   top: 0;
   z-index: 20;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface), transparent 12%);
+  backdrop-filter: blur(18px);
+}
+
+.navbarInner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -16,9 +36,6 @@
   width: min(1180px, calc(100% - 32px));
   min-height: 64px;
   margin: 0 auto;
-  border-bottom: 1px solid rgba(119, 135, 154, 0.18);
-  background: rgba(238, 247, 255, 0.88);
-  backdrop-filter: blur(18px);
 }
 
 .brand,
@@ -35,7 +52,7 @@
 
 .brand {
   gap: 10px;
-  color: #0d2d4f;
+  color: var(--foreground);
   font-weight: 800;
   text-decoration: none;
 }
@@ -47,7 +64,7 @@
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: #0c7bdc;
+  background: var(--brand);
   color: #ffffff;
   font-size: 15px;
   font-weight: 800;
@@ -55,7 +72,7 @@
 
 .navLinks {
   gap: 22px;
-  color: #516173;
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 700;
 }
@@ -71,7 +88,7 @@
 }
 
 .textButton {
-  color: #405166;
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 800;
   padding: 8px 10px;
@@ -113,17 +130,17 @@
 
 .primaryButton,
 .primaryButtonLarge {
-  border: 1px solid #0c7bdc;
-  background: #0c7bdc;
+  border: 1px solid var(--brand);
+  background: var(--brand);
   color: #ffffff;
-  box-shadow: 0 14px 32px rgba(12, 123, 220, 0.22);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--brand), transparent 78%);
 }
 
 .secondaryButton,
 .secondaryButtonLarge {
-  border: 1px solid rgba(12, 123, 220, 0.22);
-  background: #ffffff;
-  color: #0c5c9e;
+  border: 1px solid color-mix(in srgb, var(--brand), transparent 78%);
+  background: var(--surface);
+  color: var(--brand);
 }
 
 .primaryButton:hover,
@@ -135,13 +152,13 @@
 
 .primaryButton:hover,
 .primaryButtonLarge:hover {
-  background: #075fae;
-  border-color: #075fae;
+  background: color-mix(in srgb, var(--brand), black 22%);
+  border-color: color-mix(in srgb, var(--brand), black 22%);
 }
 
 .secondaryButton:hover,
 .secondaryButtonLarge:hover {
-  border-color: rgba(12, 123, 220, 0.42);
+  border-color: color-mix(in srgb, var(--brand), transparent 58%);
   box-shadow: 0 12px 28px rgba(37, 57, 78, 0.1);
 }
 
@@ -163,7 +180,7 @@
 
 .eyebrow {
   margin: 0;
-  color: #0c7bdc;
+  color: var(--brand);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
@@ -172,7 +189,7 @@
 .hero h1 {
   max-width: 720px;
   margin: 0;
-  color: #0b2540;
+  color: var(--foreground);
   font-size: 72px;
   font-weight: 800;
   line-height: 0.96;
@@ -181,7 +198,7 @@
 .heroLead {
   max-width: 640px;
   margin: 0;
-  color: #42566c;
+  color: var(--text-muted);
   font-size: 19px;
   font-weight: 600;
   line-height: 1.6;
@@ -201,19 +218,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid rgba(88, 113, 139, 0.18);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.76);
-  color: #42566c;
+  background: color-mix(in srgb, var(--surface), transparent 24%);
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 800;
   padding: 7px 9px;
 }
 
 .productPreview {
-  border: 1px solid rgba(105, 129, 154, 0.18);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 28px 72px rgba(17, 45, 73, 0.16);
   overflow: hidden;
 }
@@ -223,8 +240,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  border-bottom: 1px solid #e7edf4;
-  background: #fbfdff;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
   padding: 16px 18px;
 }
 
@@ -236,13 +253,13 @@
 
 .previewTopbar p {
   margin: 0 0 3px;
-  color: #6a7889;
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 800;
 }
 
 .previewTopbar strong {
-  color: #17283c;
+  color: var(--foreground);
   font-size: 16px;
 }
 
@@ -270,9 +287,9 @@
 .miniDashboard,
 .demoPanel,
 .faq details {
-  border: 1px solid rgba(115, 137, 160, 0.18);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .scorePanel {
@@ -280,7 +297,7 @@
   align-content: start;
   justify-items: center;
   gap: 12px;
-  background: #f7fbff;
+  background: color-mix(in srgb, var(--brand), transparent 94%);
   padding: 16px 12px;
 }
 
@@ -290,10 +307,10 @@
   width: 88px;
   height: 88px;
   border: 9px solid #2db977;
-  border-left-color: #dbeaf5;
+  border-left-color: var(--border);
   border-radius: 999px;
-  background: #ffffff;
-  color: #12395d;
+  background: var(--surface);
+  color: var(--foreground);
   font-weight: 800;
 }
 
@@ -303,7 +320,7 @@
 
 .scorePanel p {
   margin: 0;
-  color: #566b80;
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 800;
 }
@@ -312,7 +329,7 @@
   width: 100%;
   border: 0;
   border-radius: 8px;
-  background: #0c7bdc;
+  background: var(--brand);
   color: #ffffff;
   cursor: default;
   font-size: 12px;
@@ -333,16 +350,16 @@
 
 .tabs span {
   border-radius: 8px;
-  background: #eef4f8;
-  color: #526477;
+  background: var(--surface-muted);
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 800;
   padding: 7px 10px;
 }
 
 .tabs .activeTab {
-  background: #dff1ff;
-  color: #0c5c9e;
+  background: color-mix(in srgb, var(--brand), transparent 88%);
+  color: var(--brand);
 }
 
 .searchBar {
@@ -350,10 +367,10 @@
   align-items: center;
   gap: 8px;
   min-height: 38px;
-  border: 1px solid #dbe6ef;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fbfdff;
-  color: #637489;
+  background: var(--surface);
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 700;
   padding: 8px 10px;
@@ -368,9 +385,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid #e7edf4;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   padding: 10px;
 }
 
@@ -385,12 +402,12 @@
 }
 
 .jobRow strong {
-  color: #1a2b3f;
+  color: var(--foreground);
   font-size: 13px;
 }
 
 .jobRow span {
-  color: #65768a;
+  color: var(--text-muted);
   font-size: 12px;
   margin-top: 2px;
 }
@@ -401,26 +418,26 @@
   gap: 1px;
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
-  border: 1px solid #dde8ef;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #dde8ef;
+  background: var(--border);
   overflow: hidden;
 }
 
 .signalBand div {
   display: grid;
   gap: 5px;
-  background: #ffffff;
+  background: var(--surface);
   padding: 20px;
 }
 
 .signalBand strong {
-  color: #0b2540;
+  color: var(--foreground);
   font-size: 18px;
 }
 
 .signalBand span {
-  color: #587087;
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.45;
@@ -445,7 +462,7 @@
 .featureRows h2,
 .demoPanel h2 {
   margin: 0;
-  color: #0b2540;
+  color: var(--foreground);
   font-size: 36px;
   line-height: 1.08;
 }
@@ -455,7 +472,7 @@
 .featureRows p,
 .demoPanel p {
   margin: 0;
-  color: #52677d;
+  color: var(--text-muted);
   font-size: 16px;
   font-weight: 600;
   line-height: 1.65;
@@ -476,7 +493,7 @@
 }
 
 .capabilityCard svg {
-  color: #0c7bdc;
+  color: var(--brand);
 }
 
 .capabilityCard:nth-child(2) svg {
@@ -489,13 +506,13 @@
 
 .capabilityCard h3 {
   margin: 0;
-  color: #152c43;
+  color: var(--foreground);
   font-size: 20px;
 }
 
 .capabilityCard p {
   margin: 0;
-  color: #5e7083;
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.65;
@@ -514,7 +531,7 @@
 .workflowVisual {
   display: grid;
   gap: 10px;
-  background: #f6fbff;
+  background: color-mix(in srgb, var(--brand), transparent 94%);
   padding: 18px;
   box-shadow: 0 22px 52px rgba(22, 60, 88, 0.1);
 }
@@ -525,9 +542,9 @@
   align-items: center;
   gap: 12px;
   min-height: 68px;
-  border: 1px solid #dce9f2;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   padding: 12px;
 }
 
@@ -537,7 +554,7 @@
   width: 42px;
   height: 42px;
   border-radius: 8px;
-  background: #0e2f4e;
+  background: var(--brand);
   color: #ffffff;
   font-size: 13px;
   font-weight: 800;
@@ -552,7 +569,7 @@
 }
 
 .workflowStep strong {
-  color: #17314a;
+  color: var(--foreground);
   font-size: 16px;
 }
 
@@ -589,7 +606,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  background: #fffdf6;
+  background: color-mix(in srgb, #b45309, transparent 94%);
   padding: 18px;
 }
 
@@ -597,14 +614,14 @@
   display: grid;
   gap: 8px;
   min-height: 132px;
-  border: 1px solid #eee2c5;
+  border: 1px solid color-mix(in srgb, #b45309, transparent 76%);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   padding: 15px;
 }
 
 .metricCard svg {
-  color: #0c7bdc;
+  color: var(--brand);
 }
 
 .metricCard:nth-child(2) svg {
@@ -616,12 +633,12 @@
 }
 
 .metricCard strong {
-  color: #172b40;
+  color: var(--foreground);
   font-size: 16px;
 }
 
 .metricCard span {
-  color: #66778a;
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 700;
 }
@@ -675,7 +692,7 @@
 }
 
 .faq summary {
-  color: #17314a;
+  color: var(--foreground);
   cursor: pointer;
   font-size: 15px;
   font-weight: 800;
@@ -683,7 +700,7 @@
 
 .faq details p {
   margin: 12px 0 0;
-  color: #5a6c7e;
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.6;
@@ -696,8 +713,8 @@
   gap: 20px;
   width: min(1180px, calc(100% - 32px));
   margin: 88px auto 0;
-  border-top: 1px solid #dce7ef;
-  color: #5c6d7d;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 800;
   padding: 26px 0 34px;
@@ -709,7 +726,7 @@
 }
 
 @media (max-width: 980px) {
-  .navbar {
+  .navbarInner {
     align-items: flex-start;
     flex-wrap: wrap;
     padding: 12px 0;
@@ -755,10 +772,10 @@
 
 @media (max-width: 640px) {
   .page {
-    background: #f7fbff;
+    background: color-mix(in srgb, var(--brand), transparent 94%);
   }
 
-  .navbar,
+  .navbarInner,
   .hero,
   .signalBand,
   .capabilities,
@@ -802,6 +819,25 @@
 
   .previewGrid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tabs {
+    flex-wrap: wrap;
+  }
+
+  .jobRow > div {
+    min-width: 0;
+  }
+
+  .searchBar {
+    overflow: hidden;
+  }
+
+  .searchBar span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .previewTopbar {
