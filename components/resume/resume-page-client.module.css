@@ -272,9 +272,6 @@
 .resumePaper .entryHeading {
   gap: 10px;
 }
-.resumePaper .entryIdentity {
-  font-weight: 700;
-}
 .resumePaper .entryMeta {
   color: #444;
   font-size: 8.5pt;
