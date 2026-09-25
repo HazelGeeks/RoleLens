@@ -15,7 +15,7 @@ import styles from "./resume-page-client.module.css";
 
 const sections: { key: Exclude<ResumeSection, "education">; label: string }[] =
   [
-    { key: "experience", label: "Experience" },
+    { key: "experience", label: "Professional Experience" },
     { key: "projects", label: "Projects & activities" },
   ];
 export function ResumePreview({
@@ -40,23 +40,50 @@ export function ResumePreview({
     >
       <header className={styles.resumeHeader}>
         <h2>{profile.name || "Your name"}</h2>
-        {profile.headline && <p>{profile.headline}</p>}
-        <p className={styles.contact}>
-          {contactDetails}
-          {contactDetails && profile.website && " · "}
-          {websiteHref ? (
-            <a href={websiteHref} target="_blank" rel="noopener noreferrer">
-              {profile.website}
-            </a>
-          ) : (
-            profile.website
-          )}
-        </p>
+        {profile.headline && (
+          <p className={styles.resumeHeadline}>{profile.headline}</p>
+        )}
+        {(contactDetails || profile.website) && (
+          <p className={styles.contact}>
+            {contactDetails}
+            {contactDetails && profile.website && " · "}
+            {websiteHref ? (
+              <a href={websiteHref} target="_blank" rel="noopener noreferrer">
+                {profile.website}
+              </a>
+            ) : (
+              profile.website
+            )}
+          </p>
+        )}
       </header>
       {profile.summary && (
         <section>
-          <h3>Profile</h3>
+          <h3>Professional Summary</h3>
           <p className={styles.preserveLines}>{profile.summary}</p>
+        </section>
+      )}
+      {profile.skills && (
+        <section>
+          <h3>Technical Skills</h3>
+          {profile.skills
+            .split("\n")
+            .filter((line) => line.trim())
+            .map((line, index) => {
+              const separator = line.indexOf(":");
+              return (
+                <p key={index} className={styles.skillLine}>
+                  {separator > 0 ? (
+                    <>
+                      <strong>{line.slice(0, separator + 1)}</strong>
+                      {line.slice(separator + 1)}
+                    </>
+                  ) : (
+                    line
+                  )}
+                </p>
+              );
+            })}
         </section>
       )}
       {sections.map(({ key, label }) => {
@@ -75,14 +102,12 @@ export function ResumePreview({
                   <div className={styles.entryIdentity}>
                     <strong>{entry.title || entry.organization}</strong>
                     {entry.title && entry.organization && (
-                      <p>{entry.organization}</p>
+                      <strong> | {entry.organization}</strong>
                     )}
+                    {entry.location && <strong>, {entry.location}</strong>}
                   </div>
                   <div className={styles.entryMeta}>
-                    <span>
-                      {formatResumePeriod(entry.startDate, entry.endDate)}
-                    </span>
-                    {entry.location && <p>{entry.location}</p>}
+                    {formatResumePeriod(entry.startDate, entry.endDate)}
                   </div>
                 </div>
                 {entry.details && (
@@ -143,12 +168,6 @@ export function ResumePreview({
                 )}
               </div>
             ))}
-        </section>
-      )}
-      {profile.skills && (
-        <section>
-          <h3>Skills</h3>
-          <p className={styles.preserveLines}>{profile.skills}</p>
         </section>
       )}
     </DocumentPaper>

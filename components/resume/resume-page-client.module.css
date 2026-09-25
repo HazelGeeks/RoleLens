@@ -194,6 +194,7 @@
   font-family: Helvetica, Arial, sans-serif;
   font-size: 9.5pt;
   line-height: 1.2;
+  color: #191919;
 }
 .paper p {
   margin: 3px 0;
@@ -206,7 +207,23 @@
   padding-bottom: 12px;
 }
 .resumePaper .resumeHeader {
-  padding-bottom: 6px;
+  border: 0;
+  padding-bottom: 0;
+  text-align: center;
+}
+.resumePaper .resumeHeader h2 {
+  font-size: 19pt;
+  line-height: 1.05;
+  font-weight: 700;
+}
+.resumePaper .resumeHeadline {
+  margin-top: 3px;
+  font-size: 10pt;
+  font-weight: 700;
+}
+.resumePaper .contact {
+  margin-top: 3px;
+  font-size: 8pt;
 }
 .resumeHeader h2 {
   margin: 0;
@@ -225,7 +242,7 @@
   margin-top: 14px;
 }
 .resumePaper section {
-  margin-top: 8px;
+  margin-top: 7px;
 }
 .paper h3 {
   font-size: 10pt;
@@ -237,12 +254,31 @@
 }
 .resumePaper h3 {
   margin-bottom: 4px;
+  border-bottom: 1.5px solid #191919;
+  padding-bottom: 2px;
+  font-size: 9.5pt;
+  letter-spacing: 0;
+  font-weight: 700;
+}
+.resumePaper .skillLine {
+  margin: 2px 0;
 }
 .resumeEntry {
   margin: 0 0 10px;
 }
 .resumePaper .resumeEntry {
-  margin-bottom: 5px;
+  margin-bottom: 6px;
+}
+.resumePaper .entryHeading {
+  gap: 10px;
+}
+.resumePaper .entryIdentity {
+  font-weight: 700;
+}
+.resumePaper .entryMeta {
+  color: #444;
+  font-size: 8.5pt;
+  white-space: nowrap;
 }
 .entryHeading {
   display: flex;
@@ -265,6 +301,18 @@
 }
 .resumePaper ul {
   margin-top: 2px;
+  padding-left: 0;
+  list-style: none;
+}
+.resumePaper li {
+  position: relative;
+  margin: 2px 0;
+  padding-left: 13px;
+}
+.resumePaper li::before {
+  content: "-";
+  position: absolute;
+  left: 0;
 }
 .preserveLines,
 .legacy {
@@ -367,6 +415,9 @@
 
 .educationEntry {
   margin-bottom: 6px;
+}
+.resumePaper .educationEntry {
+  margin-bottom: 4px;
 }
 .paper .educationEntry p {
   margin: 1px 0 0;

@@ -9,8 +9,9 @@ import {
 } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { emptyResumeProfile } from "@/lib/resume/profile";
+import { emptyResumeEntry, emptyResumeProfile } from "@/lib/resume/profile";
 import { ResumePageClient } from "./resume-page-client";
+import { ResumePreview } from "./resume-preview";
 const { auth } = vi.hoisted(() => ({
   auth: { user: { id: "a" }, status: "authenticated" },
 }));
@@ -50,6 +51,44 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+});
+it("uses the reference-style section order and compact entry heading", () => {
+  render(
+    <ResumePreview
+      profile={{
+        ...emptyResumeProfile(),
+        name: "Alex Kim",
+        headline: "Software Developer",
+        summary: "Builds useful applications.",
+        skills: "Frontend: React\nBackend: Node.js",
+        experience: [
+          {
+            ...emptyResumeEntry(),
+            title: "Web Developer",
+            organization: "UVANU",
+            location: "Vancouver, Canada",
+            details: "Built accessible products",
+          },
+        ],
+      }}
+      onOverflow={() => {}}
+      paperSize="Letter"
+    />,
+  );
+  const paper = screen.getByRole("article", { name: "Resume preview" });
+  expect(
+    within(paper)
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent),
+  ).toEqual([
+    "Professional Summary",
+    "Technical Skills",
+    "Professional Experience",
+  ]);
+  expect(within(paper).getByText("Frontend:").tagName).toBe("STRONG");
+  expect(
+    within(paper).getByText("Web Developer").parentElement?.textContent,
+  ).toBe("Web Developer | UVANU, Vancouver, Canada");
 });
 it("creates entries, updates preview, saves and reloads details", async () => {
   const view = mount();
