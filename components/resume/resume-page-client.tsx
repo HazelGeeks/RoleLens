@@ -59,6 +59,7 @@ export function ResumePageClient() {
       kind="resume"
       label="Resume"
       description="Save your story. Build a one-page resume."
+      defaultPaperSize="Letter"
       schema={resumeProfileSchema}
       empty={emptyResumeProfile}
       canPrint={(profile) => Boolean(profile.name.trim())}

@@ -15,8 +15,10 @@ export function DocumentPaper({
   label,
   onOverflow,
   paperSize = "A4",
+  paperClassName,
 }: {
   paperSize?: PaperSize;
+  paperClassName?: string;
   children: ReactNode;
   label: string;
   onOverflow: (overflow: boolean) => void;
@@ -49,7 +51,7 @@ export function DocumentPaper({
       <style>{`@media print { @page { size: ${paperSize}; margin: 0; } }`}</style>
       <article
         ref={pageRef}
-        className={styles.paper}
+        className={[styles.paper, paperClassName].filter(Boolean).join(" ")}
         style={{ zoom: scale, width: `${width}mm`, height: `${height}mm` }}
         aria-label={label}
       >

@@ -36,6 +36,7 @@ export function ResumePreview({
       label="Resume preview"
       onOverflow={onOverflow}
       paperSize={paperSize}
+      paperClassName={styles.resumePaper}
     >
       <header className={styles.resumeHeader}>
         <h2>{profile.name || "Your name"}</h2>

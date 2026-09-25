@@ -189,12 +189,24 @@
   overflow: hidden;
   overflow-wrap: anywhere;
 }
+.resumePaper {
+  padding: 10mm 15mm;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.2;
+}
 .paper p {
   margin: 3px 0;
+}
+.resumePaper p {
+  margin: 1px 0;
 }
 .resumeHeader {
   border-bottom: 2px solid #17202a;
   padding-bottom: 12px;
+}
+.resumePaper .resumeHeader {
+  padding-bottom: 6px;
 }
 .resumeHeader h2 {
   margin: 0;
@@ -212,6 +224,9 @@
 .paper section {
   margin-top: 14px;
 }
+.resumePaper section {
+  margin-top: 8px;
+}
 .paper h3 {
   font-size: 10pt;
   text-transform: uppercase;
@@ -220,8 +235,14 @@
   border-bottom: 1px solid #cbd1d7;
   padding-bottom: 3px;
 }
+.resumePaper h3 {
+  margin-bottom: 4px;
+}
 .resumeEntry {
   margin: 0 0 10px;
+}
+.resumePaper .resumeEntry {
+  margin-bottom: 5px;
 }
 .entryHeading {
   display: flex;
@@ -241,6 +262,9 @@
 .paper ul {
   margin: 4px 0 0;
   padding-left: 17px;
+}
+.resumePaper ul {
+  margin-top: 2px;
 }
 .preserveLines,
 .legacy {

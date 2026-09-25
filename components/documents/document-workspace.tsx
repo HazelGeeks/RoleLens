@@ -26,6 +26,7 @@ type Props<T> = {
   kind: DocumentKind;
   label: string;
   description: string;
+  defaultPaperSize?: PaperSize;
   schema: z.ZodType<T>;
   empty: () => T;
   canPrint: (data: T) => boolean;
@@ -47,6 +48,7 @@ export function DocumentWorkspace<T>({
   kind,
   label,
   description,
+  defaultPaperSize = "A4",
   schema,
   empty,
   canPrint,
@@ -65,7 +67,7 @@ export function DocumentWorkspace<T>({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState("Loading saved documents...");
   const [attempt, setAttempt] = useState(0);
-  const [paperSize, setPaperSize] = useState<PaperSize>("A4");
+  const [paperSize, setPaperSize] = useState<PaperSize>(defaultPaperSize);
   const [overflow, setOverflow] = useState(false);
   const active = useRef(true);
   useEffect(() => {
