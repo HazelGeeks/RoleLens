@@ -44,6 +44,7 @@ export function JobDetailClient() {
   }, [newNote, nextActionInput, followUpDateInput]);
   const retryAction = useRef<(() => Promise<void>) | null>(null);
   const initializedJobId = useRef<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -127,14 +128,19 @@ export function JobDetailClient() {
     }
   };
 
-  const runAction = async (action: () => Promise<void>) => {
+  const runAction = async (
+    action: () => Promise<void>,
+    message = "Changes saved.",
+  ) => {
     if (isSaving.current) return;
     isSaving.current = true;
     setSaving(true);
     setActionError(null);
+    setSuccessMessage(null);
     retryAction.current = action;
     try {
       await action();
+      setSuccessMessage(message);
       retryAction.current = null;
     } catch (error) {
       setActionError(
@@ -198,10 +204,13 @@ export function JobDetailClient() {
       aria-busy={saving}
     >
       <JobDetailHeader job={job} />
+      <p role="status" className={styles.saveFeedback}>
+        {saving ? "Saving changes…" : successMessage}
+      </p>
       <JobOverviewCard
         job={job}
         onSaveStatus={(nextStatus) => {
-          void runAction(() => saveStatus(nextStatus));
+          void runAction(() => saveStatus(nextStatus), "Status saved.");
         }}
         nextActionInput={nextActionInput}
         onNextActionChange={setNextActionInput}
@@ -214,7 +223,7 @@ export function JobDetailClient() {
         isFollowUpOverdue={isFollowUpOverdue}
       />
       {actionError ? (
-        <div role="alert" className="text-sm text-rose-600 dark:text-rose-300">
+        <div role="alert" className={styles.errorMessage}>
           <p>{actionError}</p>
           <button
             type="button"

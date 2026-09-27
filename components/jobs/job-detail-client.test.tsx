@@ -256,3 +256,40 @@ it("keeps edits made after a failed note save when retrying", async () => {
     ),
   ).toEqual(["Revised draft"]);
 });
+
+it("saves the status from the labeled selector and confirms the saved choice", async () => {
+  render(
+    <MantineProvider env="test" forceColorScheme="light">
+      <JobDetailClient />
+    </MantineProvider>,
+  );
+  const select = await screen.findByRole("combobox", { name: "Update Status" });
+  expect(select).toHaveProperty("value", "SAVE");
+  fireEvent.change(select, { target: { value: "EXPIRED" } });
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toBe("Status saved."),
+  );
+  expect(select).toHaveProperty("value", "EXPIRED");
+  expect((await getPersistentJob("account-user-a", jobId))?.status).toBe(
+    "EXPIRED",
+  );
+});
+
+it("keeps the saved status visible when changing status fails and retries the selected choice", async () => {
+  render(
+    <MantineProvider env="test" forceColorScheme="light">
+      <JobDetailClient />
+    </MantineProvider>,
+  );
+  const select = await screen.findByRole("combobox", { name: "Update Status" });
+  nextPatchFailure = 500;
+  fireEvent.change(select, { target: { value: "ON_HOLD" } });
+  await screen.findByRole("alert");
+  await waitFor(() => expect(select.closest("fieldset")?.disabled).toBe(false));
+  expect(select).toHaveProperty("value", "SAVE");
+  fireEvent.click(screen.getByRole("button", { name: "Retry save" }));
+  await waitFor(() => expect(select).toHaveProperty("value", "ON_HOLD"));
+  expect((await getPersistentJob("account-user-a", jobId))?.status).toBe(
+    "ON_HOLD",
+  );
+});

@@ -3,14 +3,11 @@ import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { sourceLabels, statusLabels, statusOptions } from "@/lib/constants";
-import {
-  formatCurrency,
-  prettifyEnum,
-  statusBadgeColor,
-} from "@/lib/presentation";
+import { formatCurrency, prettifyEnum } from "@/lib/presentation";
 import type { LocalJobPosting } from "@/lib/local-jobs";
 import { formatJobDescriptionForDisplay } from "@/lib/job-description";
 import styles from "./job-detail-sections.module.css";
@@ -58,7 +55,9 @@ export function JobDetailHeader({ job }: JobDetailHeaderProps) {
   const heroMetaItems = [
     job.location,
     sourceLabels[job.source],
-    prettifyEnum(job.remoteType),
+    job.remoteType !== "UNKNOWN" ? prettifyEnum(job.remoteType) : null,
+    job.employmentType ? prettifyEnum(job.employmentType) : null,
+    job.seniority,
   ].filter((item): item is string => Boolean(item && item !== "-"));
 
   return (
@@ -108,35 +107,12 @@ export function JobOverviewCard({
   onSaveFollowUp,
   isFollowUpOverdue,
 }: JobOverviewCardProps) {
-  const badges = [
-    { label: statusLabels[job.status], color: statusBadgeColor(job.status) },
-    { label: sourceLabels[job.source] },
-    { label: prettifyEnum(job.remoteType) },
-    job.employmentType ? { label: prettifyEnum(job.employmentType) } : null,
-    job.seniority ? { label: job.seniority } : null,
-  ].filter((item): item is { label: string; color?: string } =>
-    Boolean(item && item.label && item.label !== "-"),
-  );
   const hasFitScore = job.fitScore !== null && job.fitScore !== undefined;
   const hasSourceUrl = Boolean(job.sourceUrl);
-  const hasNextAction = Boolean(nextActionInput.trim());
-  const hasFollowUpDate = Boolean(followUpDateInput.trim());
-  const hasFollowUpContent =
-    hasNextAction || hasFollowUpDate || isFollowUpOverdue;
   const salaryRange = formatSalaryRange(job);
 
   return (
     <Card className={styles.overview}>
-      {badges.length > 0 ? (
-        <div className={styles.badgeRow}>
-          {badges.map((badge) => (
-            <Badge key={badge.label} color={badge.color}>
-              {badge.label}
-            </Badge>
-          ))}
-        </div>
-      ) : null}
-
       {salaryRange || hasFitScore || hasSourceUrl ? (
         <div className={styles.metricsGrid}>
           {salaryRange ? (
@@ -170,36 +146,68 @@ export function JobOverviewCard({
       ) : null}
 
       <div className={styles.controlGrid}>
-        <div className={styles.panel}>
-          <h3 className={styles.panelTitle}>Status</h3>
-          <div className={styles.statusControl}>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label}>Update Status</label>
-              <div className={styles.statusButtonGrid}>
-                {statusOptions.map((item) => {
-                  const isActive = item === job.status;
-                  return (
-                    <button
-                      key={item}
-                      type="button"
-                      className={styles.statusButton}
-                      data-active={isActive}
-                      aria-pressed={isActive}
-                      onClick={() => onSaveStatus(item)}
-                    >
-                      {statusLabels[item]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          className={`${styles.panel} ${!hasFollowUpContent ? styles.compactPanel : ""}`}
+        <section
+          className={styles.panel}
+          aria-labelledby="application-status-title"
         >
-          <h3 className={styles.panelTitle}>Follow-up Automation</h3>
+          <div className={styles.panelHeading}>
+            <h3 id="application-status-title" className={styles.panelTitle}>
+              My application
+            </h3>
+            <span className={styles.currentStatus}>
+              {job.status === "NONE" ? "No status" : statusLabels[job.status]}
+            </span>
+          </div>
+          <div className={styles.statusControl}>
+            <label htmlFor="job-status" className={styles.label}>
+              Update Status
+            </label>
+            <Select
+              id="job-status"
+              className={styles.statusSelect}
+              value={job.status}
+              aria-describedby="job-status-help"
+              onChange={(event) => {
+                const value = event.target.value as LocalJobPosting["status"];
+                if (value !== job.status) onSaveStatus(value);
+              }}
+            >
+              <option value="NONE">No status</option>
+              <optgroup label="Application">
+                {(
+                  [
+                    "PLANNED",
+                    "SUBMITTED",
+                    "ON_HOLD",
+                    "NOT_APPLYING",
+                    "EXPIRED",
+                  ] as const
+                ).map((status) => (
+                  <option key={status} value={status}>
+                    {statusLabels[status]}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Organize">
+                {(["NEW", "SAVE", "INTEREST", "ARCHIVE"] as const).map(
+                  (status) => (
+                    <option key={status} value={status}>
+                      {statusLabels[status]}
+                    </option>
+                  ),
+                )}
+              </optgroup>
+            </Select>
+            <p id="job-status-help" className={styles.helpText}>
+              Changes save automatically. Track your decision for this posting.
+            </p>
+          </div>
+        </section>
+
+        <section className={styles.panel} aria-labelledby="follow-up-title">
+          <h3 id="follow-up-title" className={styles.panelTitle}>
+            Follow-up
+          </h3>
           <div className={styles.followUpGrid}>
             <div className={styles.fieldGroup}>
               <label htmlFor="job-next-action" className={styles.label}>
@@ -230,7 +238,7 @@ export function JobOverviewCard({
                   size="sm"
                   onClick={() => onSetFollowUpAfterDays(3)}
                 >
-                  +3d
+                  In 3 days
                 </Button>
                 <Button
                   type="button"
@@ -238,7 +246,7 @@ export function JobOverviewCard({
                   size="sm"
                   onClick={() => onSetFollowUpAfterDays(7)}
                 >
-                  +7d
+                  In 7 days
                 </Button>
               </div>
               <Button
@@ -254,7 +262,7 @@ export function JobOverviewCard({
               ) : null}
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </Card>
   );
@@ -281,19 +289,27 @@ export function JobInsightCards({ job, notesCard }: JobInsightCardsProps) {
     >
       <div className={styles.mainStack}>
         <Card className={`${styles.descriptionCard} space-y-2`}>
-          <CardTitle>Description</CardTitle>
+          <CardTitle className={styles.sectionTitle}>Job description</CardTitle>
           {hasDescription ? (
             <div className={styles.descriptionText}>
-              {descriptionParagraphs.map((paragraph, index) => (
-                <p key={`${index}-${paragraph.slice(0, 24)}`}>{paragraph}</p>
-              ))}
+              {descriptionParagraphs.map((paragraph, index) => {
+                const key = `${index}-${paragraph.slice(0, 24)}`;
+                const isHeading =
+                  /^(about (us|the (role|team)|you)|the (role|team)|your (role|responsibilities)|responsibilities|key job responsibilities|requirements|(?:basic |preferred |minimum )?qualifications|benefits|what (you’ll|you'll|you will|we) (do|bring|offer)|compensation)[:\s]*$/i.test(
+                    paragraph,
+                  );
+                return isHeading ? (
+                  <h4 key={key}>{paragraph}</h4>
+                ) : (
+                  <p key={key}>{paragraph}</p>
+                );
+              })}
             </div>
           ) : (
             <div className={styles.descriptionUnavailable}>
               <p className={styles.emptyText}>
-                Description was not available from the scraped source. This
-                usually happens when the source blocks automated page access or
-                only exposes a search-result URL.
+                The full description is not available here. Open the original
+                posting for role details and requirements.
               </p>
               {job.sourceUrl ? (
                 <a
@@ -314,8 +330,10 @@ export function JobInsightCards({ job, notesCard }: JobInsightCardsProps) {
       {hasSidePanels ? (
         <div className={styles.sideStack}>
           {hasSkills || hasBreakdown ? (
-            <Card className="space-y-2">
-              <CardTitle>Skills & Fit</CardTitle>
+            <Card className={styles.sideCard}>
+              <CardTitle className={styles.sectionTitle}>
+                Skills & fit
+              </CardTitle>
               {hasSkills ? (
                 <div className={styles.skillsList}>
                   {job.extractedSkills.map((skill) => (
@@ -337,13 +355,17 @@ export function JobInsightCards({ job, notesCard }: JobInsightCardsProps) {
           ) : null}
 
           {hasStatusHistory ? (
-            <Card className="space-y-2">
-              <CardTitle>Status Timeline</CardTitle>
+            <Card className={styles.sideCard}>
+              <CardTitle className={styles.sectionTitle}>
+                Status history
+              </CardTitle>
               <div className={styles.timeline}>
                 {job.statusHistory.slice(0, 8).map((item) => (
                   <div key={item.id} className={styles.timelineItem}>
                     <p className={styles.timelineStatus}>
-                      {statusLabels[item.status]}
+                      {item.status === "NONE"
+                        ? "No status"
+                        : statusLabels[item.status]}
                     </p>
                     <p className={styles.timelineDate}>
                       {new Date(item.changedAt).toLocaleString()}
@@ -378,8 +400,8 @@ export function JobNotesCard({
   const hasNotes = notes.length > 0;
 
   return (
-    <Card className={`${styles.notesCard} space-y-2`}>
-      <CardTitle>Notes</CardTitle>
+    <Card className={styles.notesCard}>
+      <CardTitle className={styles.sectionTitle}>My notes</CardTitle>
       {hasNotes ? (
         <CardDescription>
           Track application strategy, blockers, and interview prep notes.
