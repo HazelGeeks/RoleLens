@@ -59,7 +59,11 @@ export function JobDetailClient() {
 
   const today = new Date().toISOString().slice(0, 10);
   const isFollowUpOverdue =
-    !!job.followUpDate && job.followUpDate <= today && job.status !== "ARCHIVE";
+    !!job.followUpDate &&
+    job.followUpDate <= today &&
+    job.status !== "ARCHIVE" &&
+    job.status !== "NOT_APPLYING" &&
+    job.status !== "EXPIRED";
 
   const setFollowUpAfterDays = (days: number) => {
     const date = new Date();

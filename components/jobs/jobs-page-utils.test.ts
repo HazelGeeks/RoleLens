@@ -1,3 +1,5 @@
+import { buildDueFollowUps } from "./jobs-page-utils";
+import { calculateDashboardStats } from "@/components/dashboard/dashboard-utils";
 import { describe, expect, it } from "vitest";
 import { buildRows } from "@/components/jobs/jobs-page-utils";
 import type { LocalJobPosting } from "@/lib/local-jobs";
@@ -96,4 +98,27 @@ describe("job posting search", () => {
       buildRows(jobs, { ...searchFilters, q: "react", remoteType: "REMOTE" }),
     ).toEqual([]);
   });
+});
+
+it("filters expired jobs and excludes them from follow-up reminders", () => {
+  const expired = {
+    ...importedJob,
+    status: "EXPIRED" as const,
+    followUpDate: "2000-01-01",
+  };
+  const active = {
+    ...importedJob,
+    id: "active",
+    status: "PLANNED" as const,
+    followUpDate: "2000-01-01",
+  };
+  expect(
+    buildRows([expired, active], { ...searchFilters, status: "EXPIRED" }).map(
+      (job) => job.id,
+    ),
+  ).toEqual([expired.id]);
+  expect(buildDueFollowUps([expired, active]).map((job) => job.id)).toEqual([
+    "active",
+  ]);
+  expect(calculateDashboardStats([expired, active]).dueFollowUps).toBe(1);
 });

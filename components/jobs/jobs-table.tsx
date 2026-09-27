@@ -17,7 +17,8 @@ import { ArrowUpDown, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { statusLabels } from "@/lib/constants";
 import { getJobSourceDisplay } from "@/lib/job-source";
-import type { JobSource } from "@/lib/local-jobs";
+import { JobStatusSelect } from "./job-status-select";
+import type { JobSource, JobStatus } from "@/lib/local-jobs";
 import { formatCurrency, statusBadgeColor } from "@/lib/presentation";
 import { cn } from "@/lib/utils";
 import styles from "./jobs-table.module.css";
@@ -46,6 +47,8 @@ type JobsTableProps = {
   data: JobRow[];
   selectedIds: string[];
   onToggleSelect: (id: string, checked: boolean) => void;
+  onStatusChange: (id: string, status: JobStatus) => Promise<void>;
+  statusDisabled?: boolean;
 };
 
 const ROWS_PER_PAGE = 30;
@@ -72,6 +75,8 @@ export function JobsTable({
   data,
   selectedIds,
   onToggleSelect,
+  onStatusChange,
+  statusDisabled,
 }: JobsTableProps) {
   // TanStack Table v8 uses mutable getters that React Compiler cannot memoize safely.
   // Remove this opt-out when the table adapter supports React Compiler.
@@ -162,11 +167,13 @@ export function JobsTable({
       },
       {
         accessorKey: "status",
-        header: "Status",
+        header: "My status",
         cell: ({ row }) => (
-          <Badge color={statusBadgeColor(row.original.status)}>
-            {statusLabels[row.original.status]}
-          </Badge>
+          <JobStatusSelect
+            job={row.original}
+            onSave={onStatusChange}
+            disabled={statusDisabled}
+          />
         ),
       },
       {
@@ -199,7 +206,10 @@ export function JobsTable({
         cell: ({ row }) => {
           const date = row.original.followUpDate;
           if (!date) return <span className="text-sm text-slate-500">-</span>;
-          const isInactive = row.original.status === "ARCHIVE";
+          const isInactive =
+            row.original.status === "ARCHIVE" ||
+            row.original.status === "NOT_APPLYING" ||
+            row.original.status === "EXPIRED";
           const due = !isInactive && date <= today;
           return (
             <span
@@ -258,7 +268,7 @@ export function JobsTable({
         },
       },
     ],
-    [onToggleSelect, selectedIds, today],
+    [onToggleSelect, selectedIds, today, onStatusChange, statusDisabled],
   );
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -354,7 +364,10 @@ export function JobsTable({
               job.sourceUrl,
             );
             const hasStatus = job.status !== "NONE";
-            const isInactive = job.status === "ARCHIVE";
+            const isInactive =
+              job.status === "ARCHIVE" ||
+              job.status === "NOT_APPLYING" ||
+              job.status === "EXPIRED";
             const due =
               !!job.followUpDate && !isInactive && job.followUpDate <= today;
 
@@ -387,6 +400,12 @@ export function JobsTable({
                     </Badge>
                   ) : null}
                 </div>
+
+                <JobStatusSelect
+                  job={job}
+                  onSave={onStatusChange}
+                  disabled={statusDisabled}
+                />
 
                 <div className={styles.mobileMetaGrid}>
                   {job.location ? (

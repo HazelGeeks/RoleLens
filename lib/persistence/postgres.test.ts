@@ -87,6 +87,8 @@ beforeAll(async () => {
     "20260904233000_auth_recovery_and_job_metadata.sql",
     "20260910000000_resume_profiles.sql",
     "20260910010000_application_documents.sql",
+    "20260926000000_personal_job_statuses.sql",
+    "20260927000000_expired_job_status.sql",
   ]) {
     await postgres.exec(
       await readFile(
@@ -147,6 +149,31 @@ const create = () =>
     },
   });
 describe("Postgres migrations and persistence", () => {
+  it.each([
+    "PLANNED",
+    "ON_HOLD",
+    "NOT_APPLYING",
+    "SUBMITTED",
+    "EXPIRED",
+  ] as const)(
+    "persists personal status %s with history and account isolation",
+    async (status) => {
+      const job = await create();
+      const result = await patchPersistentJob({
+        userId: "account-a",
+        deviceId: "device-a",
+        actor: "account-a",
+        jobId: job.id,
+        operation: { op: "status", expectedVersion: job.version, status },
+      });
+      expect(result.ok).toBe(true);
+      const restored = await getPersistentJob("account-a", job.id);
+      expect(restored?.status).toBe(status);
+      expect(restored?.meta?.statusHistory?.[0].status).toBe(status);
+      expect(await getPersistentJob("account-b", job.id)).toBeUndefined();
+    },
+  );
+
   it("restores all metadata and initial notes from the real SQL store", async () => {
     const job = await create();
     const restored = await getPersistentJob("account-a", job.id);

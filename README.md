@@ -25,9 +25,27 @@ Production is configured for **Cloudflare Workers** through the OpenNext adapter
    - `NEW`
    - `SAVE`
    - `INTEREST`
-   - `SUBMITTED`
+   - `PLANNED` (Plan to apply)
+   - `SUBMITTED` (Applied)
+   - `ON_HOLD` (On hold)
+   - `NOT_APPLYING` (Not applying)
+   - `EXPIRED` (Expired)
    - `ARCHIVE`
 7. Login / Sign-up with server-side session auth (Supabase Postgres in Cloudflare runtime, memory fallback locally)
+
+## Personal job statuses
+
+Change My status directly in the Jobs list or Update Status in a posting's detail.
+Signed-in changes are saved to the account; guest changes stay in this browser.
+Status filters and history include the new statuses. Expired and Not applying
+postings are excluded from due follow-up reminders.
+
+Before deploying, apply these migrations in order after the existing migrations:
+1. `supabase/migrations/20260926000000_personal_job_statuses.sql`
+2. `supabase/migrations/20260927000000_expired_job_status.sql`
+
+They expand the status constraint without changing existing posting data.
+Deployment workflows do not apply database migrations automatically.
 
 ## Resume and Cover Letter builders
 

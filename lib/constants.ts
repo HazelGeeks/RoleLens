@@ -1,5 +1,16 @@
-export const sourceOptions = ["LINKEDIN", "INDEED", "SARAMIN", "JOBKOREA", "MANUAL"] as const;
-export const remoteTypeOptions = ["REMOTE", "HYBRID", "ONSITE", "UNKNOWN"] as const;
+export const sourceOptions = [
+  "LINKEDIN",
+  "INDEED",
+  "SARAMIN",
+  "JOBKOREA",
+  "MANUAL",
+] as const;
+export const remoteTypeOptions = [
+  "REMOTE",
+  "HYBRID",
+  "ONSITE",
+  "UNKNOWN",
+] as const;
 export const employmentTypeOptions = [
   "FULL_TIME",
   "PART_TIME",
@@ -15,7 +26,11 @@ export const statusOptions = [
   "NEW",
   "SAVE",
   "INTEREST",
+  "PLANNED",
   "SUBMITTED",
+  "ON_HOLD",
+  "NOT_APPLYING",
+  "EXPIRED",
   "ARCHIVE",
 ] as const;
 
@@ -24,7 +39,11 @@ export const statusLabels: Record<(typeof statusOptions)[number], string> = {
   NEW: "New",
   SAVE: "Save",
   INTEREST: "Interest",
-  SUBMITTED: "Submitted",
+  PLANNED: "Plan to apply",
+  SUBMITTED: "Applied",
+  ON_HOLD: "On hold",
+  NOT_APPLYING: "Not applying",
+  EXPIRED: "Expired",
   ARCHIVE: "Archive",
 };
 
@@ -36,7 +55,10 @@ export const sourceLabels: Record<(typeof sourceOptions)[number], string> = {
   MANUAL: "Manual",
 };
 
-export const remoteTypeLabels: Record<(typeof remoteTypeOptions)[number], string> = {
+export const remoteTypeLabels: Record<
+  (typeof remoteTypeOptions)[number],
+  string
+> = {
   REMOTE: "Remote",
   HYBRID: "Hybrid",
   ONSITE: "On-site",

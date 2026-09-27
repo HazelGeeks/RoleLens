@@ -15,7 +15,11 @@ export function statusBadgeColor(status: keyof typeof statusLabels) {
     NEW: "yellow",
     SAVE: "gray",
     INTEREST: "blue",
+    PLANNED: "cyan",
     SUBMITTED: "indigo",
+    ON_HOLD: "orange",
+    NOT_APPLYING: "gray",
+    EXPIRED: "gray",
     ARCHIVE: "dark",
   };
 

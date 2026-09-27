@@ -27,7 +27,8 @@ export function filterSavedJobs(
     if (!sourceMatched) return false;
 
     if (!keyword) return true;
-    const target = `${job.title} ${job.company} ${job.location ?? ""}`.toLowerCase();
+    const target =
+      `${job.title} ${job.company} ${job.location ?? ""}`.toLowerCase();
     return target.includes(keyword);
   });
 }
@@ -65,7 +66,9 @@ export function calculateDashboardStats(savedJobs: LocalJobPosting[]) {
     if (
       job.followUpDate &&
       job.followUpDate <= today &&
-      job.status !== "ARCHIVE"
+      job.status !== "ARCHIVE" &&
+      job.status !== "NOT_APPLYING" &&
+      job.status !== "EXPIRED"
     ) {
       dueFollowUps += 1;
     }
@@ -82,7 +85,10 @@ export function calculateDashboardStats(savedJobs: LocalJobPosting[]) {
   }));
 
   const avgFitScore = fitScoreCount > 0 ? fitScoreTotal / fitScoreCount : 0;
-  const activePipeline = (statusCounts.INTEREST ?? 0) + (statusCounts.SUBMITTED ?? 0);
+  const activePipeline =
+    (statusCounts.INTEREST ?? 0) +
+    (statusCounts.PLANNED ?? 0) +
+    (statusCounts.SUBMITTED ?? 0);
   const sourceVariety = Object.keys(sourceCounts).length;
 
   return {

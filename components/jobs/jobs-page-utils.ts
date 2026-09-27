@@ -6,7 +6,7 @@ import type { JobSource, JobStatus, RemoteType } from "@/lib/local-jobs";
 export type JobsViewFilter = "ALL" | "RESUME" | "INTERVIEW";
 
 const viewStatusMap: Record<Exclude<JobsViewFilter, "ALL">, JobStatus[]> = {
-  RESUME: ["NONE", "NEW", "SAVE", "INTEREST"],
+  RESUME: ["NONE", "NEW", "SAVE", "INTEREST", "PLANNED", "ON_HOLD"],
   INTERVIEW: ["SUBMITTED"],
 };
 
@@ -163,7 +163,12 @@ export function buildDueFollowUps(jobs: LocalJobPosting[]) {
   const today = new Date().toISOString().slice(0, 10);
   return jobs
     .filter((job) => !!job.followUpDate && job.followUpDate <= today)
-    .filter((job) => job.status !== "ARCHIVE")
+    .filter(
+      (job) =>
+        job.status !== "ARCHIVE" &&
+        job.status !== "NOT_APPLYING" &&
+        job.status !== "EXPIRED",
+    )
     .sort((a, b) => (a.followUpDate || "").localeCompare(b.followUpDate || ""))
     .slice(0, 6);
 }

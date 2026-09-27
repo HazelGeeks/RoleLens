@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card } from "@/components/ui/card";
+import { saveJobStatus } from "@/lib/save-job-status";
 import { JobsTable } from "@/components/jobs/jobs-table";
 import type { JobSource, JobStatus, RemoteType } from "@/lib/local-jobs";
 import { useLiveLocalJobs } from "@/lib/use-live-local-jobs";
@@ -220,6 +221,18 @@ export function JobsPageClient() {
     });
   };
 
+  const changeStatus = useCallback(
+    async (id: string, nextStatus: JobStatus) => {
+      try {
+        await saveJobStatus(id, nextStatus, authStatus === "authenticated");
+      } catch (error) {
+        await refreshJobs();
+        throw error;
+      }
+    },
+    [authStatus, refreshJobs],
+  );
+
   const resetFilters = () => {
     setQ("");
     setStatus("ALL");
@@ -315,6 +328,8 @@ export function JobsPageClient() {
             data={rows}
             selectedIds={compareIds}
             onToggleSelect={toggleCompare}
+            onStatusChange={changeStatus}
+            statusDisabled={authStatus === "loading"}
           />
         </Card>
       ) : null}
