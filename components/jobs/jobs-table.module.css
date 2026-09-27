@@ -115,10 +115,6 @@
   white-space: nowrap;
 }
 
-.mobileDue strong {
-  color: #b45309;
-}
-
 .mobileSkills {
   display: flex;
   flex-wrap: wrap;
@@ -195,4 +191,14 @@
   .paginationBar {
     display: flex;
   }
+}
+
+.table {
+  min-width: 1100px;
+  table-layout: auto;
+}
+
+.sourceColumn {
+  width: 1%;
+  white-space: nowrap;
 }

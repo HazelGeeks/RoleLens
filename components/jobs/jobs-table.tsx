@@ -20,7 +20,6 @@ import { getJobSourceDisplay } from "@/lib/job-source";
 import { JobStatusSelect } from "./job-status-select";
 import type { JobSource, JobStatus } from "@/lib/local-jobs";
 import { formatCurrency, statusBadgeColor } from "@/lib/presentation";
-import { cn } from "@/lib/utils";
 import styles from "./jobs-table.module.css";
 
 export type JobRow = {
@@ -81,8 +80,6 @@ export function JobsTable({
   // TanStack Table v8 uses mutable getters that React Compiler cannot memoize safely.
   // Remove this opt-out when the table adapter supports React Compiler.
   "use no memo";
-
-  const today = new Date().toISOString().slice(0, 10);
 
   const columns = React.useMemo<ColumnDef<JobRow>[]>(
     () => [
@@ -157,15 +154,6 @@ export function JobsTable({
         },
       },
       {
-        accessorKey: "location",
-        header: "Location",
-        cell: ({ row }) => (
-          <span className="text-sm text-slate-600 dark:text-slate-300">
-            {row.original.location || "-"}
-          </span>
-        ),
-      },
-      {
         accessorKey: "status",
         header: "My status",
         cell: ({ row }) => (
@@ -199,31 +187,6 @@ export function JobsTable({
         cell: ({ row }) => (
           <span className="font-semibold">{row.original.fitScore ?? "-"}</span>
         ),
-      },
-      {
-        accessorKey: "followUpDate",
-        header: "Follow-up",
-        cell: ({ row }) => {
-          const date = row.original.followUpDate;
-          if (!date) return <span className="text-sm text-slate-500">-</span>;
-          const isInactive =
-            row.original.status === "ARCHIVE" ||
-            row.original.status === "NOT_APPLYING" ||
-            row.original.status === "EXPIRED";
-          const due = !isInactive && date <= today;
-          return (
-            <span
-              className={cn(
-                "text-sm",
-                due
-                  ? "font-semibold text-amber-700 dark:text-amber-300"
-                  : "text-slate-600 dark:text-slate-300",
-              )}
-            >
-              {date}
-            </span>
-          );
-        },
       },
       {
         accessorKey: "salaryMin",
@@ -268,7 +231,7 @@ export function JobsTable({
         },
       },
     ],
-    [onToggleSelect, selectedIds, today, onStatusChange, statusDisabled],
+    [onToggleSelect, selectedIds, onStatusChange, statusDisabled],
   );
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -364,12 +327,6 @@ export function JobsTable({
               job.sourceUrl,
             );
             const hasStatus = job.status !== "NONE";
-            const isInactive =
-              job.status === "ARCHIVE" ||
-              job.status === "NOT_APPLYING" ||
-              job.status === "EXPIRED";
-            const due =
-              !!job.followUpDate && !isInactive && job.followUpDate <= today;
 
             return (
               <article key={job.id} className={styles.mobileCard}>
@@ -408,12 +365,6 @@ export function JobsTable({
                 />
 
                 <div className={styles.mobileMetaGrid}>
-                  {job.location ? (
-                    <div className={styles.mobileMetaItem}>
-                      <span>Location</span>
-                      <strong>{job.location}</strong>
-                    </div>
-                  ) : null}
                   <div className={styles.mobileMetaItem}>
                     <span>Fit</span>
                     <strong>{job.fitScore ?? "-"}</strong>
@@ -439,14 +390,6 @@ export function JobsTable({
                       )}
                     </strong>
                   </div>
-                  {job.followUpDate ? (
-                    <div
-                      className={`${styles.mobileMetaItem} ${due ? styles.mobileDue : ""}`}
-                    >
-                      <span>Follow-up</span>
-                      <strong>{job.followUpDate}</strong>
-                    </div>
-                  ) : null}
                   {salary ? (
                     <div className={styles.mobileMetaItem}>
                       <span>Salary</span>
@@ -512,13 +455,20 @@ export function JobsTable({
           withTableBorder
           withColumnBorders={false}
           verticalSpacing="xs"
-          className="min-w-[1460px]"
+          className={styles.table}
         >
           <Table.Thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <Table.Tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <Table.Th key={header.id}>
+                  <Table.Th
+                    key={header.id}
+                    className={
+                      header.column.id === "source"
+                        ? styles.sourceColumn
+                        : undefined
+                    }
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -543,7 +493,15 @@ export function JobsTable({
               table.getRowModel().rows.map((row) => (
                 <Table.Tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <Table.Td key={cell.id} style={{ verticalAlign: "top" }}>
+                    <Table.Td
+                      key={cell.id}
+                      className={
+                        cell.column.id === "source"
+                          ? styles.sourceColumn
+                          : undefined
+                      }
+                      style={{ verticalAlign: "top" }}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),
