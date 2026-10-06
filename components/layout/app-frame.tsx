@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BrandMark } from "@/components/ui/brand-mark";
 import styles from "./app-frame.module.css";
 
 const navigationItems = [
@@ -83,11 +84,14 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
               onClick={closeMobileMenu}
             >
               <span className={styles.fullBrand}>
-                <span className={styles.eyebrow}>Career Ops</span>
-                <span className={styles.brandTitle}>RoleLens</span>
+                <BrandMark size={34} />
+                <span>
+                  <span className={styles.brandTitle}>RoleLens</span>
+                  <span className={styles.eyebrow}>Your career workspace</span>
+                </span>
               </span>
               <span className={styles.compactBrand} aria-hidden="true">
-                RL
+                <BrandMark size={34} />
               </span>
             </Link>
             <div className={styles.brandActions}>

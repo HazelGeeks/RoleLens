@@ -438,7 +438,7 @@
   }
 
   .filtersGrid {
-    grid-template-columns: 1.3fr repeat(5, minmax(116px, 0.72fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: end;
   }
 
@@ -457,5 +457,11 @@
   .filtersBody,
   .filtersToggleButton {
     transition: none;
+  }
+}
+
+@media (min-width: 1440px) {
+  .filtersGrid {
+    grid-template-columns: 1.3fr repeat(5, minmax(0, 0.72fr));
   }
 }

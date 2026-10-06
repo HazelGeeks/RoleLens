@@ -7,6 +7,8 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { BrandMark } from "@/components/ui/brand-mark";
+import styles from "./auth-form-card.module.css";
 
 type AuthFormCardProps = {
   mode: "login" | "signup";
@@ -27,8 +29,8 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
   const submitLabel = isLogin ? "Login" : "Create account";
   const pageTitle = isLogin ? "Login" : "Sign up";
   const pageDescription = isLogin
-    ? "Sign in to keep dashboard analytics tied to your own account context."
-    : "Create your account. RoleLens stores account credentials securely on the server.";
+    ? "Pick up where you left off. Your next opportunity is waiting."
+    : "Bring your experience and applications together in your own workspace.";
 
   const alternateCta = useMemo(
     () =>
@@ -105,13 +107,14 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-md space-y-4">
-      <header>
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <BrandMark size={44} />
         <h2 className="text-2xl font-semibold">{pageTitle}</h2>
         <p className="text-sm text-slate-500">{pageDescription}</p>
       </header>
 
-      <Card>
+      <Card className={styles.formCard}>
         <CardTitle>{submitLabel}</CardTitle>
         {passwordReset ? (
           <p
@@ -147,6 +150,7 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
               id="auth-email"
               name="email"
               type="email"
+              placeholder="you@example.com"
               autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -167,7 +171,13 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
               onChange={(event) => setPassword(event.target.value)}
               required
               minLength={8}
+              aria-describedby={!isLogin ? "password-hint" : undefined}
             />
+            {!isLogin ? (
+              <p id="password-hint" className="text-xs text-slate-500">
+                Use at least 8 characters.
+              </p>
+            ) : null}
             {isLogin ? (
               <p className="text-right text-xs">
                 <Link

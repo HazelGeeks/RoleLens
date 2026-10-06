@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
-  CalendarCheck,
   CheckCircle2,
   ClipboardList,
   FileText,
@@ -11,10 +10,9 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { BrandMark } from "@/components/ui/brand-mark";
+import { ThemeToggle } from "@/components/theme-toggle";
 import styles from "./landing-page.module.css";
-
-const demoHref =
-  "mailto:hello@rolelens.app?subject=RoleLens%20demo%20request&body=Hi%20RoleLens%20team%2C%0A%0AI%27d%20like%20to%20book%20a%20demo.";
 
 const capabilities = [
   {
@@ -30,16 +28,16 @@ const capabilities = [
 ];
 
 const workflowSteps = [
-  "Sign up or book a demo",
+  "Bring your experience together",
   "Import and save target roles",
-  "Build your one-page resume",
+  "Apply with a tailored resume",
 ];
 
 const faqs = [
   {
-    question: "Can visitors browse the live job feed?",
+    question: "What can I do with RoleLens?",
     answer:
-      "No. The product workspace is account gated, so live data stays behind login or signup.",
+      "Build a resume, discover and save roles, and track your applications from one workspace. Create an account to get started.",
   },
   {
     question: "What happens after signup?",
@@ -47,19 +45,22 @@ const faqs = [
       "You can build your resume, save jobs, and track your applications.",
   },
   {
-    question: "How do demos work?",
+    question: "Can I keep track of application progress?",
     answer:
-      "Book a demo from the landing page and we will walk through the workflow before your team adopts it.",
+      "Yes. Save the roles that interest you, update their application status, and use your dashboard to see your pipeline.",
   },
 ];
 
 export function LandingPage() {
   return (
-    <main className={styles.page}>
+    <main id="main-content" className={styles.page}>
+      <a href="#landing-title" className={styles.skipLink}>
+        Skip to content
+      </a>
       <header className={styles.navbar}>
         <div className={styles.navbarInner}>
           <Link href="/" className={styles.brand} aria-label="RoleLens home">
-            <span className={styles.brandMark}>R</span>
+            <BrandMark size={34} />
             <span>RoleLens</span>
           </Link>
           <nav className={styles.navLinks} aria-label="Landing navigation">
@@ -71,10 +72,7 @@ export function LandingPage() {
             <Link href="/login" className={styles.textButton}>
               Login
             </Link>
-            <a href={demoHref} className={styles.secondaryButton}>
-              <CalendarCheck size={16} />
-              Book a Demo
-            </a>
+            <ThemeToggle />
             <Link href="/signup" className={styles.primaryButton}>
               Sign up
             </Link>
@@ -84,34 +82,40 @@ export function LandingPage() {
 
       <section className={styles.hero} aria-labelledby="landing-title">
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>Private career ops workspace</p>
-          <h1 id="landing-title">RoleLens</h1>
+          <p className={styles.eyebrow}>
+            A little clarity for your next chapter
+          </p>
+          <h1 id="landing-title" tabIndex={-1}>
+            Your next role.
+            <br />
+            <span>A clearer path.</span>
+          </h1>
           <p className={styles.heroLead}>
             Keep your experience, career history, and education together. Build
             a concise resume and track the roles you want to apply for.
           </p>
           <div className={styles.heroActions}>
             <Link href="/signup" className={styles.primaryButtonLarge}>
-              Start with Sign up
+              Create your workspace
               <ArrowRight size={18} />
             </Link>
-            <a href={demoHref} className={styles.secondaryButtonLarge}>
-              <CalendarCheck size={18} />
-              Book a Demo
+            <a href="#workflow" className={styles.secondaryButtonLarge}>
+              See how it works
+              <ArrowRight size={18} />
             </a>
           </div>
-          <div className={styles.trustRow} aria-label="Access model">
+          <div className={styles.trustRow} aria-label="Workspace features">
             <span>
               <LockKeyhole size={15} />
-              Account gated
+              Your own workspace
             </span>
             <span>
               <ShieldCheck size={15} />
-              Shared state after login
+              Application tracking
             </span>
             <span>
               <Sparkles size={15} />
-              Guided workflow
+              Resume builder
             </span>
           </div>
         </div>
@@ -125,7 +129,7 @@ export function LandingPage() {
               <p>Application Match</p>
               <strong>Frontend Product Engineer</strong>
             </div>
-            <span>Private preview</span>
+            <span>Example workspace</span>
           </div>
           <div className={styles.previewGrid}>
             <aside className={styles.scorePanel}>
@@ -133,7 +137,9 @@ export function LandingPage() {
                 <span>82%</span>
               </div>
               <p>Role fit</p>
-              <button type="button">Build Resume</button>
+              <Link href="/signup" className={styles.previewCta}>
+                Build your resume
+              </Link>
             </aside>
             <section className={styles.matchPanel}>
               <div className={styles.tabs} aria-hidden="true">
@@ -175,22 +181,22 @@ export function LandingPage() {
           <span>for your resume and saved roles</span>
         </div>
         <div>
-          <strong>Zero public feed</strong>
-          <span>on first page load for signed-out visitors</span>
+          <strong>A clearer pipeline</strong>
+          <span>see where every application stands</span>
         </div>
         <div>
-          <strong>Two entry paths</strong>
-          <span>self-serve signup or guided demo</span>
+          <strong>Ready to apply</strong>
+          <span>turn your experience into a focused resume</span>
         </div>
       </section>
 
       <section id="platform" className={styles.capabilities}>
         <div className={styles.sectionHeader}>
           <p className={styles.eyebrow}>Platform</p>
-          <h2>Move the live product behind a proper front door.</h2>
+          <h2>Everything you need for your next move.</h2>
           <p>
-            The landing page introduces the product, while the actual workspace
-            remains reserved for people who create an account or request a demo.
+            Keep the details organized so you can spend your time on the
+            opportunities that matter.
           </p>
         </div>
         <div className={styles.capabilityGrid}>
@@ -218,21 +224,15 @@ export function LandingPage() {
         </div>
         <div className={styles.workflowCopy}>
           <p className={styles.eyebrow}>Workflow</p>
-          <h2>
-            Let visitors choose the right path before they touch product data.
-          </h2>
+          <h2>Less juggling. More momentum.</h2>
           <p>
-            New users can create an account, teams can request a demo, and the
-            app routes stay protected until a session is active.
+            Start with your experience, shortlist the roles that fit, and build
+            a resume you can take into your next application.
           </p>
           <div className={styles.workflowActions}>
             <Link href="/signup" className={styles.primaryButton}>
               Sign up
             </Link>
-            <a href={demoHref} className={styles.secondaryButton}>
-              <CalendarCheck size={16} />
-              Book a Demo
-            </a>
           </div>
         </div>
       </section>
@@ -244,10 +244,10 @@ export function LandingPage() {
         <article>
           <div>
             <p className={styles.eyebrow}>Job search</p>
-            <h2>Open with positioning, not raw data.</h2>
+            <h2>Know what deserves your attention.</h2>
             <p>
-              Signed-out visitors see a focused product story. Signed-in users
-              can move into jobs, detail pages, and dashboard analytics.
+              See your saved roles and application progress together. Keep your
+              career history close when it is time to prepare your next resume.
             </p>
           </div>
           <div className={styles.miniDashboard}>
@@ -272,11 +272,10 @@ export function LandingPage() {
 
       <section className={styles.demoPanel} aria-labelledby="demo-title">
         <div>
-          <p className={styles.eyebrow}>Access</p>
-          <h2 id="demo-title">Start with signup or a guided demo.</h2>
+          <p className={styles.eyebrow}>Your next chapter</p>
+          <h2 id="demo-title">Give your job search a little clarity.</h2>
           <p>
-            Product routes now have a clear gate, so the first page can behave
-            like a real SaaS front door.
+            One place for your experience, your shortlist, and your next step.
           </p>
         </div>
         <div className={styles.demoActions}>
@@ -284,17 +283,16 @@ export function LandingPage() {
             Sign up
             <ArrowRight size={18} />
           </Link>
-          <a href={demoHref} className={styles.secondaryButtonLarge}>
-            <CalendarCheck size={18} />
-            Book a Demo
-          </a>
+          <Link href="/login" className={styles.secondaryButtonLarge}>
+            Login
+          </Link>
         </div>
       </section>
 
       <section id="faq" className={styles.faq}>
         <div className={styles.sectionHeader}>
           <p className={styles.eyebrow}>FAQ</p>
-          <h2>Common access questions</h2>
+          <h2>A few things to know</h2>
         </div>
         <div className={styles.faqList}>
           {faqs.map((item) => (
@@ -311,7 +309,7 @@ export function LandingPage() {
         <div>
           <Link href="/login">Login</Link>
           <Link href="/signup">Sign up</Link>
-          <a href={demoHref}>Book a Demo</a>
+          <a href="#workflow">How it works</a>
         </div>
       </footer>
     </main>

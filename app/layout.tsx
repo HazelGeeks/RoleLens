@@ -23,10 +23,15 @@ const appMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "RoleLens",
-  description: "Track, analyze, and manage frontend job postings",
+  description:
+    "Bring your experience, resume, and job applications into one clear workspace.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
+    ],
     shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -37,9 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${appSans.variable} ${appMono.variable}`}
-      >
+      <body className={`${appSans.variable} ${appMono.variable}`}>
         <ThemeProvider>
           <MantineThemeProvider>
             <AuthProvider>

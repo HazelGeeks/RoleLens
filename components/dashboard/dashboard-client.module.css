@@ -2,7 +2,7 @@
   container-name: dashboard;
   container-type: inline-size;
   display: grid;
-  gap: 12px;
+  gap: 20px;
   min-width: 0;
 }
 
@@ -14,7 +14,7 @@
 .dashboard :global(.rolelens-card) {
   min-width: 0;
   /* Mantine Paper sets its spacing prop inline. Keep this override local. */
-  padding: 12px !important;
+  padding: 20px !important;
 }
 
 .dashboard h3 {
@@ -28,7 +28,7 @@
 }
 
 .header h2 {
-  font-size: 22px;
+  font-size: 28px;
   line-height: 1.3;
 }
 
