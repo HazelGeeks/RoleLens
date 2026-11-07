@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "@mantine/core/styles.css";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -7,18 +7,20 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { MantineThemeProvider } from "@/components/providers/mantine-theme-provider";
 import { AppFrame } from "@/components/layout/app-frame";
 
-const appSans = Plus_Jakarta_Sans({
+const appSans = localFont({
+  src: "./fonts/PlusJakartaSans.woff2",
+  weight: "200 800",
   variable: "--font-app-sans",
-  subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700", "800"],
 });
 
-const appMono = JetBrains_Mono({
+const appMono = localFont({
+  src: "./fonts/JetBrainsMono.woff2",
+  weight: "100 800",
   variable: "--font-app-mono",
-  subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  adjustFontFallback: false,
+  fallback: ["monospace"],
 });
 
 export const metadata: Metadata = {
