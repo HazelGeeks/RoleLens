@@ -2,9 +2,12 @@ import { z } from "zod";
 import { coverLetterSchema } from "@/lib/cover-letter/profile";
 import { resumeProfileSchema } from "@/lib/resume/profile";
 
-export const MAX_DOCUMENTS = 5;
 export const documentKindSchema = z.enum(["resume", "cover-letter"]);
 export type DocumentKind = z.infer<typeof documentKindSchema>;
+export const DOCUMENT_LIMITS = {
+  resume: 20,
+  "cover-letter": 5,
+} as const satisfies Record<DocumentKind, number>;
 const identity = {
   id: z
     .string()
@@ -50,7 +53,14 @@ export const documentDeleteSchema = z
   .object({ ...identity, version: z.number().int().min(1) })
   .strict();
 export const documentsResponseSchema = z.object({
-  documents: z.array(savedDocumentSchema).max(MAX_DOCUMENTS).optional(),
+  documents: z
+    .union([
+      z.array(savedDocumentSchema.options[0]).max(DOCUMENT_LIMITS.resume),
+      z
+        .array(savedDocumentSchema.options[1])
+        .max(DOCUMENT_LIMITS["cover-letter"]),
+    ])
+    .optional(),
   document: savedDocumentSchema.optional(),
   deleted: z.boolean().optional(),
   message: z.string().optional(),

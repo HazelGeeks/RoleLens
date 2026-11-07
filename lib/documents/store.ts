@@ -1,6 +1,6 @@
 import { getDatabaseFromContext } from "@/lib/database";
 import {
-  MAX_DOCUMENTS,
+  DOCUMENT_LIMITS,
   savedDocumentSchema,
   type DocumentKind,
   type DocumentSave,
@@ -9,7 +9,14 @@ import {
 
 const accounts = new Map<string, SavedDocument[]>();
 export class DocumentConflictError extends Error {}
-export class DocumentLimitError extends Error {}
+export class DocumentLimitError extends Error {
+  constructor(kind: DocumentKind) {
+    const label = kind === "resume" ? "resumes" : "cover letters";
+    super(
+      `You can save up to ${DOCUMENT_LIMITS[kind]} ${label}. Delete one to make room.`,
+    );
+  }
+}
 async function database() {
   const configured = process.env.PERSISTENCE_BACKEND?.trim().toLowerCase();
   if (configured && !["memory", "postgres"].includes(configured))
@@ -79,9 +86,10 @@ export async function saveDocument(
       throw new DocumentConflictError();
     if (
       index < 0 &&
-      documents.filter((doc) => doc.kind === input.kind).length >= MAX_DOCUMENTS
+      documents.filter((doc) => doc.kind === input.kind).length >=
+        DOCUMENT_LIMITS[input.kind]
     )
-      throw new DocumentLimitError();
+      throw new DocumentLimitError(input.kind);
     if (index < 0) documents.push(structuredClone(saved));
     else documents[index] = structuredClone(saved);
     accounts.set(userId, documents);
@@ -108,7 +116,7 @@ export async function saveDocument(
   }
   // A unique, bounded slot enforces the limit even for simultaneous creates.
   // Retry other slots after conflicts; never rely on a racy count-then-insert.
-  for (let slot = 1; slot <= MAX_DOCUMENTS; slot += 1) {
+  for (let slot = 1; slot <= DOCUMENT_LIMITS[input.kind]; slot += 1) {
     const row = await db
       .prepare(
         `INSERT INTO application_documents (user_id, kind, id, slot, title, data_json, version, updated_at)
@@ -133,7 +141,7 @@ export async function saveDocument(
     .bind(userId, input.kind, input.id)
     .first();
   if (existing) throw new DocumentConflictError();
-  throw new DocumentLimitError();
+  throw new DocumentLimitError(input.kind);
 }
 export async function deleteDocument(
   userId: string,

@@ -54,34 +54,37 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 
-it("saves five independent letters and five resumes, then rejects the sixth of each", async () => {
-  for (let i = 0; i < 5; i++) {
-    expect((await PUT(request("PUT", letter(`letter-${i}`)))).status).toBe(200);
+it("saves 20 resumes and 5 cover letters independently and rejects extra documents", async () => {
+  const resume = (id: string) => ({
+    id,
+    title: `Resume ${id}`,
+    version: 0,
+    kind: "resume",
+    data: emptyResumeProfile(),
+  });
+  for (const [makeDocument, limit, label] of [
+    [letter, 5, "cover letters"],
+    [resume, 20, "resumes"],
+  ] as const) {
+    for (let i = 0; i < limit; i++) {
+      expect((await PUT(request("PUT", makeDocument(String(i))))).status).toBe(
+        200,
+      );
+    }
+    const extra = makeDocument("extra");
+    const rejected = await PUT(request("PUT", extra));
+    expect(rejected.status).toBe(409);
     expect(
-      (
-        await PUT(
-          request("PUT", {
-            ...letter(`resume-${i}`),
-            kind: "resume",
-            data: emptyResumeProfile(),
-          }),
-        )
-      ).status,
-    ).toBe(200);
+      documentsResponseSchema.parse(await rejected.json()).message,
+    ).toContain(`${limit} ${label}`);
+    const response = await GET(request("GET", undefined, "a", extra.kind));
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(
+      documentsResponseSchema.parse(await response.json()).documents,
+    ).toHaveLength(limit);
   }
-  for (const input of [
-    letter("sixth"),
-    { ...letter("sixth"), kind: "resume", data: emptyResumeProfile() },
-  ]) {
-    expect((await PUT(request("PUT", input))).status).toBe(409);
-  }
-  const response = await GET(request());
-  expect(response.headers.get("cache-control")).toBe("no-store");
-  expect(
-    documentsResponseSchema.parse(await response.json()).documents,
-  ).toHaveLength(5);
   const updated = {
-    ...letter("letter-0"),
+    ...letter("0"),
     title: "Acme application",
     version: 1,
   };
@@ -90,14 +93,14 @@ it("saves five independent letters and five resumes, then rejects the sixth of e
   expect(
     (
       await DELETE(
-        request("DELETE", { id: "letter-0", kind: "cover-letter", version: 1 }),
+        request("DELETE", { id: "0", kind: "cover-letter", version: 1 }),
       )
     ).status,
   ).toBe(409);
   expect(
     (
       await DELETE(
-        request("DELETE", { id: "letter-0", kind: "cover-letter", version: 2 }),
+        request("DELETE", { id: "0", kind: "cover-letter", version: 2 }),
       )
     ).status,
   ).toBe(200);

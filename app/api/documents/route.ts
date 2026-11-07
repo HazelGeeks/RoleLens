@@ -73,13 +73,7 @@ async function handle(request: Request) {
         409,
       );
     if (error instanceof DocumentLimitError)
-      return json(
-        {
-          message:
-            "You can save up to 5 of each document type. Delete an existing document to make room.",
-        },
-        409,
-      );
+      return json({ message: error.message }, 409);
     return json(
       { message: "Your documents could not be loaded or saved. Please retry." },
       503,

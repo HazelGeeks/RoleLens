@@ -132,6 +132,41 @@ it("creates entries, updates preview, saves and reloads details", async () => {
     "Frontend Engineer",
   );
 });
+it("allows a twentieth resume and disables new drafts and copies once it is saved", async () => {
+  const documents = Array.from({ length: 19 }, (_, index) => ({
+    id: `resume-${index}`,
+    kind: "resume",
+    title: `Resume ${index}`,
+    version: 1,
+    updatedAt: "2026-11-06",
+    data: emptyResumeProfile(),
+  }));
+  fetchMock.mockResolvedValueOnce(Response.json({ documents }));
+  mount();
+  await screen.findByLabelText("Saved resumes (19/20)");
+  const duplicate = screen.getByRole("button", {
+    name: "Duplicate",
+  }) as HTMLButtonElement;
+  const newResume = screen.getByRole("button", {
+    name: "New resume",
+  }) as HTMLButtonElement;
+  expect(newResume.disabled).toBe(false);
+  fireEvent.click(duplicate);
+  fetchMock.mockImplementationOnce(async (_url, options) =>
+    Response.json({
+      document: {
+        ...JSON.parse(options.body),
+        version: 1,
+        updatedAt: "2026-11-06",
+      },
+    }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save resume" }));
+  await screen.findByLabelText("Saved resumes (20/20)");
+  expect(newResume.disabled).toBe(true);
+  expect(duplicate.disabled).toBe(true);
+});
+
 it("keeps input after failed save and allows retry", async () => {
   mount();
   await screen.findByText("Add your details, then save your document.");

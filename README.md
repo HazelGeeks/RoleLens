@@ -41,6 +41,7 @@ Status filters and history include the new statuses. Expired and Not applying
 postings are excluded from due follow-up reminders.
 
 Before deploying, apply these migrations in order after the existing migrations:
+
 1. `supabase/migrations/20260926000000_personal_job_statuses.sql`
 2. `supabase/migrations/20260927000000_expired_job_status.sql`
 
@@ -51,13 +52,13 @@ Deployment workflows do not apply database migrations automatically.
 
 - `/resume` edits structured profile data and generates a basic A4 one-page preview.
 - `/cover-letter` edits sender, recipient, application details and letter text with an A4 one-page preview.
-- Save up to **5 resumes and 5 cover letters per account**. Give each version a name, create a blank document, duplicate an existing draft, switch documents, or delete one to free a slot. Document names are for organization and are not printed.
+- Save up to **20 resumes and 5 cover letters per account**. Give each version a name, create a blank document, duplicate an existing draft, switch documents, or delete one to free a slot. Document names are for organization and are not printed.
 - `GET /api/documents?kind=resume|cover-letter` lists documents; `PUT/DELETE /api/documents` saves or deletes by ID and expected version. Production uses Postgres; local memory storage is lost on server restart. The original `/api/resume` endpoint remains compatible with the migrated primary resume.
-- Database slot constraints enforce each five-document limit even under concurrent requests. Every operation is scoped to the authenticated account.
+- Database slot constraints enforce each document type’s limit even under concurrent requests. Every operation is scoped to the authenticated account.
 - Saves are explicit. Unsaved changes remain in the editor on failures; concurrent changes are rejected with a version conflict.
 - Print / Save PDF uses the browser print dialog. Use A4, 100% scale, no margins, and disable browser headers/footers. Printing is disabled when content exceeds one page; shorten highlights without losing the ability to save the full profile.
 - The final resume template is pending. Profile data is stored separately from the presentation.
-- Apply `supabase/migrations/20260910000000_resume_profiles.sql`, then `supabase/migrations/20260910010000_application_documents.sql` after the existing migrations before deploying. The second migration copies existing resumes, preserving their versions; the old table remains available for recovery. Deploy scripts do not apply migrations.
+- Apply `supabase/migrations/20260910000000_resume_profiles.sql`, then `supabase/migrations/20260910010000_application_documents.sql` after the existing migrations before deploying. The second migration copies existing resumes, preserving their versions; the old table remains available for recovery. Apply `supabase/migrations/20261106000000_raise_resume_limit.sql` before deploying the 20-resume limit. Deploy scripts do not apply migrations.
 - Goal and Interview functionality and APIs are retired. Old page URLs redirect to Resume. Existing goal tables and browser interview drafts are retained for recovery; no destructive migration is included.
 - Older resume text drafts remain in browser storage and appear read-only under Previous resume draft for manual copying.
 

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  MAX_DOCUMENTS,
+  DOCUMENT_LIMITS,
   documentsResponseSchema,
   documentSaveSchema,
   type DocumentKind,
@@ -352,7 +352,8 @@ export function DocumentWorkspace<T>({
       if (active.current) setBusy(false);
     }
   }
-  const full = documents.length >= MAX_DOCUMENTS;
+  const limit = DOCUMENT_LIMITS[kind];
+  const full = documents.length >= limit;
   return (
     <div className={styles.workspace}>
       <header className={styles.toolbar}>
@@ -396,7 +397,7 @@ export function DocumentWorkspace<T>({
         <legend className={styles.srOnly}>Saved documents</legend>
         <label htmlFor="saved-document">
           Saved {kind === "resume" ? "resumes" : "cover letters"} (
-          {documents.length}/{MAX_DOCUMENTS})
+          {documents.length}/{limit})
           <select
             id="saved-document"
             value={version ? id : "draft"}
@@ -436,8 +437,8 @@ export function DocumentWorkspace<T>({
         </div>
         {full && (
           <p className={styles.hint}>
-            All 5 slots are used. You can edit these documents, or delete one to
-            create another.
+            All {limit} slots are used. You can edit these documents, or delete
+            one to create another.
           </p>
         )}
       </fieldset>

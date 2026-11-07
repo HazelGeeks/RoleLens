@@ -89,6 +89,7 @@ beforeAll(async () => {
     "20260910010000_application_documents.sql",
     "20260926000000_personal_job_statuses.sql",
     "20260927000000_expired_job_status.sql",
+    "20261106000000_raise_resume_limit.sql",
   ]) {
     await postgres.exec(
       await readFile(
@@ -373,7 +374,7 @@ it("persists resume profiles in Postgres with atomic version checks and account 
   expect((await getResume(userId))?.version).toBe(2);
 });
 
-it("limits simultaneous document creates to five per kind and frees deleted slots", async () => {
+it("enforces independent resume and cover letter limits on concurrent creates and frees deleted slots", async () => {
   const signup = await signUpAuth({
     name: "Documents",
     email: "documents@example.com",
@@ -420,8 +421,31 @@ it("limits simultaneous document creates to five per kind and frees deleted slot
     await deleteDocument(userId, first.kind, first.id, stillPresent.version);
   await saveDocument(userId, { ...inputs[0], id: "replacement" });
   expect(await listDocuments(userId, "cover-letter")).toHaveLength(5);
-  await saveResume(userId, emptyResumeProfile(), 0);
-  expect(await listDocuments(userId, "resume")).toHaveLength(1);
+  const resumes = Array.from({ length: 21 }, (_, index) => ({
+    id: `resume-${index}`,
+    kind: "resume" as const,
+    title: `Resume ${index}`,
+    version: 0,
+    data: emptyResumeProfile(),
+  }));
+  const resumeResults = await Promise.allSettled(
+    resumes.map((resume) => saveDocument(userId, resume)),
+  );
+  expect(
+    resumeResults.filter((result) => result.status === "rejected"),
+  ).toEqual([{ status: "rejected", reason: expect.any(DocumentLimitError) }]);
+  expect(await listDocuments(userId, "resume")).toHaveLength(20);
+  for (const [kind, invalidSlot] of [
+    ["resume", 21],
+    ["cover-letter", 6],
+  ] as const) {
+    await expect(
+      postgres.query(
+        "UPDATE application_documents SET slot = $1 WHERE user_id = $2 AND kind = $3 AND slot = 1",
+        [invalidSlot, userId, kind],
+      ),
+    ).rejects.toMatchObject({ code: "23514" });
+  }
 });
 
 it("migrates existing resumes without losing details or overwriting newer edits on rerun", async () => {
